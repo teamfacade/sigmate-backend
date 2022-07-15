@@ -16,8 +16,8 @@ export type UserAuthInstanceAttributes = Required<UserAuthCreationAttributes>;
 
 @Table
 export default class UserAuth extends Model<
-  UserAuthCreationAttributes,
-  UserAuthInstanceAttributes
+  UserAuthInstanceAttributes,
+  UserAuthCreationAttributes
 > {
   public readonly userId!: UserIdType;
   public sigmateAccessToken!: string;
@@ -46,6 +46,9 @@ export function initUserAuth(sequelize: Sequelize) {
       },
       sigmateRefreshTokenExpiresAt: {
         type: DataType.DATE,
+      },
+      googleAccessToken: {
+        type: DataType.STRING(512),
       },
       googleRefreshToken: {
         type: DataType.STRING(255),

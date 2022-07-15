@@ -3,6 +3,10 @@ import User, { associateUser, initUser } from './User';
 import AdminUser, { associateAdminUser, initAdminUser } from './AdminUser';
 import UserAuth, { associateUserAuth, initUserAuth } from './UserAuth';
 import UserGroup, { associateUserGroup, initUserGroup } from './UserGroup';
+import UserProfile, {
+  associateUserProfile,
+  initUserProfile,
+} from './UserProfile';
 import { getNodeEnv } from '../config';
 import dbConfig from '../config/dbConfig';
 
@@ -38,6 +42,7 @@ export type DatabaseObject = {
   AdminUser: typeof AdminUser;
   UserAuth: typeof UserAuth;
   UserGroup: typeof UserGroup;
+  UserProfile: typeof UserProfile;
 };
 
 // Init and associate models
@@ -45,13 +50,14 @@ export const initDatabase = (): DatabaseObject => {
   const sequelize = connectDatabase();
 
   // Add models
-  sequelize.addModels([User, AdminUser, UserAuth, UserGroup]);
+  sequelize.addModels([User, AdminUser, UserAuth, UserGroup, UserProfile]);
 
   // Init Models
   initUser(sequelize);
   initAdminUser(sequelize);
   initUserAuth(sequelize);
   initUserGroup(sequelize);
+  initUserProfile(sequelize);
 
   const db = {
     sequelize,
@@ -59,6 +65,7 @@ export const initDatabase = (): DatabaseObject => {
     AdminUser,
     UserAuth,
     UserGroup,
+    UserProfile,
   };
 
   // Associate models
@@ -66,6 +73,7 @@ export const initDatabase = (): DatabaseObject => {
   associateUserAuth(db);
   associateAdminUser(db);
   associateUserGroup(db);
+  associateUserProfile(db);
 
   return db;
 };

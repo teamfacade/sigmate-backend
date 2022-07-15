@@ -1,14 +1,14 @@
-import * as dotenv from 'dotenv';
+import dotenv from 'dotenv';
 dotenv.config();
 
 import express from 'express';
 const app = express();
 
-import setExpress from './loaders/setExpress';
-import setMiddlewares from './loaders/setMiddlewares';
-import syncDatabase from './loaders/syncDatabase';
-import setRoutes from './loaders/setRoutes';
-import setErrorHandlers from './loaders/setErrorHandlers';
+import setExpress from './services/loaders/setExpress';
+import setMiddlewares from './services/loaders/setMiddlewares';
+import syncDatabase from './services/loaders/syncDatabase';
+import setRoutes from './services/loaders/setRoutes';
+import setErrorHandlers from './services/loaders/setErrorHandlers';
 
 // Express settings (port, ...)
 setExpress(app);

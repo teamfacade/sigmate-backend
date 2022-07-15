@@ -5,20 +5,18 @@ import { DatabaseObject } from '.';
 export type UserIdType = string;
 export const userIdDataType = DataType.UUID;
 
-interface UserCreationAttributes {
+export interface UserCreationAttributes {
   userId: UserIdType;
   userName: string;
   email: string;
-  groupId: GroupIdType;
+  groupId?: GroupIdType;
   isTester?: boolean;
   isAdmin?: boolean;
   googleAccount?: string;
+  googleProfileId?: string;
   twitterAccount?: string;
   discordAccount?: string;
   metamaskWallet?: string;
-  createdAt?: Date;
-  updatedAt?: Date;
-  deletedAt?: Date;
   lastLoginAt?: Date;
   locale?: string;
   theme?: string;
@@ -51,8 +49,8 @@ export const defaultPreferences = {
 
 @Table
 export default class User extends Model<
-  UserCreationAttributes,
-  UserInstanceAttributes
+  UserInstanceAttributes,
+  UserCreationAttributes
 > {
   // Basic user info
   public readonly userId!: string;
@@ -61,6 +59,7 @@ export default class User extends Model<
   public isTester!: boolean;
   public isAdmin!: boolean;
   public googleAccount!: string;
+  public googleProfileId!: string;
   public twitterAccount!: string;
   public discordAccount!: string;
   public metamaskWallet!: string;
@@ -96,7 +95,7 @@ export function initUser(sequelize: Sequelize) {
         primaryKey: true,
       },
       userName: {
-        type: DataType.STRING(32),
+        type: DataType.STRING(36),
         allowNull: false,
         unique: true,
       },
@@ -108,6 +107,7 @@ export function initUser(sequelize: Sequelize) {
       groupId: {
         type: groupIdDataType,
         allowNull: false,
+        defaultValue: 'unauthenticated',
       },
       isTester: {
         type: DataType.BOOLEAN,
@@ -122,6 +122,10 @@ export function initUser(sequelize: Sequelize) {
       googleAccount: {
         type: DataType.STRING(256),
       },
+      googleProfileId: {
+        type: DataType.STRING(512),
+        unique: true,
+      },
       twitterAccount: {
         type: DataType.STRING(16),
       },
@@ -133,6 +137,7 @@ export function initUser(sequelize: Sequelize) {
       },
       lastLoginAt: {
         type: DataType.DATE,
+        defaultValue: DataType.NOW,
       },
       locale: {
         type: DataType.STRING(5),
@@ -217,6 +222,11 @@ export function associateUser(db: DatabaseObject) {
 
   // One user has one user auth information set
   db.User.hasOne(db.UserAuth, {
+    foreignKey: 'userId',
+  });
+
+  // One user can have many profiles
+  db.User.hasMany(db.UserProfile, {
     foreignKey: 'userId',
   });
 }
