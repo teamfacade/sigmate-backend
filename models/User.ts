@@ -191,8 +191,8 @@ export function initUser(sequelize: Sequelize) {
       timestamps: true,
       underscored: true,
       paranoid: true,
-      charset: 'utf8',
-      collate: 'utf8_general_ci',
+      charset: 'utf8mb4',
+      collate: 'utf8mb4_general_ci',
     }
   );
 }
@@ -213,11 +213,6 @@ export function associateUser(db: DatabaseObject) {
   // One user can apooint many admin users
   db.User.hasMany(db.AdminUser, {
     foreignKey: 'appointedBy',
-  });
-
-  // One user can create many user groups
-  db.User.hasMany(db.UserGroup, {
-    foreignKey: 'createdBy',
   });
 
   // One user has one user auth information set

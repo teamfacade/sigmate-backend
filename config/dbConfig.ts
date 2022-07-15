@@ -15,10 +15,10 @@ type DbOptions = RequireProperty<SequelizeOptions, RequiredOptions>;
 
 const dbConfig: EnvConfig<DbOptions> = {
   development: {
-    database: process.env.DB_DATABASE || 'sigmate_dev',
-    username: process.env.DB_USERNAME || 'root',
-    password: process.env.DB_PASSWORD || 'MySQL2022!@',
-    host: 'localhost',
+    database: process.env.DB_DATABASE as string,
+    username: process.env.DB_USERNAME as string,
+    password: process.env.DB_PASSWORD as string,
+    host: process.env.DB_HOST as string,
     dialect: 'mysql',
     timezone: '+09:00',
     dialectOptions: {
@@ -26,10 +26,10 @@ const dbConfig: EnvConfig<DbOptions> = {
     },
   },
   production: {
-    database: process.env.DB_DATABASE || 'sigmate_dev',
-    username: process.env.DB_USERNAME || 'root',
-    password: process.env.DB_PASSWORD || 'MySQL2022!@',
-    host: 'localhost',
+    database: process.env.DB_DATABASE as string,
+    username: process.env.DB_USERNAME as string,
+    password: process.env.DB_PASSWORD as string,
+    host: process.env.DB_HOST as string,
     dialect: 'mysql',
     timezone: '+09:00',
     dialectOptions: {

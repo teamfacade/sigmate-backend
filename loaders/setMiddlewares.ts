@@ -7,7 +7,7 @@ import initConfig, { InitConfig } from '../config/initConfig';
 const env = getNodeEnv();
 const config: InitConfig = initConfig[env];
 
-const useMiddlewares = (app: Express) => {
+const setMiddlewares = (app: Express) => {
   // Dev only
   if (env === 'development') {
     app.use(morgan('dev'));
@@ -19,4 +19,4 @@ const useMiddlewares = (app: Express) => {
   app.use(express.urlencoded({ extended: false }));
 };
 
-export default useMiddlewares;
+export default setMiddlewares;

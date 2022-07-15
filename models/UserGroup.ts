@@ -1,14 +1,12 @@
 import { DataType, Model, Sequelize, Table } from 'sequelize-typescript';
 import { DatabaseObject } from '.';
-import { userIdDataType } from './User';
 
-export type GroupIdType = number;
-export const groupIdDataType = DataType.INTEGER;
+export const GROUP_ID_MAX_LENGTH = 32;
+export type GroupIdType = string;
+export const groupIdDataType = DataType.STRING(GROUP_ID_MAX_LENGTH);
 
 export interface UserGroupCreationAttributes {
-  groupId: GroupIdType;
-  groupNmae: string;
-  createdBy: string;
+  groupId: string;
   canCreateDocument?: boolean;
   canReqeustDocumentEdit?: boolean;
   canEditDocument?: boolean;
@@ -16,7 +14,7 @@ export interface UserGroupCreationAttributes {
   canReceivePoints?: boolean;
   canTransferToken?: boolean;
   canReceiveReferrals?: boolean;
-  canParticiapteEvent?: boolean;
+  canParticipateEvent?: boolean;
 }
 
 export type UserGroupInstanceAttributes = Required<UserGroupCreationAttributes>;
@@ -26,8 +24,7 @@ export default class UserGroup extends Model<
   UserGroupCreationAttributes,
   UserGroupInstanceAttributes
 > {
-  public readonly groupId!: string;
-  public groupName!: string;
+  public readonly groupId!: string; // primary key
 
   // User group privileges
   public canCreateDocument!: boolean;
@@ -50,14 +47,6 @@ export function initUserGroup(sequelize: Sequelize) {
       groupId: {
         type: groupIdDataType,
         primaryKey: true,
-      },
-      groupNmae: {
-        type: DataType.STRING(32),
-        unique: true,
-        allowNull: false,
-      },
-      createdBy: {
-        type: userIdDataType,
         allowNull: false,
       },
       canCreateDocument: {
@@ -95,7 +84,7 @@ export function initUserGroup(sequelize: Sequelize) {
         allowNull: false,
         defaultValue: false,
       },
-      canParticiapteEvent: {
+      canParticipateEvent: {
         type: DataType.BOOLEAN,
         allowNull: false,
         defaultValue: false,
@@ -105,10 +94,10 @@ export function initUserGroup(sequelize: Sequelize) {
       sequelize,
       tableName: 'user_groups',
       modelName: 'UserGroup',
-      timestamps: true,
+      timestamps: false,
       underscored: true,
-      charset: 'utf8',
-      collate: 'utf8_general_ci',
+      charset: 'utf8mb4',
+      collate: 'utf8mb4_general_ci',
     }
   );
 }
@@ -117,10 +106,5 @@ export function associateUserGroup(db: DatabaseObject) {
   // Many users can be in one user group
   db.UserGroup.hasMany(db.User, {
     foreignKey: 'groupId',
-  });
-
-  // One user can create many user groups
-  db.UserGroup.belongsTo(db.User, {
-    foreignKey: 'createdBy',
   });
 }

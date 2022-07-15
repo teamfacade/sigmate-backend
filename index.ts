@@ -5,12 +5,25 @@ import express from 'express';
 const app = express();
 
 import setExpress from './loaders/setExpress';
-import useMiddlewares from './loaders/useMiddlewares';
+import setMiddlewares from './loaders/setMiddlewares';
 import syncDatabase from './loaders/syncDatabase';
+import setRoutes from './loaders/setRoutes';
+import setErrorHandlers from './loaders/setErrorHandlers';
 
+// Express settings (port, ...)
 setExpress(app);
-useMiddlewares(app);
+
+// Set global middlewares
+setMiddlewares(app);
+
+// Connect, init, and sync database with Sequelize
 syncDatabase();
+
+// Set up routers
+setRoutes(app);
+
+// Set up error handlers
+setErrorHandlers(app);
 
 // Start server
 app.listen(app.get('port'), () => {

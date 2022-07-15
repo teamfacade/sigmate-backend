@@ -2,7 +2,7 @@ import db from '../models';
 
 const syncDatabase = () => {
   db.sequelize
-    ?.sync({ force: false })
+    .sync({ force: true })
     .then(() => {
       console.log('✅ Database initialized and synced');
     })
