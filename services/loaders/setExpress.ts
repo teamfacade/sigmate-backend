@@ -1,6 +1,6 @@
 import { Express } from 'express';
-import { getNodeEnv } from '../config';
-import initConfig, { InitConfig } from '../config/initConfig';
+import { getNodeEnv } from '../../config';
+import initConfig, { InitConfig } from '../../config/initConfig';
 
 const env = getNodeEnv();
 const config: InitConfig = initConfig[env];

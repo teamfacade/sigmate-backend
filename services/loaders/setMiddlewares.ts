@@ -1,8 +1,8 @@
 import express, { Express } from 'express';
 import morgan from 'morgan';
 import path from 'path';
-import { getNodeEnv } from '../config';
-import initConfig, { InitConfig } from '../config/initConfig';
+import { getNodeEnv } from '../../config';
+import initConfig, { InitConfig } from '../../config/initConfig';
 
 const env = getNodeEnv();
 const config: InitConfig = initConfig[env];
