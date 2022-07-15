@@ -13,8 +13,8 @@ import {
   updateUserGroup,
 } from '../../../services/admin/userGroup';
 import { UserGroupCreationAttributes } from '../../../models/UserGroup';
-import InvalidRequestError from '../../../utilities/InvalidRequestError';
-import NotFoundError from '../../../utilities/NotFoundError';
+import InvalidRequestError from '../../../utilities/errors/InvalidRequestError';
+import NotFoundError from '../../../utilities/errors/NotFoundError';
 
 const adminRouter = express.Router();
 

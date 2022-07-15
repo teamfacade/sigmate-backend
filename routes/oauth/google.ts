@@ -6,7 +6,7 @@ import {
 } from '../../services/auth/google';
 import { createUserGoogle } from '../../services/user/createUser';
 import url from 'url';
-import ApiError from '../../utilities/ApiError';
+import ApiError from '../../utilities/errors/ApiError';
 
 const googleOAuthRouter = express.Router();
 

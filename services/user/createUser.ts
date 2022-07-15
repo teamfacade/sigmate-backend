@@ -8,7 +8,7 @@ import UserProfile, {
 import db from '../../models';
 import UserAuth, { UserAuthCreationAttributes } from '../../models/UserAuth';
 import { GoogleProfile } from '../auth/google';
-import DatabaseError from '../../utilities/DatabaseError';
+import DatabaseError from '../../utilities/errors/DatabaseError';
 import { BaseError } from 'sequelize';
 
 const NEW_USER_GROUP = 'newbie';

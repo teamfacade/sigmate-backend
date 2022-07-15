@@ -6,8 +6,8 @@ import UserGroup, {
   UserGroupCreationAttributes,
 } from '../../models/UserGroup';
 import db from '../../models';
-import NotFoundError from '../../utilities/NotFoundError';
-import ApiError from '../../utilities/ApiError';
+import NotFoundError from '../../utilities/errors/NotFoundError';
+import ApiError from '../../utilities/errors/ApiError';
 
 /**
  * Check if given group Id is available (CustomValidator for express-validator)
