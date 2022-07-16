@@ -5,6 +5,7 @@ import {
   getGoogleTokens,
 } from '../../services/auth/google';
 import { createUserGoogle } from '../../services/user/createUser';
+import { findUserByGoogleId } from '../../services/user/findUser';
 import url from 'url';
 import ApiError from '../../utilities/errors/ApiError';
 
@@ -34,9 +35,15 @@ googleOAuthRouter.get('/callback', async (req, res, next) => {
   try {
     const googleTokens = await getGoogleTokens(code);
     const googleProfile = await getGoogleProfile();
-    const user = await createUserGoogle(googleTokens, googleProfile);
+
+    const exUser = await findUserByGoogleId(googleProfile.id);
+    if (exUser) {
+      res.json(exUser);
+    } else {
+      const newUser = await createUserGoogle(googleTokens, googleProfile);
+      res.json(newUser);
+    }
     // TODO Google login success: Redirect to home page
-    res.json(user);
   } catch (error) {
     next(error);
   }

@@ -105,6 +105,6 @@ export function initUserGroup(sequelize: Sequelize) {
 export function associateUserGroup(db: DatabaseObject) {
   // Many users can be in one user group
   db.UserGroup.hasMany(db.User, {
-    foreignKey: 'groupId',
+    foreignKey: 'group',
   });
 }

@@ -8,9 +8,10 @@ export const profileIdDataType = DataType.INTEGER;
 export interface UserProfileCreationAttributes {
   profileId?: ProfileIdType;
   userId: UserIdType;
-  isDefaultProfile: boolean;
+  isPrimary: boolean;
   displayName?: string;
   displayEmail?: string;
+  displayEmailVerified?: string;
   profilePictureSrc?: string;
   bio?: string;
   organization?: string;
@@ -30,9 +31,10 @@ export default class UserProfile extends Model<
 > {
   public readonly profileId!: ProfileIdType; // primary key
   public userId!: UserIdType; // foreign key
-  public isDefaultProfile!: boolean;
+  public isPrimary!: boolean;
   public displayName!: string;
   public displayEmail!: string;
+  public displayEmailVerified!: boolean;
   public profilePictureSrc!: string;
   public bio!: string;
   public organization!: string;
@@ -55,7 +57,7 @@ export function initUserProfile(sequelize: Sequelize) {
         type: userIdDataType,
         allowNull: false,
       },
-      isDefaultProfile: {
+      isPrimary: {
         type: DataType.BOOLEAN,
         allowNull: false,
         defaultValue: false,
@@ -65,6 +67,9 @@ export function initUserProfile(sequelize: Sequelize) {
       },
       displayEmail: {
         type: DataType.STRING(255),
+      },
+      displayEmailVerified: {
+        type: DataType.BOOLEAN,
       },
       profilePictureSrc: {
         type: DataType.STRING(512),
@@ -108,5 +113,10 @@ export const associateUserProfile = (db: DatabaseObject) => {
   // Many user profiles belong to one user
   db.UserProfile.belongsTo(db.User, {
     foreignKey: 'userId',
+  });
+
+  // One default user profile exist for one user
+  db.UserProfile.hasOne(db.User, {
+    foreignKey: 'primaryProfile',
   });
 };

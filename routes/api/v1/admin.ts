@@ -12,11 +12,19 @@ import {
   validateUpdateUserGroupRequest,
   updateUserGroup,
 } from '../../../services/admin/userGroup';
-import { UserGroupCreationAttributes } from '../../../models/UserGroup';
+import UserGroup, {
+  UserGroupCreationAttributes,
+} from '../../../models/UserGroup';
 import InvalidRequestError from '../../../utilities/errors/InvalidRequestError';
 import NotFoundError from '../../../utilities/errors/NotFoundError';
+import { ApiResponse } from '..';
 
 const adminRouter = express.Router();
+
+interface UserGroupResponse extends ApiResponse {
+  userGroup?: UserGroup;
+  userGroups?: UserGroup[];
+}
 
 adminRouter
   .route('/usergroup')
@@ -39,7 +47,11 @@ adminRouter
         // Get all user groups by critera
         const userGroups = await getUserGroups(userGroupDTO);
         // Send them all to the client
-        res.status(200).json(userGroups);
+        const response: UserGroupResponse = {
+          success: true,
+          userGroups,
+        };
+        res.status(200).json(response);
       } catch (err) {
         // Unexpected database error
         next(err);
@@ -65,7 +77,11 @@ adminRouter
         // Attempt to create user group
         const newUserGroup = await createUserGroup(userGroupDTO);
         // If created, send the created group back to client
-        res.status(201).json(newUserGroup);
+        const response: UserGroupResponse = {
+          success: true,
+          userGroup: newUserGroup,
+        };
+        res.status(201).json(response);
       } catch (err) {
         // Unexpected database error
         next(err);
@@ -91,7 +107,7 @@ adminRouter
 
         if (affectedRows === 0) throw new NotFoundError();
 
-        res.status(200).json({ success: true });
+        res.status(204).send();
       } catch (err) {
         // Unexpected database error
         next(err);

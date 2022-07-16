@@ -1,6 +1,7 @@
 import User, { UserCreationAttributes } from '../../models/User';
 import { v4 as uuidv4 } from 'uuid';
 import { Credentials } from 'google-auth-library';
+import { BaseError } from 'sequelize';
 
 import UserProfile, {
   UserProfileCreationAttributes,
@@ -9,18 +10,18 @@ import db from '../../models';
 import UserAuth, { UserAuthCreationAttributes } from '../../models/UserAuth';
 import { GoogleProfile } from '../auth/google';
 import DatabaseError from '../../utilities/errors/DatabaseError';
-import { BaseError } from 'sequelize';
 
 const NEW_USER_GROUP = 'newbie';
 
-export type UserDTOType = Omit<UserCreationAttributes, 'userId' | 'groupId'>;
+export type UserDTOType = Omit<UserCreationAttributes, 'userId' | 'group'>;
 export type UserAuthDTOType = Omit<UserAuthCreationAttributes, 'userId'>;
 export type UserProfileDTOType = Omit<
   UserProfileCreationAttributes,
-  'profileId' | 'userId' | 'isDefaultProfile'
+  'profileId' | 'userId' | 'isPrimary'
 >;
+
 /**
- * Creates a new user in the database
+ * Creates a new user
  * @param userDTO Properties for the User model
  * @param userAuthDTO Properties for the UserAuth model
  * @param userProfileDTO Properties for the UserProfile model
@@ -35,10 +36,10 @@ const createUser = async (
   if (!userDTO.userName) userDTO.userName = userId;
   try {
     const createdUser = await db.sequelize.transaction(async (transaction) => {
-      const newUser = await User.create(
+      const user = await User.create(
         {
           userId,
-          groupId: NEW_USER_GROUP,
+          group: NEW_USER_GROUP,
           ...userDTO,
         },
         { transaction }
@@ -52,16 +53,21 @@ const createUser = async (
         { transaction }
       );
 
-      await UserProfile.create(
+      const profile = await UserProfile.create(
         {
           userId,
-          isDefaultProfile: true,
+          isPrimary: true,
           ...userProfileDTO,
         },
         { transaction }
       );
 
-      return newUser;
+      await User.update(
+        { primaryProfile: profile.profileId },
+        { where: { userId }, transaction }
+      );
+
+      return user;
     });
     return createdUser;
   } catch (err) {
@@ -70,6 +76,12 @@ const createUser = async (
   }
 };
 
+/**
+ * Creates a new user from a Google profile
+ * @param googleTokens Google Credentials object containing Google tokens
+ * @param googleProfile Google Profile object from function getGoogleProfile
+ * @returns User
+ */
 export const createUserGoogle = async (
   googleTokens: Credentials,
   googleProfile: GoogleProfile
@@ -77,6 +89,7 @@ export const createUserGoogle = async (
   const userDTO: UserDTOType = {
     userName: googleProfile.displayName,
     email: googleProfile.email,
+    emailVerified: true,
     googleProfileId: googleProfile.id,
     locale: googleProfile.locale,
   };
@@ -87,6 +100,7 @@ export const createUserGoogle = async (
   }
 
   const userAuthDTO: UserAuthDTOType = {
+    googleAccessToken: googleTokens.access_token || '',
     googleRefreshToken: googleTokens.refresh_token || '',
   };
 

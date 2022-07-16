@@ -9,7 +9,9 @@ export interface UserCreationAttributes {
   userId: UserIdType;
   userName: string;
   email: string;
-  groupId?: GroupIdType;
+  emailVerified?: boolean;
+  group?: GroupIdType;
+  primaryProfile?: number;
   isTester?: boolean;
   isAdmin?: boolean;
   googleAccount?: string;
@@ -56,6 +58,7 @@ export default class User extends Model<
   public readonly userId!: string;
   public userName!: string;
   public email!: string;
+  public emailVerified!: boolean;
   public isTester!: boolean;
   public isAdmin!: boolean;
   public googleAccount!: string;
@@ -79,7 +82,8 @@ export default class User extends Model<
   public agreeLegal!: Date;
 
   // Associations
-  public groupId!: GroupIdType;
+  public group!: GroupIdType;
+  public primaryProfile!: number;
 
   // Managed by Sequelize
   public readonly createdAt!: Date;
@@ -104,10 +108,17 @@ export function initUser(sequelize: Sequelize) {
         allowNull: false,
         unique: true,
       },
-      groupId: {
+      emailVerified: {
+        type: DataType.BOOLEAN,
+        defaultValue: false,
+      },
+      group: {
         type: groupIdDataType,
         allowNull: false,
         defaultValue: 'unauthenticated',
+      },
+      primaryProfile: {
+        type: DataType.INTEGER,
       },
       isTester: {
         type: DataType.BOOLEAN,
@@ -205,7 +216,7 @@ export function initUser(sequelize: Sequelize) {
 export function associateUser(db: DatabaseObject) {
   // Many users can be in one user group
   db.User.belongsTo(db.UserGroup, {
-    foreignKey: 'groupId',
+    foreignKey: 'group',
     onUpdate: 'CASCADE',
     onDelete: 'RESTRICT',
   });
@@ -228,5 +239,12 @@ export function associateUser(db: DatabaseObject) {
   // One user can have many profiles
   db.User.hasMany(db.UserProfile, {
     foreignKey: 'userId',
+  });
+
+  // One user can have one default profile
+  db.User.belongsTo(db.UserProfile, {
+    foreignKey: 'primaryProfile',
+    onUpdate: 'CASCADE',
+    onDelete: 'RESTRICT',
   });
 }

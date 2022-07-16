@@ -5,9 +5,7 @@ import { userIdDataType, UserIdType } from './User';
 export interface UserAuthCreationAttributes {
   userId: UserIdType;
   sigmateAccessToken?: string;
-  sigmateAccessTokenExpiresAt?: Date;
   sigmateRefreshToken?: string;
-  sigmateRefreshTokenExpiresAt?: Date;
   googleAccessToken?: string;
   googleRefreshToken?: string;
 }
@@ -21,9 +19,7 @@ export default class UserAuth extends Model<
 > {
   public readonly userId!: UserIdType;
   public sigmateAccessToken!: string;
-  public sigmateAccessTokenExpiresAt!: Date;
   public sigmateRefreshToken!: string;
-  public sigmateRefreshTokenExpiresAt!: Date;
   public googleAccessToken!: string;
   public googleRefreshToken!: string;
 }
@@ -36,16 +32,10 @@ export function initUserAuth(sequelize: Sequelize) {
         primaryKey: true,
       },
       sigmateAccessToken: {
-        type: DataType.STRING(64),
-      },
-      sigmateAccessTokenExpiresAt: {
-        type: DataType.DATE,
+        type: DataType.STRING(512),
       },
       sigmateRefreshToken: {
-        type: DataType.STRING(64),
-      },
-      sigmateRefreshTokenExpiresAt: {
-        type: DataType.DATE,
+        type: DataType.STRING(512),
       },
       googleAccessToken: {
         type: DataType.STRING(512),
@@ -74,5 +64,3 @@ export function associateUserAuth(db: DatabaseObject) {
     onDelete: 'CASCADE',
   });
 }
-
-export {};

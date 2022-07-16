@@ -1,10 +1,14 @@
 import { google, people_v1 } from 'googleapis';
+import { Credentials } from 'google-auth-library';
 import { APIError } from '../../middlewares/apiErrorHandler';
+import UserAuth from '../../models/UserAuth';
+import DatabaseError from '../../utilities/errors/DatabaseError';
+import { BaseError } from 'sequelize';
 
 export const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET,
-  'http://localhost:5100/oauth/google/callback'
+  'http://localhost:3000/oauth/google/callback'
 );
 
 const scope = [
@@ -44,6 +48,29 @@ export const getGoogleTokens = async (code: string) => {
     err.status = 500;
     err.cause = 'ERR_OAUTH_GOOGLE';
     throw error;
+  }
+};
+
+export const updateGoogleTokens = async (
+  userId: string,
+  googleTokens: Credentials
+) => {
+  const updateValues: {
+    googleAccessToken?: string;
+    googleRefreshToken?: string;
+  } = {
+    googleAccessToken: googleTokens.access_token || '',
+    googleRefreshToken: googleTokens.refresh_token || '',
+  };
+
+  if (!updateValues.googleAccessToken) delete updateValues.googleAccessToken;
+
+  if (!updateValues.googleRefreshToken) delete updateValues.googleRefreshToken;
+
+  try {
+    await UserAuth.update(updateValues, { where: { userId } });
+  } catch (error) {
+    throw new DatabaseError(error as BaseError);
   }
 };
 
