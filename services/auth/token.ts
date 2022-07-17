@@ -1,12 +1,10 @@
 import jwt from 'jsonwebtoken';
 import fs from 'fs';
-import User from '../../models/User';
 import UserAuth from '../../models/UserAuth';
 import db from '../../models';
 import DatabaseError from '../../utilities/errors/DatabaseError';
 import { BaseError } from 'sequelize';
 import ApiError from '../../utilities/errors/ApiError';
-import UserGroup from '../../models/UserGroup';
 
 export const JWT_ALG = 'ES256';
 export const JWT_ISS = 'sigmate.io';
@@ -23,175 +21,11 @@ export const getECPublicKey = () => {
   return fs.readFileSync('keys/cert.pem');
 };
 
-interface SigmateJwtPayload extends jwt.JwtPayload {
-  typ?: string;
+export interface SigmateJwtPayload extends jwt.JwtPayload {
+  tok?: string;
   group?: string;
   isAdmin?: boolean;
 }
-
-/**
- * Look for a user with a given Sigmate access token
- * @param accessToken Sigmate access token
- * @returns User if token is valid and matches. Returns null otherwise.
- * @throws DatabaseError
- */
-export const findUserByAccessToken = async (
-  accessToken: string | null
-): Promise<User | null> => {
-  // No need to bother if accessToken is falsy
-  if (!accessToken) return null;
-
-  // Decode jwt
-  const tokenData: {
-    typ?: string;
-    group?: string;
-    userId?: string;
-    isAdmin?: boolean;
-  } = {};
-
-  try {
-    const decodedToken = jwt.verify(accessToken, getECPublicKey(), {
-      issuer: JWT_ISS,
-      algorithms: [JWT_ALG],
-    }) as SigmateJwtPayload;
-
-    tokenData.typ = decodedToken.typ;
-    tokenData.group = decodedToken.group;
-    tokenData.userId = decodedToken.sub;
-    tokenData.isAdmin = decodedToken.isAdmin;
-  } catch (tokenError) {
-    // Token is invalid
-    return null;
-  }
-
-  const { typ, group, userId, isAdmin } = tokenData;
-
-  if (!group || !userId || !isAdmin) {
-    // required information missing
-    return null;
-  }
-
-  if (typ !== JWT_TYP_ACCESS) {
-    // wrong type
-    return null;
-  }
-
-  // Compare with DB
-  const dbData: {
-    sigmateAccessToken: string;
-    user: User | null;
-  } = { sigmateAccessToken: '', user: null };
-  try {
-    const user = await User.findOne({
-      where: {
-        userId: tokenData.userId,
-        group: tokenData.group,
-        isAdmin: tokenData.isAdmin,
-      },
-      include: UserGroup,
-    });
-    if (!user) return null; // User not found
-    dbData.user = user;
-    const auth = await UserAuth.findOne({ where: { userId } });
-    if (!auth) return null; // UserAuth not found
-    if (auth.sigmateAccessToken) {
-      dbData.sigmateAccessToken = auth.sigmateAccessToken;
-    } else {
-      return null; // No access token
-    }
-  } catch (dbError) {
-    throw new DatabaseError(dbError as BaseError);
-  }
-
-  const { sigmateAccessToken, user } = dbData;
-  if (sigmateAccessToken === accessToken) {
-    return user;
-  }
-
-  return null; // Tokens do not match
-};
-
-/**
- * Look for a user with a given Sigmate refresh token
- * @param refreshToken Sigmate refresh token
- * @returns User if token is valid and matches. Returns null otherwise.
- * @throws DatabaseError
- */
-export const findUserByRefreshToken = async (
-  refreshToken: string | null
-): Promise<User | null> => {
-  // No need to bother if accessToken is falsy
-  if (!refreshToken) return null;
-
-  // Decode jwt
-  const tokenData: {
-    typ?: string;
-    group?: string;
-    userId?: string;
-    isAdmin?: boolean;
-  } = {};
-
-  try {
-    const decodedToken = jwt.verify(refreshToken, getECPublicKey(), {
-      issuer: JWT_ISS,
-      algorithms: [JWT_ALG],
-    }) as SigmateJwtPayload;
-
-    tokenData.typ = decodedToken.typ;
-    tokenData.group = decodedToken.group;
-    tokenData.userId = decodedToken.sub;
-    tokenData.isAdmin = decodedToken.isAdmin;
-  } catch (tokenError) {
-    // Token is invalid
-    return null;
-  }
-
-  const { typ, group, userId, isAdmin } = tokenData;
-
-  if (!group || !userId || !isAdmin) {
-    // required information missing
-    return null;
-  }
-
-  if (typ !== JWT_TYP_REFRESH) {
-    // wrong type
-    return null;
-  }
-
-  // Compare with DB
-  const dbData: {
-    sigmateRefreshToken: string;
-    user: User | null;
-  } = { sigmateRefreshToken: '', user: null };
-  try {
-    const user = await User.findOne({
-      where: {
-        userId: tokenData.userId,
-        group: tokenData.group,
-        isAdmin: tokenData.isAdmin,
-      },
-      include: UserGroup,
-    });
-    if (!user) return null; // User not found
-    dbData.user = user;
-    const auth = await UserAuth.findOne({ where: { userId } });
-    if (!auth) return null; // UserAuth not found
-    if (auth.sigmateRefreshToken) {
-      dbData.sigmateRefreshToken = auth.sigmateRefreshToken;
-    } else {
-      return null; // No refresh token
-    }
-  } catch (dbError) {
-    throw new DatabaseError(dbError as BaseError);
-  }
-
-  const { sigmateRefreshToken, user } = dbData;
-  if (sigmateRefreshToken === refreshToken) {
-    return user;
-  }
-
-  return null; // Tokens do not match
-};
 
 /**
  * Generates a new Sigmate access token
@@ -205,7 +39,7 @@ export const createAccessToken = (
   group: string,
   isAdmin: boolean
 ) => {
-  return jwt.sign({ typ: JWT_TYP_ACCESS, group, isAdmin }, getECPrivateKey(), {
+  return jwt.sign({ tok: JWT_TYP_ACCESS, group, isAdmin }, getECPrivateKey(), {
     issuer: JWT_ISS,
     algorithm: JWT_ALG,
     subject: userId,
@@ -225,7 +59,7 @@ export const createRefreshToken = (
   group: string,
   isAdmin: boolean
 ) => {
-  return jwt.sign({ typ: JWT_TYP_REFRESH, group, isAdmin }, getECPrivateKey(), {
+  return jwt.sign({ tok: JWT_TYP_REFRESH, group, isAdmin }, getECPrivateKey(), {
     issuer: JWT_ISS,
     algorithm: JWT_ALG,
     subject: userId,
@@ -347,7 +181,7 @@ export const retrieveTokens = async (
       if (
         decodedToken.group === group &&
         decodedToken.isAdmin === isAdmin &&
-        decodedToken.typ === JWT_TYP_ACCESS
+        decodedToken.tok === JWT_TYP_ACCESS
       ) {
         tokens.accessToken = auth.sigmateAccessToken;
       }
@@ -372,7 +206,7 @@ export const retrieveTokens = async (
       if (
         decodedToken.group === group &&
         decodedToken.isAdmin === isAdmin &&
-        decodedToken.typ === JWT_TYP_REFRESH
+        decodedToken.tok === JWT_TYP_REFRESH
       ) {
         tokens.refreshToken = auth.sigmateRefreshToken;
       }

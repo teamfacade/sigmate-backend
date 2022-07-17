@@ -7,9 +7,9 @@ import {
   JWT_ALG,
   JWT_ISS,
   JWT_TYP_ACCESS,
-  findUserByAccessToken,
   getECPublicKey,
 } from '../services/auth/token';
+import { findUserByAccessToken } from '../services/user/findUser';
 import { Request } from 'express';
 
 const jwtStrategy = new JwtStrategy(
@@ -21,10 +21,10 @@ const jwtStrategy = new JwtStrategy(
     passReqToCallback: true,
   },
   async (req: Request, payload: any, done: VerifiedCallback) => {
-    const { typ } = payload;
+    const { tok } = payload;
     const token = ExtractJwt.fromAuthHeaderAsBearerToken()(req);
     try {
-      if (token && typ === JWT_TYP_ACCESS) {
+      if (token && tok === JWT_TYP_ACCESS) {
         const user = await findUserByAccessToken(token);
         done(null, user);
       } else {
