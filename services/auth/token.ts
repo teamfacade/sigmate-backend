@@ -63,7 +63,7 @@ export const createRefreshToken = (
     issuer: JWT_ISS,
     algorithm: JWT_ALG,
     subject: userId,
-    expiresIn: JWT_EXP_ACCESS,
+    expiresIn: JWT_EXP_REFRESH,
   });
 };
 
