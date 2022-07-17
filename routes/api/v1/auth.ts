@@ -11,6 +11,7 @@ import { createUserGoogle } from '../../../services/user/createUser';
 import User from '../../../models/user/User';
 import { retrieveTokens } from '../../../services/auth/token';
 import { ApiResponse } from '..';
+import ApiError from '../../../utilities/errors/ApiError';
 
 const authRouter = express.Router();
 
@@ -55,6 +56,11 @@ authRouter.post(
         // New user
         const newUser = await createUserGoogle(googleTokens, googleProfile);
         response.user = newUser;
+      }
+
+      // If, for some reason, the user was not found, raise error
+      if (!response.user) {
+        throw new ApiError('ERR_DB');
       }
 
       const sigmateTokens = await retrieveTokens(

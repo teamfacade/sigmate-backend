@@ -38,7 +38,7 @@ const createUser = async (
   if (!userDTO.userName) userDTO.userName = userId;
   try {
     const createdUser = await db.sequelize.transaction(async (transaction) => {
-      const user = await User.create(
+      await User.create(
         {
           userId,
           group: NEW_USER_GROUP,
@@ -69,7 +69,7 @@ const createUser = async (
         { where: { userId }, transaction }
       );
 
-      return user;
+      return await User.findOne({ where: { userId }, transaction });
     });
     return createdUser;
   } catch (err) {
@@ -93,6 +93,7 @@ export const createUserGoogle = async (
     email: googleProfile.email,
     emailVerified: true,
     googleProfileId: googleProfile.id,
+    googleAccount: googleProfile.email,
     locale: googleProfile.locale,
   };
 
