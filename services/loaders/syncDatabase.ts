@@ -1,5 +1,5 @@
 import db from '../../models';
-import UserGroup from '../../models/UserGroup';
+import UserGroup from '../../models/user/UserGroup';
 
 const syncDatabase = () => {
   db.sequelize

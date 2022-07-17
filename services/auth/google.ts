@@ -1,7 +1,7 @@
 import { google, people_v1 } from 'googleapis';
 import { Credentials } from 'google-auth-library';
 import { APIError } from '../../middlewares/apiErrorHandler';
-import UserAuth from '../../models/UserAuth';
+import UserAuth from '../../models/user/UserAuth';
 import DatabaseError from '../../utilities/errors/DatabaseError';
 import { BaseError } from 'sequelize';
 

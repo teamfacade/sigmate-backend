@@ -14,7 +14,7 @@ import {
 } from '../../../services/admin/userGroup';
 import UserGroup, {
   UserGroupCreationAttributes,
-} from '../../../models/UserGroup';
+} from '../../../models/user/UserGroup';
 import InvalidRequestError from '../../../utilities/errors/InvalidRequestError';
 import NotFoundError from '../../../utilities/errors/NotFoundError';
 import { ApiResponse } from '..';

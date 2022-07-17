@@ -1,6 +1,6 @@
 import { DataType, Model, Sequelize, Table } from 'sequelize-typescript';
 import { groupIdDataType, GroupIdType } from './UserGroup';
-import { DatabaseObject } from '.';
+import { DatabaseObject } from '../';
 
 export type UserIdType = string;
 export const userIdDataType = DataType.UUID;

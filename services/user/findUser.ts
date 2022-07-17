@@ -1,9 +1,12 @@
 import { BaseError } from 'sequelize';
 import jwt from 'jsonwebtoken';
-import User, { UserIdType, UserInstanceAttributes } from '../../models/User';
-import UserProfile from '../../models/UserProfile';
-import UserGroup from '../../models/UserGroup';
-import UserAuth from '../../models/UserAuth';
+import User, {
+  UserIdType,
+  UserInstanceAttributes,
+} from '../../models/user/User';
+import UserProfile from '../../models/user/UserProfile';
+import UserGroup from '../../models/user/UserGroup';
+import UserAuth from '../../models/user/UserAuth';
 import DatabaseError from '../../utilities/errors/DatabaseError';
 import {
   getECPublicKey,

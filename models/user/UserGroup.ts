@@ -1,5 +1,5 @@
 import { DataType, Model, Sequelize, Table } from 'sequelize-typescript';
-import { DatabaseObject } from '.';
+import { DatabaseObject } from '../';
 
 export const GROUP_ID_MAX_LENGTH = 32;
 export type GroupIdType = string;

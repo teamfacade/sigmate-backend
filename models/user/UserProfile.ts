@@ -1,5 +1,5 @@
 import { Model, Sequelize, Table, DataType } from 'sequelize-typescript';
-import { DatabaseObject } from '.';
+import { DatabaseObject } from '../';
 import { userIdDataType, UserIdType } from './User';
 
 export type ProfileIdType = number;

@@ -1,5 +1,5 @@
 import { DataType, Model, Sequelize, Table } from 'sequelize-typescript';
-import { DatabaseObject } from '.';
+import { DatabaseObject } from '../';
 import { userIdDataType, UserIdType } from './User';
 
 export interface UserAuthCreationAttributes {

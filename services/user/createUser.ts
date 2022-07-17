@@ -1,13 +1,15 @@
-import User, { UserCreationAttributes } from '../../models/User';
+import User, { UserCreationAttributes } from '../../models/user/User';
 import { v4 as uuidv4 } from 'uuid';
 import { Credentials } from 'google-auth-library';
 import { BaseError } from 'sequelize';
 
 import UserProfile, {
   UserProfileCreationAttributes,
-} from '../../models/UserProfile';
+} from '../../models/user/UserProfile';
 import db from '../../models';
-import UserAuth, { UserAuthCreationAttributes } from '../../models/UserAuth';
+import UserAuth, {
+  UserAuthCreationAttributes,
+} from '../../models/user/UserAuth';
 import { GoogleProfile } from '../auth/google';
 import DatabaseError from '../../utilities/errors/DatabaseError';
 

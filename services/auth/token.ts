@@ -1,6 +1,6 @@
 import jwt from 'jsonwebtoken';
 import fs from 'fs';
-import UserAuth from '../../models/UserAuth';
+import UserAuth from '../../models/user/UserAuth';
 import db from '../../models';
 import DatabaseError from '../../utilities/errors/DatabaseError';
 import { BaseError } from 'sequelize';

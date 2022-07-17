@@ -8,7 +8,7 @@ import {
 import { findUserByGoogleId } from '../../../services/user/findUser';
 import InvalidRequestError from '../../../utilities/errors/InvalidRequestError';
 import { createUserGoogle } from '../../../services/user/createUser';
-import User from '../../../models/User';
+import User from '../../../models/user/User';
 import { retrieveTokens } from '../../../services/auth/token';
 import { ApiResponse } from '..';
 

@@ -1,12 +1,12 @@
 import { Sequelize } from 'sequelize-typescript';
-import User, { associateUser, initUser } from './User';
-import AdminUser, { associateAdminUser, initAdminUser } from './AdminUser';
-import UserAuth, { associateUserAuth, initUserAuth } from './UserAuth';
-import UserGroup, { associateUserGroup, initUserGroup } from './UserGroup';
+import User, { associateUser, initUser } from './user/User';
+import AdminUser, { associateAdminUser, initAdminUser } from './user/AdminUser';
+import UserAuth, { associateUserAuth, initUserAuth } from './user/UserAuth';
+import UserGroup, { associateUserGroup, initUserGroup } from './user/UserGroup';
 import UserProfile, {
   associateUserProfile,
   initUserProfile,
-} from './UserProfile';
+} from './user/UserProfile';
 import { getNodeEnv } from '../config';
 import dbConfig from '../config/dbConfig';
 

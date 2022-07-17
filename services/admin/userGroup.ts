@@ -4,7 +4,7 @@ import UserGroup, {
   GroupIdType,
   GROUP_ID_MAX_LENGTH,
   UserGroupCreationAttributes,
-} from '../../models/UserGroup';
+} from '../../models/user/UserGroup';
 import db from '../../models';
 import NotFoundError from '../../utilities/errors/NotFoundError';
 import ApiError from '../../utilities/errors/ApiError';
