@@ -200,7 +200,7 @@ export const findUserByRefreshToken = async (
 
   const { tok, group, userId, isAdmin } = tokenData;
 
-  if (!group || !userId || !isAdmin) {
+  if (group === undefined || userId === undefined || isAdmin === undefined) {
     // required information missing
     return null;
   }

@@ -4,12 +4,17 @@ import {
   getGoogleProfile,
   getGoogleTokens,
 } from '../../../services/auth/google';
-import { retrieveTokens } from '../../../services/auth/token';
+import {
+  renewAccessToken,
+  renewRefreshToken,
+  retrieveTokens,
+} from '../../../services/auth/token';
 import {
   createUserGoogle,
   findUserByGoogleId,
   updateLastLoggedIn,
 } from '../../../services/database/user';
+import ForbiddenError from '../../../utils/errors/ForbiddenError';
 import NotFoundError from '../../../utils/errors/NotFoundError';
 
 export type AuthResponse = {
@@ -22,7 +27,7 @@ export type AuthResponse = {
 /**
  * Accepts Google authentication code and makes Google API call to authenticate a new or returning Sigmate user
  */
-export const authGoogle = async (
+export const authGoogleController = async (
   req: Request,
   res: Response,
   next: NextFunction
@@ -71,5 +76,85 @@ export const authGoogle = async (
     if (updateLastLoggedInPromise) await updateLastLoggedInPromise;
   } catch (error) {
     return next(error);
+  }
+};
+
+type TokenResponse = {
+  success: boolean;
+  accessToken?: string;
+  refreshToken?: string;
+};
+
+/**
+ * Renew Sigmate access token with a valid refresh token
+ * Must be followed by isRefreshTokenValid middleware to work properly
+ */
+export const renewAccessTokenController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    if (!req.user || !req.user.userId)
+      throw new ForbiddenError(
+        'Error: Cannot renew access token -- req.user not set. Forgot to run isRefreshTokenValid middleware?',
+        { clientMessage: 'ERR_TOK' }
+      );
+
+    const accessToken = await renewAccessToken(
+      req.user.userId,
+      req.user.group,
+      req.user.isAdmin
+    );
+
+    const response: TokenResponse = {
+      success: true,
+      accessToken,
+    };
+
+    res.status(200).json(response);
+  } catch (error) {
+    next(error);
+  }
+};
+
+/**
+ * Renew the refresh and access token.
+ * Equivalent to logout of all sessions except the current one, since all the access and refresh tokens stored everywhere else will become invalid
+ * Must be followed by passport jwt auth middleware.
+ */
+export const renewRefreshTokenController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    if (!req.user || !req.user.userId)
+      throw new ForbiddenError(
+        'Error: Cannot renew access token -- req.user not set. Forgot to run passport auth middleware?',
+        { clientMessage: 'ERR_TOK' }
+      );
+
+    const refreshToken = await renewRefreshToken(
+      req.user.userId,
+      req.user.group,
+      req.user.isAdmin
+    );
+
+    const accessToken = await renewAccessToken(
+      req.user.userId,
+      req.user.group,
+      req.user.isAdmin
+    );
+
+    const response: TokenResponse = {
+      success: true,
+      accessToken,
+      refreshToken,
+    };
+
+    res.status(200).json(response);
+  } catch (error) {
+    next(error);
   }
 };

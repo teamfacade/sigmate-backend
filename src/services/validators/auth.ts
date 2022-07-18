@@ -12,3 +12,12 @@ export const validateGoogleAuthCode = body('code')
   .bail()
   .withMessage('ERR_OAUTH_GOOGLE')
   .bail();
+
+export const validateRenewAccessToken = body('refreshToken')
+  .trim()
+  .stripLow()
+  .notEmpty()
+  .withMessage('REQUIRED')
+  .bail()
+  .isLength({ max: 512 })
+  .withMessage('INVALID');

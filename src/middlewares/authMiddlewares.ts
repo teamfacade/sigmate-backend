@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
 import passport from 'passport';
+import { findUserByRefreshToken } from '../services/database/auth';
 import BadRequestError from '../utils/errors/BadRequestError';
 import ForbiddenError from '../utils/errors/ForbiddenError';
 import UnauthenticatedError from '../utils/errors/UnauthenticatedError';
@@ -73,5 +74,22 @@ export const isMyselfBody = (
     }
   } else {
     next(new UnauthenticatedError());
+  }
+};
+
+export const isRefreshTokenValid = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  const { refreshToken } = req.body;
+
+  const user = await findUserByRefreshToken(refreshToken);
+
+  if (user) {
+    req.user = user;
+    next(); // refresh token valid
+  } else {
+    next(new ForbiddenError()); // refresh token invalid
   }
 };
