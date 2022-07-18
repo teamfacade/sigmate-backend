@@ -14,6 +14,7 @@ export default class ConflictError extends ApiError {
     super(message, {
       status: options.status,
       clientMessage: options.clientMessage,
+      origin: options.origin,
     });
     this.conflictErrors = options.conflictErrors;
   }

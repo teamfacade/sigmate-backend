@@ -12,11 +12,12 @@ export default class BadRequestError extends ApiError {
     options: BadRequestErrorOptions = {
       status: 400,
     },
-    message = 'ERR_BAD_REQ'
+    message = 'ERR_BAD_REQUEST'
   ) {
     super(message, {
       status: options.status,
       clientMessage: options.clientMessage,
+      origin: options.origin,
     });
     this.validationErrors = options.validationErrors;
   }

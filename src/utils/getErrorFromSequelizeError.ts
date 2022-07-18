@@ -35,7 +35,7 @@ const getErrorFromSequelizeError = (sequelizeError: BaseError) => {
   } else if (sequelizeError instanceof EmptyResultError) {
     return new NotFoundError('ERR_NOT_FOUND', { origin: sequelizeError });
   }
-  return new ApiError('ERR_DB');
+  return new ApiError('ERR_DB', { origin: sequelizeError });
 };
 
 export default getErrorFromSequelizeError;
