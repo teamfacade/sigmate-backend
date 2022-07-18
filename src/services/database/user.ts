@@ -8,13 +8,14 @@ import User, {
   UserIdType,
   UserModelAttributes,
 } from '../../models/User';
-import { UserAuthDTO } from '../../models/UserAuth';
+import UserAuth, { UserAuthDTO } from '../../models/UserAuth';
 import UserProfile, { UserProfileDTO } from '../../models/UserProfile';
 import getErrorFromSequelizeError from '../../utils/getErrorFromSequelizeError';
 import { GoogleProfile } from '../auth/google';
 import { createUserAuth } from './auth';
 import ApiError from '../../utils/errors/ApiError';
 import NotFoundError from '../../utils/errors/NotFoundError';
+import AdminUser from '../../models/AdminUser';
 
 const USERGROUP_NEWBIE = 'newbie';
 
@@ -224,6 +225,17 @@ export const deleteUser = async (userId: UserIdType) => {
           },
           { transaction }
         );
+
+        // Delete associated entries in other tables
+        await AdminUser.destroy({
+          where: { userId: user.userId },
+          transaction,
+        });
+        await UserAuth.destroy({ where: { userId: user.userId }, transaction });
+        await UserProfile.destroy({
+          where: { userId: user.userId },
+          transaction,
+        });
 
         await user.destroy({ transaction });
       } else {
