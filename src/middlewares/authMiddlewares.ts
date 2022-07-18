@@ -1,7 +1,10 @@
 import { NextFunction, Request, Response } from 'express';
+import passport from 'passport';
 import BadRequestError from '../utils/errors/BadRequestError';
 import ForbiddenError from '../utils/errors/ForbiddenError';
 import UnauthenticatedError from '../utils/errors/UnauthenticatedError';
+
+export const passportJwtAuth = passport.authenticate('jwt', { session: false });
 
 export const isAuthenticated = (
   req: Request,
