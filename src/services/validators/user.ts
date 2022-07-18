@@ -8,7 +8,14 @@ const isUserNameAvailable: CustomValidator = async (value: string) => {
 };
 
 export const validateUserPatch = [
-  param('userId').escape().trim().stripLow().notEmpty().withMessage('REQUIRED'),
+  param('userId')
+    .escape()
+    .trim()
+    .stripLow()
+    .notEmpty()
+    .withMessage('REQUIRED')
+    .isUUID()
+    .withMessage('INVALID'),
   body('googleAccountId').optional().isEmpty().withMessage('UNKNOWN'),
   body('userName')
     .optional()
@@ -69,3 +76,13 @@ export const validateUserPatch = [
   body('agreePrivacy').optional().isISO8601().withMessage('NOT_DATE'),
   body('agreeLegal').optional().isISO8601().withMessage('NOT_DATE'),
 ];
+
+export const validateUserDelete = param('userId')
+  .escape()
+  .trim()
+  .stripLow()
+  .notEmpty()
+  .withMessage('REQUIRED')
+  .bail()
+  .isUUID()
+  .withMessage('INVALID');

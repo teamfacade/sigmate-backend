@@ -193,3 +193,25 @@ export const updateUser = async (userDTO: UserDTO) => {
     throw error;
   }
 };
+
+/**
+ * Delete(soft) the user with the given user Id
+ * Sequelize keeps the user record in the database but updates the deletedAt field value, to mark as "deleted".
+ * @param userId Id of the user
+ * @returns Number of affected rows in the DB (1 if successful)
+ */
+export const deleteUser = async (userId: UserIdType) => {
+  try {
+    return await db.sequelize.transaction(async (transaction) => {
+      const affectedCount = await User.destroy({
+        where: { userId },
+        transaction,
+      });
+      if (affectedCount !== 1) throw new NotFoundError();
+      return affectedCount;
+    });
+  } catch (error) {
+    if (error instanceof BaseError) throw getErrorFromSequelizeError(error);
+    throw error;
+  }
+};
