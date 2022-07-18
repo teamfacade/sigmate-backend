@@ -1,10 +1,11 @@
 import jwt from 'jsonwebtoken';
 import fs from 'fs';
 import UserAuth from '../../models/UserAuth';
-import db from '../../models';
 import { BaseError } from 'sequelize';
 import ApiError from '../../utils/errors/ApiError';
 import getErrorFromSequelizeError from '../../utils/getErrorFromSequelizeError';
+import { UserIdType } from '../../models/User';
+import { updateUserAuth } from '../database/auth';
 
 export const JWT_ALG = 'ES256';
 export const JWT_ISS = 'sigmate.io';
@@ -81,24 +82,8 @@ export const renewAccessToken = async (
   isAdmin: boolean
 ): Promise<string> => {
   const token = createAccessToken(userId, group, isAdmin);
-  try {
-    const [affectedCount] = await db.sequelize.transaction(
-      async (transaction) => {
-        return await UserAuth.update(
-          { sigmateAccessToken: token },
-          { where: { userId }, transaction }
-        );
-      }
-    );
-    if (affectedCount === 0)
-      throw new ApiError('ERR_DB_RENEW_ACCESS_TOKEN', {
-        clientMessage: 'ERR_TOK',
-      });
-    return token;
-  } catch (error) {
-    if (error instanceof BaseError) throw getErrorFromSequelizeError(error);
-    throw error;
-  }
+  await updateUserAuth(userId, { sigmateAccessToken: token });
+  return token;
 };
 
 /**
@@ -115,24 +100,8 @@ export const renewRefreshToken = async (
   isAdmin: boolean
 ): Promise<string> => {
   const token = createRefreshToken(userId, group, isAdmin);
-  try {
-    const [affectedCount] = await db.sequelize.transaction(
-      async (transaction) => {
-        return await UserAuth.update(
-          { sigmateRefreshToken: token },
-          { where: { userId }, transaction }
-        );
-      }
-    );
-    if (affectedCount === 0)
-      throw new ApiError('ERR_DB_RENEW_REFRESH_TOKEN', {
-        clientMessage: 'ERR_TOK',
-      });
-    return token;
-  } catch (error) {
-    if (error instanceof BaseError) throw getErrorFromSequelizeError(error);
-    throw error;
-  }
+  await updateUserAuth(userId, { sigmateRefreshToken: token });
+  return token;
 };
 
 /**
@@ -238,4 +207,19 @@ export const retrieveTokens = async (
 
   // Finally, return the tokens
   return tokens;
+};
+
+export const voidAccessToken = async (userId: UserIdType) => {
+  return await updateUserAuth(userId, { sigmateAccessToken: '' });
+};
+
+export const voidRefreshToken = async (userId: UserIdType) => {
+  return await updateUserAuth(userId, { sigmateRefreshToken: '' });
+};
+
+export const voidAllSigmateTokens = async (userId: UserIdType) => {
+  return await updateUserAuth(userId, {
+    sigmateAccessToken: '',
+    sigmateRefreshToken: '',
+  });
 };

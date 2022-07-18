@@ -2,7 +2,10 @@ import { Credentials } from 'google-auth-library';
 import { BaseError } from 'sequelize';
 import jwt from 'jsonwebtoken';
 import User, { UserIdType } from '../../models/User';
-import UserAuth, { UserAuthCreationDTO } from '../../models/UserAuth';
+import UserAuth, {
+  UserAuthCreationDTO,
+  UserAuthDTO,
+} from '../../models/UserAuth';
 import NotFoundError from '../../utils/errors/NotFoundError';
 import getErrorFromSequelizeError from '../../utils/getErrorFromSequelizeError';
 import db from '../../models';
@@ -243,4 +246,29 @@ export const findUserByRefreshToken = async (
   }
 
   return null; // Tokens do not match
+};
+
+/**
+ * Update a UserAuth entry with given values
+ * @param userId Id of user
+ * @param userAuthDTO Properties of UserAuth
+ * @returns Number of affected rows in DB (1 if successful)
+ */
+export const updateUserAuth = async (
+  userId: string,
+  userAuthDTO: UserAuthDTO
+) => {
+  try {
+    return await db.sequelize.transaction(async (transaction) => {
+      const [affectedCount] = await UserAuth.update(
+        { ...userAuthDTO },
+        { where: { userId }, transaction }
+      );
+      if (affectedCount !== 1) throw new NotFoundError();
+      affectedCount;
+    });
+  } catch (error) {
+    if (error instanceof BaseError) throw getErrorFromSequelizeError(error);
+    throw error;
+  }
 };

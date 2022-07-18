@@ -8,6 +8,8 @@ import {
   renewAccessToken,
   renewRefreshToken,
   retrieveTokens,
+  voidAccessToken,
+  voidAllSigmateTokens,
 } from '../../../services/auth/token';
 import {
   createUserGoogle,
@@ -156,5 +158,39 @@ export const renewRefreshTokenController = async (
     res.status(200).json(response);
   } catch (error) {
     next(error);
+  }
+};
+
+export const logoutController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    if (req.user) {
+      voidAccessToken(req.user.userId);
+    } else {
+      throw new ForbiddenError();
+    }
+    res.status(204).send();
+  } catch (error) {
+    return next(error);
+  }
+};
+
+export const logoutAllController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    if (req.user) {
+      voidAllSigmateTokens(req.user.userId);
+    } else {
+      throw new ForbiddenError();
+    }
+    res.status(204).send();
+  } catch (error) {
+    return next(error);
   }
 };

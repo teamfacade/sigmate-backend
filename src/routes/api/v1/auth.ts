@@ -1,6 +1,8 @@
 import express from 'express';
 import {
   authGoogleController,
+  logoutAllController,
+  logoutController,
   renewAccessTokenController,
   renewRefreshTokenController,
 } from '../../../controllers/api/v1/auth';
@@ -29,10 +31,14 @@ authRouter.post(
   isRefreshTokenValid,
   renewAccessTokenController
 );
+
 authRouter.get(
   '/token/renew/refresh',
   passportJwtAuth,
   renewRefreshTokenController
 );
+
+authRouter.get('/logout', passportJwtAuth, logoutController);
+authRouter.get('/logout/all', passportJwtAuth, logoutAllController);
 
 export default authRouter;
