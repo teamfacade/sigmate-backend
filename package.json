@@ -7,7 +7,7 @@
     "prepare": "husky install",
     "start": "nodemon dist/index.js",
     "build": "tsc -p .",
-    "dev": "nodemon --watch \"**/*.ts\" --exec \"ts-node\" index.ts",
+    "dev": "nodemon --watch \"src/**/*.ts\" --exec \"ts-node\" index.ts",
     "precommit": "lint-staged"
   },
   "repository": {

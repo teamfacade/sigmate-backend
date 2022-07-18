@@ -1,31 +1,25 @@
 import dotenv from 'dotenv';
 dotenv.config();
 
+import checkEnv from './src/loaders/checkEnv';
+checkEnv();
+
 import express from 'express';
+import setupExpress from './src/loaders/setupExpress';
+import setupRoutes from './src/loaders/setupRoutes';
+import syncDatabase from './src/loaders/syncDatabase';
+import setupErrorHandlers from './src/loaders/setupErrorHandlers';
+
 const app = express();
+setupExpress(app);
+setupRoutes(app);
 
-import setExpress from './services/loaders/setExpress';
-import setMiddlewares from './services/loaders/setMiddlewares';
-import syncDatabase from './services/loaders/syncDatabase';
-import setRoutes from './services/loaders/setRoutes';
-import setErrorHandlers from './services/loaders/setErrorHandlers';
+if (process.env.NODE_ENV === 'development') {
+  syncDatabase();
+}
 
-// Express settings (port, ...)
-setExpress(app);
+setupErrorHandlers(app);
 
-// Set global middlewares
-setMiddlewares(app);
-
-// Connect, init, and sync database with Sequelize
-syncDatabase();
-
-// Set up routers
-setRoutes(app);
-
-// Set up error handlers
-setErrorHandlers(app);
-
-// Start server
 app.listen(app.get('port'), () => {
-  console.log(`✅ Server started on port ${app.get('port')}`);
+  console.log(`✅ Server listening on port ${app.get('port')}...`);
 });
