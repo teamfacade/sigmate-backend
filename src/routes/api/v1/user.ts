@@ -12,7 +12,7 @@ import User from '../../../models/User';
 import {
   validateUserDelete,
   validateUserPatch,
-} from '../../../services/validators/user';
+} from '../../../middlewares/validators/user';
 
 const userRouter = express.Router();
 

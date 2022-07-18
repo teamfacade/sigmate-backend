@@ -14,7 +14,7 @@ import BadRequestHandler from '../../../middlewares/BadRequestHandler';
 import {
   validateGoogleAuthCode,
   validateRenewAccessToken,
-} from '../../../services/validators/auth';
+} from '../../../middlewares/validators/auth';
 
 const authRouter = express.Router();
 
