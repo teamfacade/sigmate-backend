@@ -130,16 +130,16 @@ export function initUser(sequelize: Sequelize) {
         primaryKey: true,
       },
       googleAccountId: {
-        type: DataType.STRING(32),
+        type: DataType.STRING(32 + 15), // 15: for soft deletion edits
         unique: true,
       },
       userName: {
-        type: DataType.STRING(36),
+        type: DataType.STRING(36 + 15), // 15: for soft deletion edits
         allowNull: false,
         unique: true,
       },
       email: {
-        type: DataType.STRING(256),
+        type: DataType.STRING(256 + 15), // 15: for soft deletion edits
         allowNull: false,
         unique: true,
       },

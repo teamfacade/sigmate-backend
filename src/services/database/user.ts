@@ -38,16 +38,19 @@ export const findUserById = async (userId: UserIdType) => {
 /**
  * Find a user with Google ID
  * @param googleAccountId Google ID
+ * @param includeSoftDeleted Include soft-deleted user records in the query result
  * @returns User. null if not found
  * @throws ApiError from Sequelize BaseError
  */
 export const findUserByGoogleId = async (
-  googleAccountId: UserModelAttributes['googleAccountId']
+  googleAccountId: UserModelAttributes['googleAccountId'],
+  includeSoftDeleted = false
 ) => {
   try {
     return await User.findOne({
       where: { googleAccountId },
       include: UserProfile,
+      paranoid: !includeSoftDeleted,
     });
   } catch (error) {
     throw getErrorFromSequelizeError(error as BaseError);
@@ -203,12 +206,29 @@ export const updateUser = async (userDTO: UserDTO) => {
 export const deleteUser = async (userId: UserIdType) => {
   try {
     return await db.sequelize.transaction(async (transaction) => {
-      const affectedCount = await User.destroy({
-        where: { userId },
-        transaction,
-      });
-      if (affectedCount !== 1) throw new NotFoundError();
-      return affectedCount;
+      const user = await User.findByPk(userId, { transaction });
+
+      if (user) {
+        // Deal with all unique columns before soft deleting
+        const d = new Date().getTime();
+
+        const userName = `${user.userName}-d${d}`;
+        const email = `${user.email || ''}-d${d}`;
+        const googleAccountId = `${user.googleAccountId || ''}-d${d}`;
+
+        await user.update(
+          {
+            userName,
+            email,
+            googleAccountId,
+          },
+          { transaction }
+        );
+
+        await user.destroy({ transaction });
+      } else {
+        throw new NotFoundError();
+      }
     });
   } catch (error) {
     if (error instanceof BaseError) throw getErrorFromSequelizeError(error);
