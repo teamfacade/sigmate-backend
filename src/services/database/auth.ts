@@ -1,10 +1,20 @@
 import { Credentials } from 'google-auth-library';
 import { BaseError } from 'sequelize';
-import { UserIdType } from '../../models/User';
+import jwt from 'jsonwebtoken';
+import User, { UserIdType } from '../../models/User';
 import UserAuth, { UserAuthCreationDTO } from '../../models/UserAuth';
 import NotFoundError from '../../utils/errors/NotFoundError';
 import getErrorFromSequelizeError from '../../utils/getErrorFromSequelizeError';
 import db from '../../models';
+import {
+  getECPublicKey,
+  JWT_ALG,
+  JWT_ISS,
+  JWT_TYP_ACCESS,
+  JWT_TYP_REFRESH,
+  SigmateJwtPayload,
+} from '../auth/token';
+import UserGroup from '../../models/UserGroup';
 
 /**
  * Create an empty UserAuth entry in the user_auths table
@@ -65,4 +75,184 @@ export const updateGoogleTokens = async (
     if (error instanceof BaseError) throw getErrorFromSequelizeError(error);
     throw error;
   }
+};
+
+/**
+ * Look for a user with a given Sigmate access token
+ * @param accessToken Sigmate access token
+ * @returns User if token is valid and matches. Returns null otherwise.
+ * @throws DatabaseError
+ */
+export const findUserByAccessToken = async (
+  accessToken: string | null
+): Promise<User | null> => {
+  // No need to bother if accessToken is falsy
+  if (!accessToken) return null;
+
+  // Decode jwt
+  const tokenData: {
+    tok?: string;
+    group?: string;
+    userId?: string;
+    isAdmin?: boolean;
+  } = {};
+
+  try {
+    const decodedToken = jwt.verify(accessToken, getECPublicKey(), {
+      issuer: JWT_ISS,
+      algorithms: [JWT_ALG],
+    }) as SigmateJwtPayload;
+
+    tokenData.tok = decodedToken.tok;
+    tokenData.group = decodedToken.group;
+    tokenData.userId = decodedToken.sub;
+    tokenData.isAdmin = decodedToken.isAdmin;
+  } catch (tokenError) {
+    // Token is invalid
+    console.log(`findUserByAccessToken: Failed 1`);
+    return null;
+  }
+
+  const { tok, group, userId, isAdmin } = tokenData;
+
+  if (group === undefined || userId === undefined || isAdmin === undefined) {
+    // required information missing
+    console.log(`findUserByAccessToken: Failed 2`);
+    console.log(tokenData);
+    return null;
+  }
+
+  if (tok !== JWT_TYP_ACCESS) {
+    // wrong type
+    console.log(`findUserByAccessToken: Failed 3`);
+    return null;
+  }
+
+  // Compare with DB
+  const dbData: {
+    sigmateAccessToken: string;
+    user: User | null;
+  } = { sigmateAccessToken: '', user: null };
+  try {
+    const user = await User.findOne({
+      where: {
+        userId: tokenData.userId,
+        group: tokenData.group,
+        isAdmin: tokenData.isAdmin,
+      },
+      include: UserGroup,
+    });
+    if (!user) {
+      console.log(`findUserByAccessToken: Failed 4`);
+      return null; // User not found
+    }
+    dbData.user = user;
+    const auth = await UserAuth.findOne({ where: { userId } });
+    if (!auth) {
+      console.log(`findUserByAccessToken: Failed 5`);
+      return null; // UserAuth not found
+    }
+    if (auth.sigmateAccessToken) {
+      dbData.sigmateAccessToken = auth.sigmateAccessToken;
+    } else {
+      console.log(`findUserByAccessToken: Failed 6`);
+      return null; // No access token
+    }
+  } catch (dbError) {
+    console.log(`findUserByAccessToken: Failed 7`);
+    throw getErrorFromSequelizeError(dbError as BaseError);
+  }
+
+  const { sigmateAccessToken, user } = dbData;
+  if (sigmateAccessToken === accessToken) {
+    return user;
+  }
+
+  console.log(`findUserByAccessToken: Failed 8`);
+  console.log(`${sigmateAccessToken === accessToken}`);
+  console.log(sigmateAccessToken);
+  console.log(accessToken);
+  return null; // Tokens do not match
+};
+
+/**
+ * Look for a user with a given Sigmate refresh token
+ * @param refreshToken Sigmate refresh token
+ * @returns User if token is valid and matches. Returns null otherwise.
+ * @throws DatabaseError
+ */
+export const findUserByRefreshToken = async (
+  refreshToken: string | null
+): Promise<User | null> => {
+  // No need to bother if accessToken is falsy
+  if (!refreshToken) return null;
+
+  // Decode jwt
+  const tokenData: {
+    tok?: string;
+    group?: string;
+    userId?: string;
+    isAdmin?: boolean;
+  } = {};
+
+  try {
+    const decodedToken = jwt.verify(refreshToken, getECPublicKey(), {
+      issuer: JWT_ISS,
+      algorithms: [JWT_ALG],
+    }) as SigmateJwtPayload;
+
+    tokenData.tok = decodedToken.tok;
+    tokenData.group = decodedToken.group;
+    tokenData.userId = decodedToken.sub;
+    tokenData.isAdmin = decodedToken.isAdmin;
+  } catch (tokenError) {
+    // Token is invalid
+    return null;
+  }
+
+  const { tok, group, userId, isAdmin } = tokenData;
+
+  if (!group || !userId || !isAdmin) {
+    // required information missing
+    return null;
+  }
+
+  if (tok !== JWT_TYP_REFRESH) {
+    // wrong type
+    return null;
+  }
+
+  // Compare with DB
+  const dbData: {
+    sigmateRefreshToken: string;
+    user: User | null;
+  } = { sigmateRefreshToken: '', user: null };
+  try {
+    const user = await User.findOne({
+      where: {
+        userId: tokenData.userId,
+        group: tokenData.group,
+        isAdmin: tokenData.isAdmin,
+      },
+      include: UserGroup,
+    });
+    if (!user) return null; // User not found
+    dbData.user = user;
+    const auth = await UserAuth.findOne({ where: { userId } });
+    if (!auth) return null; // UserAuth not found
+    if (auth.sigmateRefreshToken) {
+      dbData.sigmateRefreshToken = auth.sigmateRefreshToken;
+    } else {
+      return null; // No refresh token
+    }
+  } catch (dbError) {
+    throw getErrorFromSequelizeError(dbError as BaseError);
+  }
+
+  const { sigmateRefreshToken, user } = dbData;
+  if (sigmateRefreshToken === refreshToken) {
+    return user;
+  }
+
+  return null; // Tokens do not match
 };

@@ -2,15 +2,38 @@ import { Credentials } from 'google-auth-library';
 import { v4 as uuidv4 } from 'uuid';
 import { BaseError } from 'sequelize';
 import db from '../../models';
-import User, { UserCreationDTO, UserModelAttributes } from '../../models/User';
+import User, {
+  UserCreationDTO,
+  UserDTO,
+  UserIdType,
+  UserModelAttributes,
+} from '../../models/User';
 import { UserAuthDTO } from '../../models/UserAuth';
 import UserProfile, { UserProfileDTO } from '../../models/UserProfile';
 import getErrorFromSequelizeError from '../../utils/getErrorFromSequelizeError';
 import { GoogleProfile } from '../auth/google';
 import { createUserAuth } from './auth';
 import ApiError from '../../utils/errors/ApiError';
+import NotFoundError from '../../utils/errors/NotFoundError';
 
 const USERGROUP_NEWBIE = 'newbie';
+
+/**
+ * Find a user by id
+ * @param userId Id of user
+ * @returns User
+ * @throws NotFoundError if user is not found
+ */
+export const findUserById = async (userId: UserIdType) => {
+  try {
+    const user = await User.findByPk(userId);
+    if (!user) throw new NotFoundError();
+    return user;
+  } catch (error) {
+    if (error instanceof BaseError) throw getErrorFromSequelizeError(error);
+    throw error;
+  }
+};
 
 /**
  * Find a user with Google ID
@@ -25,6 +48,26 @@ export const findUserByGoogleId = async (
     return await User.findOne({
       where: { googleAccountId },
       include: UserProfile,
+    });
+  } catch (error) {
+    throw getErrorFromSequelizeError(error as BaseError);
+  }
+};
+
+/**
+ * Update the last loggged in time of the User record
+ * @param userId Id of the user
+ * @returns Number of affected row from the DB (1 on success)
+ */
+export const updateLastLoggedIn = async (userId: UserIdType) => {
+  try {
+    return await db.sequelize.transaction(async (transaction) => {
+      const [affectedCount] = await User.update(
+        { lastLoginAt: new Date() },
+        { where: { userId }, transaction }
+      );
+      if (affectedCount !== 1) throw new NotFoundError();
+      return affectedCount;
     });
   } catch (error) {
     throw getErrorFromSequelizeError(error as BaseError);
@@ -123,4 +166,30 @@ export const createUserGoogle = async (
   };
 
   return await createUser(userDTO, userAuthDTO, userProfileDTO);
+};
+
+/**
+ * Update the one user entry with the given data.
+ * Transaction fails when more than one user is updated.
+ * @param userDTO Properties for User (userId required)
+ * @returns Number of affected rows in the DB
+ */
+export const updateUser = async (userDTO: UserDTO) => {
+  try {
+    const affectedCount = await db.sequelize.transaction(
+      async (transaction) => {
+        const [affectedCount] = await User.update(
+          { ...userDTO },
+          { where: { userId: userDTO.userId }, transaction }
+        );
+
+        if (affectedCount !== 1) throw new NotFoundError();
+        return affectedCount;
+      }
+    );
+    return affectedCount;
+  } catch (error) {
+    if (error instanceof BaseError) throw getErrorFromSequelizeError(error);
+    throw error;
+  }
 };

@@ -1,6 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
 
 export interface ErrorResponse {
+  success: false;
   message: string;
 }
 
@@ -18,7 +19,7 @@ const errorHandler = (
   const status = 500;
   const message =
     env === 'development' && err.message ? err.message : DEFAULT_ERR_MESSAGE;
-  const errorResponse: ErrorResponse = { message };
+  const errorResponse: ErrorResponse = { success: false, message };
 
   res.status(status).json(errorResponse);
 };

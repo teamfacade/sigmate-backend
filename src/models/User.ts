@@ -53,12 +53,12 @@ export type UserCreationAttributes = Optional<
   | 'cookiesTargeting'
 >;
 
-export type UserDTO = Partial<UserModelAttributes>;
-export type UserCreationDTO = Require<UserDTO, 'email'>;
+export type UserDTO = Require<Partial<UserModelAttributes>, 'userId'>;
+export type UserCreationDTO = Require<Omit<UserDTO, 'userId'>, 'email'>;
 
 const defaultPreferences = {
   emailEssential: true,
-  emailMarketing: true,
+  emailMarketing: false,
   cookiesEssential: true,
   cookiesAnalytics: false,
   cookiesFunctional: false,
@@ -67,6 +67,8 @@ const defaultPreferences = {
   agreePrivacy: null,
   agreeLegal: null,
 };
+
+export const availableThemes = ['light', 'dark', 'auto'];
 
 @Table
 export default class User extends Model<
@@ -242,7 +244,7 @@ export const associateUser = (db: DatabaseObject) => {
     foreignKey: 'userId',
   });
 
-  // One user can apooint many admin users
+  // One user can appoint many admin users
   db.User.hasMany(db.AdminUser, {
     foreignKey: 'appointedBy',
   });

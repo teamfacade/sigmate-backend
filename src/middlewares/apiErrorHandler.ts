@@ -23,7 +23,7 @@ const apiErrorHandler = (
   const message =
     err.clientMessage || (err.message ? err.message : DEFAULT_ERR_MESSAGE);
 
-  const apiErrorResponse: ApiErrorResponse = { message };
+  const apiErrorResponse: ApiErrorResponse = { success: false, message };
   if (err instanceof BadRequestError) {
     apiErrorResponse.validationErrors = err.validationErrors;
   } else if (err instanceof ConflictError) {

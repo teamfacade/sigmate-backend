@@ -119,7 +119,7 @@ export const renewRefreshToken = async (
     const [affectedCount] = await db.sequelize.transaction(
       async (transaction) => {
         return await UserAuth.update(
-          { sigmateAccessToken: token },
+          { sigmateRefreshToken: token },
           { where: { userId }, transaction }
         );
       }

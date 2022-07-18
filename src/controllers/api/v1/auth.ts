@@ -8,10 +8,12 @@ import { retrieveTokens } from '../../../services/auth/token';
 import {
   createUserGoogle,
   findUserByGoogleId,
+  updateLastLoggedIn,
 } from '../../../services/database/user';
 import NotFoundError from '../../../utils/errors/NotFoundError';
 
 export type AuthResponse = {
+  success: boolean;
   user: User;
   accessToken: string;
   refreshToken: string;
@@ -39,11 +41,13 @@ export const authGoogle = async (
     const user = await findUserByGoogleId(googleProfile.id);
 
     // Prepare API response
-    const response: AuthResponse = {} as AuthResponse;
+    const response: AuthResponse = { success: true } as AuthResponse;
     let status = 200;
 
+    let updateLastLoggedInPromise = null;
     if (user) {
       response.user = user;
+      updateLastLoggedInPromise = updateLastLoggedIn(user.userId);
     } else {
       // Create user from Google profile information if not exists
       response.user = await createUserGoogle(googleTokens, googleProfile);
@@ -62,6 +66,9 @@ export const authGoogle = async (
 
     // API response
     res.status(status).json(response);
+
+    // Await remaining promises
+    if (updateLastLoggedInPromise) await updateLastLoggedInPromise;
   } catch (error) {
     return next(error);
   }
