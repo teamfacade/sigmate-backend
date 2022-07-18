@@ -109,7 +109,6 @@ export const findUserByAccessToken = async (
     tokenData.isAdmin = decodedToken.isAdmin;
   } catch (tokenError) {
     // Token is invalid
-    console.log(`findUserByAccessToken: Failed 1`);
     return null;
   }
 
@@ -117,14 +116,11 @@ export const findUserByAccessToken = async (
 
   if (group === undefined || userId === undefined || isAdmin === undefined) {
     // required information missing
-    console.log(`findUserByAccessToken: Failed 2`);
-    console.log(tokenData);
     return null;
   }
 
   if (tok !== JWT_TYP_ACCESS) {
     // wrong type
-    console.log(`findUserByAccessToken: Failed 3`);
     return null;
   }
 
@@ -143,23 +139,19 @@ export const findUserByAccessToken = async (
       include: UserGroup,
     });
     if (!user) {
-      console.log(`findUserByAccessToken: Failed 4`);
       return null; // User not found
     }
     dbData.user = user;
     const auth = await UserAuth.findOne({ where: { userId } });
     if (!auth) {
-      console.log(`findUserByAccessToken: Failed 5`);
       return null; // UserAuth not found
     }
     if (auth.sigmateAccessToken) {
       dbData.sigmateAccessToken = auth.sigmateAccessToken;
     } else {
-      console.log(`findUserByAccessToken: Failed 6`);
       return null; // No access token
     }
   } catch (dbError) {
-    console.log(`findUserByAccessToken: Failed 7`);
     throw getErrorFromSequelizeError(dbError as BaseError);
   }
 
@@ -168,10 +160,6 @@ export const findUserByAccessToken = async (
     return user;
   }
 
-  console.log(`findUserByAccessToken: Failed 8`);
-  console.log(`${sigmateAccessToken === accessToken}`);
-  console.log(sigmateAccessToken);
-  console.log(accessToken);
   return null; // Tokens do not match
 };
 

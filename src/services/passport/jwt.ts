@@ -23,19 +23,14 @@ const jwtStrategy = new JwtStrategy(
   async (req: Request, payload: any, done: VerifiedCallback) => {
     const { tok } = payload;
     const token = ExtractJwt.fromAuthHeaderAsBearerToken()(req);
-    console.log(`Extracted token payload: ${JSON.stringify(payload)}`);
-    console.log(`Extracted token: ${token}`);
     try {
       if (token && tok === JWT_TYP_ACCESS) {
         const user = await findUserByAccessToken(token);
-        if (!user) console.log(`Token auth failed 0`);
         done(null, user);
       } else {
-        console.log(`Token auth failed 1`);
         done(null, false);
       }
     } catch (error) {
-      console.log(`Token auth failed 2`);
       done(error);
     }
   }
