@@ -28,6 +28,7 @@ authRouter.post(
 authRouter.post(
   '/token/renew/access',
   validateRenewAccessToken,
+  BadRequestHandler,
   isRefreshTokenValid,
   renewAccessTokenController
 );

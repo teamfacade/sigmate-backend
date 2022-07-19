@@ -27,7 +27,9 @@ const USERGROUP_NEWBIE = 'newbie';
  */
 export const findUserById = async (userId: UserIdType) => {
   try {
-    const user = await User.findByPk(userId);
+    const user = await User.findByPk(userId, {
+      include: { model: UserProfile, as: 'primaryProfile' },
+    });
     if (!user) throw new NotFoundError();
     return user;
   } catch (error) {
@@ -50,7 +52,7 @@ export const findUserByGoogleId = async (
   try {
     return await User.findOne({
       where: { googleAccountId },
-      include: UserProfile,
+      include: { model: UserProfile, as: 'primaryProfile' },
       paranoid: !includeSoftDeleted,
     });
   } catch (error) {
@@ -114,13 +116,13 @@ export const createUser = async (
       );
 
       await User.update(
-        { primaryProfile: profile.profileId },
+        { primaryProfileId: profile.profileId },
         { where: { userId }, transaction }
       );
 
       return await User.findOne({
         where: { userId },
-        include: UserProfile,
+        include: { model: UserProfile, as: 'primaryProfile' },
         transaction,
       });
     });

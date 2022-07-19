@@ -20,7 +20,7 @@ export interface UserModelAttributes {
   email: string;
   emailVerified: boolean;
   group: GroupIdType;
-  primaryProfile: number;
+  primaryProfileId?: number;
   isTester: boolean;
   isAdmin: boolean;
   metamaskWallet?: string;
@@ -36,13 +36,16 @@ export interface UserModelAttributes {
   agreeTos?: Date;
   agreePrivacy?: Date;
   agreeLegal?: Date;
+  referralCode?: string;
+  referredBy?: UserIdType;
+  userAuth?: any;
 }
 
 export type UserCreationAttributes = Optional<
   UserModelAttributes,
   | 'emailVerified'
   | 'group'
-  | 'primaryProfile'
+  | 'primaryProfileId'
   | 'isTester'
   | 'isAdmin'
   | 'emailEssential'
@@ -88,7 +91,7 @@ export default class User extends Model<
   @Column
   public group!: string;
   @Column
-  public primaryProfile!: number;
+  public primaryProfileId!: number;
   @Column
   public isTester!: boolean;
   @Column
@@ -119,6 +122,10 @@ export default class User extends Model<
   public agreePrivacy!: Date;
   @Column
   public agreeLegal!: Date;
+  @Column
+  public referralCode!: string;
+  @Column
+  public referredBy!: UserIdType;
 }
 
 export function initUser(sequelize: Sequelize) {
@@ -134,12 +141,12 @@ export function initUser(sequelize: Sequelize) {
         unique: true,
       },
       userName: {
-        type: DataType.STRING(36 + 15), // 15: for soft deletion edits
+        type: DataType.STRING(32 + 15), // 15: for soft deletion edits
         allowNull: false,
         unique: true,
       },
       email: {
-        type: DataType.STRING(256 + 15), // 15: for soft deletion edits
+        type: DataType.STRING(191), // 15: for soft deletion edits
         allowNull: false,
         unique: true,
       },
@@ -152,7 +159,7 @@ export function initUser(sequelize: Sequelize) {
         allowNull: false,
         defaultValue: 'newbie',
       },
-      primaryProfile: {
+      primaryProfileId: {
         type: DataType.INTEGER,
       },
       isTester: {
@@ -217,6 +224,15 @@ export function initUser(sequelize: Sequelize) {
       agreeLegal: {
         type: DataType.DATE,
       },
+      referralCode: {
+        type: DataType.STRING(128),
+        allowNull: true,
+        unique: true,
+      },
+      referredBy: {
+        type: userIdDataType,
+        allowNull: true,
+      },
     },
     {
       sequelize,
@@ -227,6 +243,7 @@ export function initUser(sequelize: Sequelize) {
       paranoid: true,
       charset: 'utf8mb4',
       collate: 'utf8mb4_general_ci',
+      engine: 'InnoDB',
     }
   );
 }
@@ -261,8 +278,20 @@ export const associateUser = (db: DatabaseObject) => {
 
   // One user can have one default profile
   db.User.belongsTo(db.UserProfile, {
-    foreignKey: 'primaryProfile',
+    foreignKey: 'primaryProfileId',
     onUpdate: 'CASCADE',
     onDelete: 'RESTRICT',
+    as: 'primaryProfile',
+  });
+
+  // One user can be referred by one user
+  db.User.hasOne(db.User, {
+    foreignKey: 'referredBy',
+  });
+
+  db.User.belongsTo(db.User, {
+    foreignKey: 'referredBy',
+    onUpdate: 'CASCADE',
+    onDelete: 'NO ACTION',
   });
 };

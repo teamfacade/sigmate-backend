@@ -1,31 +1,28 @@
 import express from 'express';
 import {
   deleteUserController,
+  getUserController,
   patchUserController,
 } from '../../../controllers/api/v1/users';
-import {
-  isMyselfParams,
-  passportJwtAuth,
-} from '../../../middlewares/authMiddlewares';
+import { passportJwtAuth } from '../../../middlewares/authMiddlewares';
 import pickModelProperties from '../../../middlewares/pickModelProperties';
 import User from '../../../models/User';
-import {
-  validateUserDelete,
-  validateUserPatch,
-} from '../../../middlewares/validators/user';
+import { validateUserPatch } from '../../../middlewares/validators/user';
+import BadRequestHandler from '../../../middlewares/BadRequestHandler';
 
 const userRouter = express.Router();
 
 userRouter.use(passportJwtAuth);
 
 userRouter
-  .route('/:userId')
+  .route('/')
+  .get(getUserController)
   .patch(
-    isMyselfParams,
     pickModelProperties(User),
     validateUserPatch,
+    BadRequestHandler,
     patchUserController
   )
-  .delete(isMyselfParams, validateUserDelete, deleteUserController);
+  .delete(deleteUserController);
 
 export default userRouter;

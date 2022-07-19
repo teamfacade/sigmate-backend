@@ -1,21 +1,17 @@
-import { body, CustomValidator, param } from 'express-validator';
+import { body, CustomValidator } from 'express-validator';
 import User, { availableThemes } from '../../models/User';
 
-const isUserNameAvailable: CustomValidator = async (value: string) => {
+const isUserNameAvailable: CustomValidator = async (value: string, { req }) => {
+  if (req.user) {
+    if (req.user.userName === value) return;
+  }
   const user = await User.findOne({ where: { userName: value } });
   if (user) throw new Error('DUPLICATE');
   return user;
 };
 
 export const validateUserPatch = [
-  param('userId')
-    .escape()
-    .trim()
-    .stripLow()
-    .notEmpty()
-    .withMessage('REQUIRED')
-    .isUUID()
-    .withMessage('INVALID'),
+  body('userId').optional().isEmpty().withMessage('UNKNOWN'),
   body('googleAccountId').optional().isEmpty().withMessage('UNKNOWN'),
   body('userName')
     .optional()
@@ -28,7 +24,7 @@ export const validateUserPatch = [
     .isLength({ min: 1 })
     .withMessage('TOO_SHORT')
     .bail()
-    .isLength({ max: 36 })
+    .isLength({ max: 32 })
     .withMessage('TOO_LONG')
     .custom(isUserNameAvailable)
     .withMessage('DUPLICATE'),
@@ -37,11 +33,13 @@ export const validateUserPatch = [
     .escape()
     .trim()
     .stripLow()
-    .normalizeEmail({ gmail_remove_dots: false })
     .isEmail()
-    .withMessage('NOT_EMAIL'),
+    .withMessage('NOT_EMAIL')
+    .bail()
+    .isLength({ max: 191 })
+    .withMessage('TOO_LONG'),
   body('emailVerified').optional().isEmpty().withMessage('UNKNOWN'),
-  body('group').optional().isEmpty().withMessage('UNKNOWN'),
+  body('group').isEmpty().withMessage('UNKNOWN'),
   body('primaryProfile').optional().isInt().withMessage('NOT_INT'),
   body('isTester').optional().isBoolean().withMessage('NOT_BOOLEAN'),
   body('isAdmin').optional().isEmpty().withMessage('UNKNOWN'),
@@ -76,13 +74,3 @@ export const validateUserPatch = [
   body('agreePrivacy').optional().isISO8601().withMessage('NOT_DATE'),
   body('agreeLegal').optional().isISO8601().withMessage('NOT_DATE'),
 ];
-
-export const validateUserDelete = param('userId')
-  .escape()
-  .trim()
-  .stripLow()
-  .notEmpty()
-  .withMessage('REQUIRED')
-  .bail()
-  .isUUID()
-  .withMessage('INVALID');

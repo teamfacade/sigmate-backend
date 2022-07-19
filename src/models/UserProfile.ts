@@ -167,6 +167,7 @@ export const associateUserProfile = (db: DatabaseObject) => {
 
   // One default user profile exist for one user
   db.UserProfile.hasOne(db.User, {
-    foreignKey: 'primaryProfile',
+    foreignKey: 'primaryProfileId',
+    as: 'primaryProfile',
   });
 };
