@@ -1,5 +1,6 @@
 import { body, CustomValidator } from 'express-validator';
 import User, { availableThemes } from '../../models/User';
+import { inMySQLIntRange, toBoolean, toDate } from './utils';
 
 const isUserNameAvailable: CustomValidator = async (value: string, { req }) => {
   if (req.user) {
@@ -40,8 +41,16 @@ export const validateUserPatch = [
     .withMessage('TOO_LONG'),
   body('emailVerified').optional().isEmpty().withMessage('UNKNOWN'),
   body('group').isEmpty().withMessage('UNKNOWN'),
-  body('primaryProfile').optional().isInt().withMessage('NOT_INT'),
-  body('isTester').optional().isBoolean().withMessage('NOT_BOOLEAN'),
+  body('primaryProfile')
+    .optional()
+    .isInt()
+    .custom(inMySQLIntRange())
+    .withMessage('NOT_INT'),
+  body('isTester')
+    .optional()
+    .isBoolean()
+    .withMessage('NOT_BOOLEAN')
+    .customSanitizer(toBoolean),
   body('isAdmin').optional().isEmpty().withMessage('UNKNOWN'),
   body('metamaskWallet').optional().isEmpty().withMessage('UNKNOWN'),
   body('lastLoginAt').optional().isEmpty().withMessage('UNKNOWN'),
@@ -62,15 +71,61 @@ export const validateUserPatch = [
     .stripLow()
     .isLength({ max: 5 })
     .withMessage('TOO_LONG')
+    .bail()
     .isIn(availableThemes)
     .withMessage('NOT_THEME'),
-  body('emailEssential').optional().isBoolean().withMessage('NOT_BOOLEAN'),
-  body('emailMarketing').optional().isBoolean().withMessage('NOT_BOOLEAN'),
-  body('cookiesEssential').optional().isBoolean().withMessage('NOT_BOOLEAN'),
-  body('cookiesAnalytics').optional().isBoolean().withMessage('NOT_BOOLEAN'),
-  body('cookieEssential').optional().isBoolean().withMessage('NOT_BOOLEAN'),
-  body('cookiesTargeting').optional().isBoolean().withMessage('NOT_BOOLEAN'),
-  body('agreeTos').optional().isISO8601().withMessage('NOT_DATE'),
-  body('agreePrivacy').optional().isISO8601().withMessage('NOT_DATE'),
-  body('agreeLegal').optional().isISO8601().withMessage('NOT_DATE'),
+  body('emailEssential')
+    .optional()
+    .isBoolean()
+    .withMessage('NOT_BOOLEAN')
+    .bail()
+    .customSanitizer(toBoolean),
+  body('emailMarketing')
+    .optional()
+    .isBoolean()
+    .withMessage('NOT_BOOLEAN')
+    .bail()
+    .customSanitizer(toBoolean),
+  body('cookiesEssential')
+    .optional()
+    .isBoolean()
+    .withMessage('NOT_BOOLEAN')
+    .bail()
+    .customSanitizer(toBoolean),
+  body('cookiesAnalytics')
+    .optional()
+    .isBoolean()
+    .withMessage('NOT_BOOLEAN')
+    .bail()
+    .customSanitizer(toBoolean),
+  body('cookieEssential')
+    .optional()
+    .isBoolean()
+    .withMessage('NOT_BOOLEAN')
+    .bail()
+    .customSanitizer(toBoolean),
+  body('cookiesTargeting')
+    .optional()
+    .isBoolean()
+    .withMessage('NOT_BOOLEAN')
+    .bail()
+    .customSanitizer(toBoolean),
+  body('agreeTos')
+    .optional()
+    .isISO8601()
+    .withMessage('NOT_DATE')
+    .bail()
+    .customSanitizer(toDate),
+  body('agreePrivacy')
+    .optional()
+    .isISO8601()
+    .withMessage('NOT_DATE')
+    .bail()
+    .customSanitizer(toDate),
+  body('agreeLegal')
+    .optional()
+    .isISO8601()
+    .withMessage('NOT_DATE')
+    .bail()
+    .customSanitizer(toDate),
 ];

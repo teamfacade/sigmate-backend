@@ -24,6 +24,14 @@ export const toBoolean: CustomSanitizer = (value) => {
   throw new Error('NOT_BOOLEAN');
 };
 
+export const toDate: CustomSanitizer = (value) => {
+  try {
+    return new Date(value);
+  } catch (error) {
+    throw new Error('NOT_DATE');
+  }
+};
+
 type RangeOptions = {
   min?: number;
   max?: number;
@@ -43,7 +51,9 @@ export const inRange = (options: RangeOptions): CustomValidator => {
   return inRangeValidator;
 };
 
-export const inMySQLIntRange = ({ signed = true }: { signed: boolean }) => {
+export const inMySQLIntRange = (
+  { signed = true }: { signed: boolean } = { signed: true }
+) => {
   const min = signed ? -2147483648 : 0;
   const max = signed ? 2147483647 : 4294967295;
   return inRange({ min, max });
