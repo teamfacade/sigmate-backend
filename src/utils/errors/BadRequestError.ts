@@ -15,7 +15,7 @@ export default class BadRequestError extends ApiError {
     message = 'ERR_BAD_REQUEST'
   ) {
     super(message, {
-      status: options.status,
+      status: options.status || 400,
       clientMessage: options.clientMessage,
       origin: options.origin,
     });
