@@ -12,7 +12,7 @@ export default class ConflictError extends ApiError {
     options: ConflictErrorOptions = { status: 409 }
   ) {
     super(message, {
-      status: options.status,
+      status: options.status || 409,
       clientMessage: options.clientMessage,
       origin: options.origin,
     });

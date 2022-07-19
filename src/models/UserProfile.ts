@@ -4,11 +4,12 @@ import {
   Table,
   DataType,
   Column,
+  HasOne,
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
 import { DatabaseObject } from '.';
 import Require from '../types/Require';
-import { userIdDataType, UserIdType } from './User';
+import User, { userIdDataType, UserIdType } from './User';
 
 export type ProfileIdType = number;
 export const profileIdDataType = DataType.INTEGER;
@@ -36,7 +37,7 @@ export interface UserProfileModelAttributes {
 
 export type UserProfileCreationAttributes = Optional<
   UserProfileModelAttributes,
-  'profileId'
+  'profileId' | 'isPrimary'
 >;
 
 export type UserProfileDTO = Partial<UserProfileModelAttributes>;
@@ -81,6 +82,9 @@ export default class UserProfile extends Model<
   public discordVerified!: boolean;
   @Column
   public team!: number;
+
+  @HasOne(() => User, 'primaryProfileId')
+  public primaryUser!: User;
 }
 
 export const initUserProfile = (sequelize: Sequelize) => {

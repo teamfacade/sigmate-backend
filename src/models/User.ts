@@ -6,9 +6,12 @@ import {
   DataType,
   Table,
   Column,
+  ForeignKey,
+  BelongsTo,
 } from 'sequelize-typescript';
 import { groupIdDataType, GroupIdType } from './UserGroup';
 import { DatabaseObject } from '.';
+import UserProfile from './UserProfile';
 
 export type UserIdType = string;
 export const userIdDataType = DataType.UUID;
@@ -91,8 +94,6 @@ export default class User extends Model<
   @Column
   public group!: string;
   @Column
-  public primaryProfileId!: number;
-  @Column
   public isTester!: boolean;
   @Column
   public isAdmin!: boolean;
@@ -126,6 +127,13 @@ export default class User extends Model<
   public referralCode!: string;
   @Column
   public referredBy!: UserIdType;
+
+  @ForeignKey(() => UserProfile)
+  @Column
+  public primaryProfileId!: number;
+
+  @BelongsTo(() => UserProfile, 'primaryProfileId')
+  public primaryProfile!: UserProfile;
 }
 
 export function initUser(sequelize: Sequelize) {
@@ -141,7 +149,7 @@ export function initUser(sequelize: Sequelize) {
         unique: true,
       },
       userName: {
-        type: DataType.STRING(32 + 15), // 15: for soft deletion edits
+        type: DataType.STRING(36 + 15), // 15: for soft deletion edits
         allowNull: false,
         unique: true,
       },

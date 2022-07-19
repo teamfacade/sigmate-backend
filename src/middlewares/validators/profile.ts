@@ -1,21 +1,10 @@
+import { body, param } from 'express-validator';
 import {
-  body,
-  CustomSanitizer,
-  CustomValidator,
-  param,
-} from 'express-validator';
-import isEmail from 'validator/lib/isEmail';
-import normalizeEmail from 'validator/lib/normalizeEmail';
-
-const isEmailOrEmpty: CustomValidator = (value) => {
-  if (value === '') return true;
-  return isEmail(value);
-};
-
-const normalizeEmailIfNotEmpty: CustomSanitizer = (value) => {
-  if (value === '') return value;
-  return normalizeEmail(value);
-};
+  isEmailOrEmpty,
+  normalizeEmailIfNotEmpty,
+  toBoolean,
+  toInt,
+} from './utils';
 
 export const validateGetProfile = param('profileId')
   .trim()
@@ -25,7 +14,8 @@ export const validateGetProfile = param('profileId')
   .withMessage('REQUIRED')
   .bail()
   .isInt()
-  .withMessage('NOT_INT');
+  .withMessage('NOT_INT')
+  .customSanitizer(toInt);
 
 export const requireProfileIdInParam = param('profileId')
   .trim()
@@ -35,7 +25,8 @@ export const requireProfileIdInParam = param('profileId')
   .withMessage('REQUIRED')
   .bail()
   .isInt()
-  .withMessage('NOT_INT');
+  .withMessage('NOT_INT')
+  .customSanitizer(toInt);
 
 export const requireProfileIdInBody = body('profileId')
   .trim()
@@ -45,11 +36,16 @@ export const requireProfileIdInBody = body('profileId')
   .withMessage('REQUIRED')
   .bail()
   .isInt()
-  .withMessage('NOT_INT');
+  .withMessage('NOT_INT')
+  .customSanitizer(toInt);
 
-export const validateProfilePatch = [
+const validateProfileOptionalFields = [
   body('userId').optional().isEmpty().withMessage('UNKNOWN'),
-  body('isPrimary').optional().isBoolean().withMessage('UNKNOWN'),
+  body('isPrimary')
+    .optional()
+    .isBoolean()
+    .withMessage('NOT_BOOLEAN')
+    .customSanitizer(toBoolean),
   body('displayName')
     .optional()
     .trim()
@@ -112,5 +108,39 @@ export const validateProfilePatch = [
     .isLength({ max: 16 })
     .withMessage('TOO_LONG'),
   body('discordVerified').optional().isEmpty().withMessage('UNKNOWN'),
-  body('team').optional().isInt().withMessage('NOT_INT'),
+  body('team').optional().isInt().withMessage('NOT_INT').customSanitizer(toInt),
 ];
+
+export const validateProfilePost = [
+  param('profileId').optional().isEmpty().withMessage('UNKNOWN'),
+  body('profileId').optional().isEmpty().withMessage('UNKNOWN'),
+  ...validateProfileOptionalFields,
+];
+
+export const validateProfilePatch = [
+  param('profileId').optional().isInt().withMessage('UNKNOWN'),
+  body('profileId').optional().isInt().withMessage('UNKNOWN'),
+  ...validateProfileOptionalFields,
+];
+
+export const validateProfileDeleteParams = param('profileId')
+  .trim()
+  .escape()
+  .stripLow()
+  .notEmpty()
+  .withMessage('REQUIRED')
+  .bail()
+  .isInt()
+  .withMessage('NOT_INT')
+  .customSanitizer(toInt);
+
+export const validateProfileDeleteBody = body('profileId')
+  .trim()
+  .escape()
+  .stripLow()
+  .notEmpty()
+  .withMessage('REQUIRED')
+  .bail()
+  .isInt()
+  .withMessage('NOT_INT')
+  .customSanitizer(toInt);

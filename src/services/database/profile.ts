@@ -1,9 +1,14 @@
 import { BaseError } from 'sequelize';
 import db from '../../models';
-import { UserIdType } from '../../models/User';
-import UserProfile, { UserProfileDTO } from '../../models/UserProfile';
+import User, { UserIdType } from '../../models/User';
+import UserProfile, {
+  UserProfileCreationDTO,
+  UserProfileDTO,
+} from '../../models/UserProfile';
+import ApiError from '../../utils/errors/ApiError';
 import NotFoundError from '../../utils/errors/NotFoundError';
 import getErrorFromSequelizeError from '../../utils/getErrorFromSequelizeError';
+import { findUserById } from './user';
 
 export const findProfileById = async (profileId: number | string) => {
   try {
@@ -19,6 +24,35 @@ export const findProfilesByUserId = async (userId: UserIdType) => {
     return await UserProfile.findAll({ where: { userId } });
   } catch (error) {
     throw getErrorFromSequelizeError(error as BaseError);
+  }
+};
+
+/**
+ * Create a profile for the specified user
+ * @param userId Id of the user
+ * @param userProfileDTO Attributes for UserProfile
+ * @returns Created UserProfile
+ * @throws Database error
+ */
+export const createProfileForUser = async (
+  userId: UserIdType,
+  userProfileDTO: UserProfileCreationDTO
+) => {
+  // overwrite the userId field in the DTO with the ID passed by function argument 'userId'
+  userProfileDTO.userId = userId;
+
+  try {
+    return await db.sequelize.transaction(async (transaction) => {
+      return await UserProfile.create(
+        {
+          ...userProfileDTO,
+        },
+        { transaction }
+      );
+    });
+  } catch (error) {
+    if (error instanceof BaseError) throw getErrorFromSequelizeError(error);
+    throw error;
   }
 };
 
@@ -49,6 +83,41 @@ export const updateProfileByInstance = async (
 ) => {
   try {
     return await profile.update({ ...userProfileDTO });
+  } catch (error) {
+    if (error instanceof BaseError) throw getErrorFromSequelizeError(error);
+    throw error;
+  }
+};
+
+export const setPrimaryProfile = async (
+  user: UserIdType | User | null,
+  profile: number | UserProfile | null
+) => {
+  if (typeof profile === 'number') {
+    profile = await findProfileById(profile);
+  }
+
+  if (typeof user === 'string') {
+    user = await findUserById(user);
+  }
+
+  if (!profile || !user) throw new ApiError('ERR_CHANGE_PRIMARY_PROFILE');
+
+  const userId = user.userId;
+  const originalPrimaryProfileId = user.primaryProfileId;
+  const newPrimaryProfileId = profile.profileId;
+
+  try {
+    await db.sequelize.transaction(async (transaction) => {
+      await UserProfile.update(
+        { isPrimary: false },
+        { where: { profileId: originalPrimaryProfileId }, transaction }
+      );
+      await User.update(
+        { primaryProfileId: newPrimaryProfileId },
+        { where: { userId }, transaction }
+      );
+    });
   } catch (error) {
     if (error instanceof BaseError) throw getErrorFromSequelizeError(error);
     throw error;
