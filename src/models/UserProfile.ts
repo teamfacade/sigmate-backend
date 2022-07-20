@@ -112,6 +112,8 @@ export const initUserProfile = (sequelize: Sequelize) => {
       },
       displayEmailVerified: {
         type: DataType.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
       },
       picture: {
         type: DataType.STRING(512),
@@ -136,6 +138,8 @@ export const initUserProfile = (sequelize: Sequelize) => {
       },
       twitterVerified: {
         type: DataType.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
       },
       discordAccount: {
         type: DataType.STRING(64),
@@ -145,6 +149,8 @@ export const initUserProfile = (sequelize: Sequelize) => {
       },
       discordVerified: {
         type: DataType.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
       },
       team: {
         type: DataType.INTEGER,
