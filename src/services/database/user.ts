@@ -16,8 +16,9 @@ import { createUserAuth } from './auth';
 import ApiError from '../../utils/errors/ApiError';
 import NotFoundError from '../../utils/errors/NotFoundError';
 import AdminUser from '../../models/AdminUser';
+import BadRequestError from '../../utils/errors/BadRequestError';
 
-const USERGROUP_NEWBIE = 'newbie';
+const NEW_USER_USERGROUP = 'unauthenticated';
 
 /**
  * Find a user by id
@@ -100,7 +101,10 @@ export const createUser = async (
         {
           userId,
           userName: userDTO.userName || userId,
-          group: USERGROUP_NEWBIE,
+          // Give same privileges as an unauthenticated user for now, and then
+          // give newbie privileges when email is verified and username is set
+          // (which is not done here)
+          group: NEW_USER_USERGROUP,
           ...userDTO,
         },
         { transaction }
@@ -181,6 +185,13 @@ export const createUserGoogle = async (
  * @returns Number of affected rows in the DB
  */
 export const updateUser = async (userDTO: UserDTO) => {
+  if (userDTO.userId === undefined) throw new BadRequestError();
+
+  // If a user is trying to update a username, record the time it was updated
+  if (userDTO.userName) {
+    userDTO.userNameUpdatedAt = new Date();
+  }
+
   try {
     const affectedCount = await db.sequelize.transaction(
       async (transaction) => {

@@ -4,18 +4,18 @@ import { inMySQLIntRange, toBoolean, toDate } from './utils';
 import isURL from 'validator/lib/isURL';
 
 const isUserNameAvailable: CustomValidator = async (value: string, { req }) => {
-  if (req.user) {
-    if (req.user.userName === value) return;
+  if (req.user && req.user.userName === value) {
+    throw new Error('ERR_USERNAME_ALREADY_MINE');
   }
   const user = await User.findOne({ where: { userName: value } });
   if (user) throw new Error('DUPLICATE');
-  return user;
+  return true;
 };
 
 export const followsUserNamePolicy: CustomValidator = (value) => {
   // Check length
-  if (value.length < 3) throw new Error('ERR_USERNAME_TOO_SHORT');
-  if (value.length > 32) throw new Error('ERR_USERNAME_TOO_LONG');
+  if (value.length < 3) throw new Error('TOO_SHORT');
+  if (value.length > 32) throw new Error('TOO_LONG');
 
   // ignore cases
   value = value.toLowerCase();
@@ -60,14 +60,36 @@ export const followsUserNamePolicy: CustomValidator = (value) => {
   return true;
 };
 
+export const checkUserNameChangeInterval: CustomValidator = (
+  value,
+  { req }
+) => {
+  if (req.isUnauthenticated() || !req.user)
+    throw new Error('ERR_UNAUTHENTICATED');
+
+  if (!req.body.userName) return true;
+
+  // If never updated before, allow update
+  const updatedAt: Date = req.user.userNameUpdatedAt;
+  if (!updatedAt) return true;
+
+  const now = new Date();
+  const diff = now.getTime() - updatedAt.getTime();
+
+  const DAY = 1000 * 60 * 60 * 24;
+
+  if (diff >= DAY * 30) {
+    return true;
+  }
+
+  throw new Error('ERR_USERNAME_CHANGE_INTERVAL');
+};
+
 export const validateUserName = body('userName')
   .optional()
   .escape()
   .trim()
   .stripLow()
-  .isString()
-  .withMessage('NOT_STRING')
-  .bail()
   .isLength({ min: 3 })
   .withMessage('TOO_SHORT')
   .bail()
@@ -76,6 +98,23 @@ export const validateUserName = body('userName')
   .bail()
   .custom(isUserNameAvailable)
   .withMessage('DUPLICATE')
+  .bail()
+  .custom(followsUserNamePolicy)
+  .custom(checkUserNameChangeInterval);
+
+export const validateUserNameCheck = body('userName')
+  .notEmpty()
+  .withMessage('REQUIRED')
+  .escape()
+  .trim()
+  .stripLow()
+  .isLength({ min: 3 })
+  .withMessage('TOO_SHORT')
+  .bail()
+  .isLength({ max: 32 })
+  .withMessage('TOO_LONG')
+  .bail()
+  .custom(isUserNameAvailable)
   .bail()
   .custom(followsUserNamePolicy);
 

@@ -20,6 +20,7 @@ export interface UserModelAttributes {
   userId: UserIdType;
   googleAccountId?: string;
   userName: string;
+  userNameUpdatedAt: Date;
   email: string;
   emailVerified: boolean;
   group: GroupIdType;
@@ -46,6 +47,7 @@ export interface UserModelAttributes {
 
 export type UserCreationAttributes = Optional<
   UserModelAttributes,
+  | 'userNameUpdatedAt'
   | 'emailVerified'
   | 'group'
   | 'primaryProfileId'
@@ -87,6 +89,8 @@ export default class User extends Model<
   public googleAccountId!: string;
   @Column
   public userName!: string;
+  @Column
+  public userNameUpdatedAt!: Date;
   @Column
   public email!: string;
   @Column
@@ -153,9 +157,11 @@ export function initUser(sequelize: Sequelize) {
         allowNull: false,
         unique: true,
       },
+      userNameUpdatedAt: {
+        type: DataType.DATE,
+      },
       email: {
         type: DataType.STRING(191), // 15: for soft deletion edits
-        allowNull: false,
         unique: true,
       },
       emailVerified: {

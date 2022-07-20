@@ -1,13 +1,17 @@
 import express from 'express';
 import {
+  checkUserNameController,
   deleteUserController,
   getUserController,
   patchUserController,
-} from '../../../controllers/api/v1/users';
+} from '../../../controllers/api/v1/user';
 import { passportJwtAuth } from '../../../middlewares/authMiddlewares';
 import pickModelProperties from '../../../middlewares/pickModelProperties';
 import User from '../../../models/User';
-import { validateUserPatch } from '../../../middlewares/validators/user';
+import {
+  validateUserNameCheck,
+  validateUserPatch,
+} from '../../../middlewares/validators/user';
 import BadRequestHandler from '../../../middlewares/BadRequestHandler';
 
 const userRouter = express.Router();
@@ -24,5 +28,12 @@ userRouter
     patchUserController
   )
   .delete(deleteUserController);
+
+userRouter.post(
+  '/check-username',
+  validateUserNameCheck,
+  BadRequestHandler,
+  checkUserNameController
+);
 
 export default userRouter;
