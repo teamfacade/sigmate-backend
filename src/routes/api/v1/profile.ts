@@ -46,6 +46,7 @@ profileRouter
     passportJwtAuth,
     pickModelProperties(UserProfile),
     validateProfilePost,
+    BadRequestHandler,
     createMyProfileController
   )
   .patch(
