@@ -48,11 +48,11 @@ export const getMyProfileController = async (
 ) => {
   try {
     // Check authentication
-    const { user } = req;
-    if (!user || !user.id) throw new UnauthenticatedError();
+    if (req.isUnauthenticated() || !req.user?.userId)
+      throw new UnauthenticatedError();
 
     // Get all profiles for user
-    const profile = await findProfilesByUserId(user.userId);
+    const profile = await findProfilesByUserId(req.user.userId);
     if (!profile) throw new NotFoundError();
     const response: ProfileResponse = {
       success: true,
@@ -71,8 +71,9 @@ export const createMyProfileController = async (
 ) => {
   try {
     // Check authentication
+    if (req.isUnauthenticated() || !req.user?.userId)
+      throw new UnauthenticatedError();
     const userId = req.user?.userId;
-    if (!req.user || !userId) throw new UnauthenticatedError();
 
     // Create profile
     const userProfileDTO: UserProfileCreationDTO = req.body;
@@ -105,10 +106,9 @@ export const updateMyProfileController = async (
     if (!profileId || isNaN(profileId)) throw new BadRequestError();
 
     // Check if we are authenticated
-    const userId = req.user?.userId;
-    if (!req.user || !userId) {
+    if (req.isUnauthenticated() || !req.user?.userId)
       throw new UnauthenticatedError();
-    }
+    const userId = req.user?.userId;
 
     // Look for the profile and check if it is mine
     const profiles = await findProfilesByUserId(userId);
@@ -161,7 +161,7 @@ export const deleteMyProfileController = async (
   try {
     // Check if we are authenticated
     const userId = req.user?.userId;
-    if (!userId) throw new ForbiddenError();
+    if (req.isUnauthenticated() || !userId) throw new ForbiddenError();
 
     // Check if profileId has been specified
     const profileId = parseInt(req.body.profileId || req.params.profileId);

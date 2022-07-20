@@ -5,7 +5,7 @@ import {
   findUserById,
   updateUser,
 } from '../../../services/database/user';
-import ForbiddenError from '../../../utils/errors/ForbiddenError';
+import UnauthenticatedError from '../../../utils/errors/UnauthenticatedError';
 
 export type UserResponse = {
   success: boolean;
@@ -21,15 +21,16 @@ export const getUserController = async (
   next: NextFunction
 ) => {
   try {
-    if (req.user) {
-      const response: UserResponse = {
-        success: true,
-        user: await findUserById(req.user.userId),
-      };
-      res.status(200).json(response);
-    } else {
-      throw new ForbiddenError();
-    }
+    // Check authentication
+    if (req.isUnauthenticated() || !req.user?.userId)
+      throw new UnauthenticatedError();
+
+    // Look for the specified user
+    const response: UserResponse = {
+      success: true,
+      user: await findUserById(req.user.userId),
+    };
+    res.status(200).json(response);
   } catch (error) {
     next(error);
   }
@@ -44,20 +45,24 @@ export const patchUserController = async (
   next: NextFunction
 ) => {
   try {
-    if (req.user) {
-      const userDTO: UserDTO = req.body;
-      userDTO.userId = req.user.userId;
+    // Check authentication
+    if (req.isUnauthenticated() || !req.user?.userId)
+      throw new UnauthenticatedError();
 
-      await updateUser(userDTO);
+    const userDTO: UserDTO = req.body;
 
-      const response: UserResponse = {
-        success: true,
-        user: await findUserById(userDTO.userId),
-      };
-      res.status(200).json(response);
-    } else {
-      throw new ForbiddenError();
-    }
+    // Enforce the user ID to be the currently authenticated user
+    userDTO.userId = req.user.userId;
+
+    // Perform the DB update
+    await updateUser(userDTO);
+
+    // Return the updated user information
+    const response: UserResponse = {
+      success: true,
+      user: await findUserById(userDTO.userId),
+    };
+    res.status(200).json(response);
   } catch (error) {
     return next(error);
   }
@@ -72,12 +77,11 @@ export const deleteUserController = async (
   next: NextFunction
 ) => {
   try {
-    if (req.user) {
-      await deleteUser(req.user.userId);
-      res.status(204).send();
-    } else {
-      throw new ForbiddenError();
-    }
+    // Check authentication
+    if (req.isUnauthenticated() || !req.user?.userId)
+      throw new UnauthenticatedError();
+    await deleteUser(req.user.userId); // Perform the deletion
+    res.status(204).send();
   } catch (error) {
     return next(error);
   }
