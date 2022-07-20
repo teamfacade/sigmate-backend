@@ -150,19 +150,19 @@ export function initUser(sequelize: Sequelize) {
       },
       googleAccountId: {
         type: DataType.STRING(32 + 15), // 15: for soft deletion edits
-        unique: true,
+        unique: 'google_account_id',
       },
       userName: {
         type: DataType.STRING(36 + 15), // 15: for soft deletion edits
         allowNull: false,
-        unique: true,
+        unique: 'user_name',
       },
       userNameUpdatedAt: {
         type: DataType.DATE,
       },
       email: {
         type: DataType.STRING(191), // 15: for soft deletion edits
-        unique: true,
+        unique: 'email',
       },
       emailVerified: {
         type: DataType.BOOLEAN,
@@ -241,7 +241,7 @@ export function initUser(sequelize: Sequelize) {
       referralCode: {
         type: DataType.STRING(128),
         allowNull: true,
-        unique: true,
+        unique: 'referral_code',
       },
       referredBy: {
         type: userIdDataType,
