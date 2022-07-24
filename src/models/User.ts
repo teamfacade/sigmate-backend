@@ -239,7 +239,7 @@ export function initUser(sequelize: Sequelize) {
         type: DataType.DATE,
       },
       referralCode: {
-        type: DataType.STRING(128),
+        type: DataType.STRING(64),
         allowNull: true,
         unique: 'referral_code',
       },
