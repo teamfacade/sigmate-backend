@@ -58,3 +58,11 @@ export const inMySQLIntRange = (
   const max = signed ? 2147483647 : 4294967295;
   return inRange({ min, max });
 };
+
+export const isReferralCode: CustomValidator = (value: string) => {
+  if (!value) throw new Error('REQUIRED');
+  if (value.length !== 16) throw new Error('NOT_REFERRAL_CODE');
+  if (value.slice(0, 3) !== 'sg-') throw new Error('NOT_REFERRAL_CODE');
+  if (value[9] !== '-') throw new Error('NOT_REFERRAL_CODE');
+  return true;
+};

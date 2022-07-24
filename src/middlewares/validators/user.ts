@@ -1,6 +1,6 @@
-import { body, CustomValidator } from 'express-validator';
+import { body, CustomValidator, param } from 'express-validator';
 import User, { availableThemes } from '../../models/User';
-import { inMySQLIntRange, toBoolean, toDate } from './utils';
+import { inMySQLIntRange, isReferralCode, toBoolean, toDate } from './utils';
 import isURL from 'validator/lib/isURL';
 
 const isUserNameAvailable: CustomValidator = async (value: string, { req }) => {
@@ -46,16 +46,6 @@ export const followsUserNamePolicy: CustomValidator = (value) => {
 
   // Cannot be a URL
   if (isURL(value)) throw new Error('ERR_USERNAME_IS_URL');
-
-  // Same character cannot appear more than 4 times in a row
-  const consecutiveChars = /(\w)\1\1{3,}/;
-  if (consecutiveChars.test(value))
-    throw new Error('ERR_USERNAME_CONSECUTIVE_CHARS_4');
-
-  // Some characters cannot appear more than 3 times in a row
-  const consecutiveIOs = /[iI1]{4,}|[oO0]{4,}/;
-  if (consecutiveIOs.test(value))
-    throw new Error('ERR_USERNAME_CONSECUTIVE_CHARS_3');
 
   return true;
 };
@@ -221,4 +211,26 @@ export const validateUserPatch = [
     .withMessage('NOT_DATE')
     .bail()
     .customSanitizer(toDate),
+  body('referralCode').optional().isEmpty().withMessage('UNKNOWN'),
+  body('referredBy').optional().isEmpty().withMessage('UNKNOWN'),
 ];
+
+export const validatePostReferralCode = body('renew')
+  .notEmpty()
+  .withMessage('REQUIRED')
+  .bail()
+  .isBoolean()
+  .withMessage('NOT_BOOLEAN')
+  .bail()
+  .equals('true')
+  .withMessage('NOT_TRUE')
+  .toBoolean();
+
+export const validateCheckReferralCode = param('referralCode')
+  .notEmpty()
+  .withMessage('REQUIRED')
+  .bail()
+  .trim()
+  .stripLow()
+  .escape()
+  .custom(isReferralCode);

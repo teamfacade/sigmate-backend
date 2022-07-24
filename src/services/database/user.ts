@@ -17,6 +17,7 @@ import ApiError from '../../utils/errors/ApiError';
 import NotFoundError from '../../utils/errors/NotFoundError';
 import AdminUser from '../../models/AdminUser';
 import BadRequestError from '../../utils/errors/BadRequestError';
+import { generateReferralCode } from '../user/referral';
 
 const NEW_USER_USERGROUP = 'unauthenticated';
 
@@ -61,6 +62,18 @@ export const findUserByGoogleId = async (
   }
 };
 
+export const findUserByReferralCode = async (referralCode: string) => {
+  try {
+    return await User.findOne({
+      where: { referralCode },
+      include: { model: UserProfile, as: 'primaryProfile' },
+    });
+  } catch (error) {
+    if (error instanceof BaseError) throw getErrorFromSequelizeError(error);
+    throw error;
+  }
+};
+
 /**
  * Update the last loggged in time of the User record
  * @param userId Id of the user
@@ -82,6 +95,56 @@ export const updateLastLoggedIn = async (userId: UserIdType) => {
 };
 
 /**
+ * Check if the given referral code is already being used by another user
+ * @param code referral code
+ * @returns true if the given referral code is already in use, false otherwise
+ */
+const isReferralCodeTaken = async (code: string) => {
+  const user = await User.findOne({ where: { referralCode: code } });
+  if (user) {
+    return true;
+  }
+  return false;
+};
+
+/**
+ * Generate a unique referral code for a user
+ * @returns Referral code for a user
+ */
+const generateUniqueReferralCode = async () => {
+  let referralCode = await generateReferralCode();
+  while (await isReferralCodeTaken(referralCode)) {
+    referralCode = await generateReferralCode();
+  }
+  return referralCode;
+};
+
+/**
+ * Generate a new referral code for the User and update the DB
+ * @param userId Id of a User
+ * @returns New referral code
+ * @throws Sequelize.BaseError on DB error
+ */
+export const renewReferralCode = async (userId: UserIdType) => {
+  try {
+    const referralCode = await generateUniqueReferralCode();
+
+    await db.sequelize.transaction(async (transaction) => {
+      const [affectedCount] = await User.update(
+        { referralCode },
+        { where: { userId }, transaction }
+      );
+      if (affectedCount === 0) throw new NotFoundError();
+    });
+
+    return referralCode;
+  } catch (error) {
+    if (error instanceof BaseError) throw getErrorFromSequelizeError(error);
+    throw error;
+  }
+};
+
+/**
  * Creates a new user
  * @param userDTO Properties for the User model
  * @param userAuthDTO Properties for the UserAuth model
@@ -94,6 +157,7 @@ export const createUser = async (
   userProfileDTO: UserProfileDTO
 ) => {
   const userId = uuidv4();
+  const referralCode = await generateUniqueReferralCode();
 
   try {
     const createdUser = await db.sequelize.transaction(async (transaction) => {
@@ -105,6 +169,7 @@ export const createUser = async (
           // give newbie privileges when email is verified and username is set
           // (which is not done here)
           group: NEW_USER_USERGROUP,
+          referralCode,
           ...userDTO,
         },
         { transaction }
@@ -200,7 +265,7 @@ export const updateUser = async (userDTO: UserDTO) => {
           { where: { userId: userDTO.userId }, transaction }
         );
 
-        if (affectedCount !== 1) throw new NotFoundError();
+        if (affectedCount === 0) throw new NotFoundError();
         return affectedCount;
       }
     );
