@@ -54,7 +54,7 @@ export const findUserAuthById = async (userId: UserIdType) => {
  * @throws NotFoundError if User is not found in the DB, or ApiError (from Sequelize BaseError)
  */
 export const updateGoogleTokens = async (
-  userId: string,
+  userId: UserIdType,
   googleTokens: Credentials
 ) => {
   const updateValues: {
@@ -255,7 +255,7 @@ export const findUserByRefreshToken = async (
  * @returns Number of affected rows in DB (1 if successful)
  */
 export const updateUserAuth = async (
-  userId: string,
+  userId: UserIdType,
   userAuthDTO: UserAuthDTO
 ) => {
   try {

@@ -15,6 +15,7 @@ import User from '../../../models/User';
 import {
   validateCheckReferralCode,
   validatePostReferralCode,
+  validateUpdateReferralCode,
   validateUserNameCheck,
   validateUserPatch,
 } from '../../../middlewares/validators/user';
@@ -49,9 +50,9 @@ userRouter.get(
   checkReferralController
 );
 
-userRouter.get(
-  '/referral/update/:referralCode',
-  validateCheckReferralCode,
+userRouter.post(
+  '/referral/update',
+  validateUpdateReferralCode,
   BadRequestHandler,
   updateReferralController
 );

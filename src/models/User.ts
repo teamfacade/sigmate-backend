@@ -13,13 +13,13 @@ import { groupIdDataType, GroupIdType } from './UserGroup';
 import { DatabaseObject } from '.';
 import UserProfile from './UserProfile';
 
-export type UserIdType = string;
-export const userIdDataType = DataType.UUID;
+export type UserIdType = number;
+export const userIdDataType = DataType.INTEGER;
+export const USERNAME_MAX_LENGTH = 16;
 
 export interface UserModelAttributes {
   userId: UserIdType;
-  googleAccountId?: string;
-  userName: string;
+  userName?: string;
   userNameUpdatedAt: Date;
   email: string;
   emailVerified: boolean;
@@ -28,6 +28,12 @@ export interface UserModelAttributes {
   isTester: boolean;
   isAdmin: boolean;
   metamaskWallet?: string;
+  googleAccount?: string;
+  googleAccountId?: string;
+  twitterHandle?: string;
+  twitterVerified?: boolean;
+  discordAccount?: string;
+  discordVerified?: boolean;
   lastLoginAt?: Date;
   locale?: string;
   theme?: string;
@@ -47,6 +53,7 @@ export interface UserModelAttributes {
 
 export type UserCreationAttributes = Optional<
   UserModelAttributes,
+  | 'userId'
   | 'userNameUpdatedAt'
   | 'emailVerified'
   | 'group'
@@ -145,16 +152,11 @@ export function initUser(sequelize: Sequelize) {
     {
       userId: {
         type: userIdDataType,
-        defaultValue: DataType.UUIDV4,
         primaryKey: true,
-      },
-      googleAccountId: {
-        type: DataType.STRING(32 + 15), // 15: for soft deletion edits
-        unique: 'google_account_id',
+        autoIncrement: true,
       },
       userName: {
-        type: DataType.STRING(36 + 15), // 15: for soft deletion edits
-        allowNull: false,
+        type: DataType.STRING(16 + 15), // 15: for soft deletion edits
         unique: 'user_name',
       },
       userNameUpdatedAt: {
@@ -188,6 +190,29 @@ export function initUser(sequelize: Sequelize) {
       },
       metamaskWallet: {
         type: DataType.STRING(64),
+      },
+      googleAccount: {
+        type: DataType.STRING(191),
+      },
+      googleAccountId: {
+        type: DataType.STRING(22 + 15), // 15: for soft deletion edits
+        unique: 'google_account_id',
+      },
+      twitterHandle: {
+        type: DataType.STRING(16),
+      },
+      twitterVerified: {
+        type: DataType.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
+      },
+      discordAccount: {
+        type: DataType.STRING(64),
+      },
+      discordVerified: {
+        type: DataType.BOOLEAN,
+        allowNull: false,
+        defaultValue: false,
       },
       lastLoginAt: {
         type: DataType.DATE,
@@ -239,7 +264,7 @@ export function initUser(sequelize: Sequelize) {
         type: DataType.DATE,
       },
       referralCode: {
-        type: DataType.STRING(64),
+        type: DataType.STRING(16),
         allowNull: true,
         unique: 'referral_code',
       },

@@ -72,8 +72,7 @@ export const patchUserController = async (
         req.user.agreeTos && req.user.agreePrivacy && req.user.agreeLegal;
 
       // Username is set
-      const userNameSet =
-        req.user.userName !== req.user.userId && req.user.userNameUpdatedAt;
+      const userNameSet = req.user.userName && req.user.userNameUpdatedAt;
 
       // If all is good, upgrade to 'newbie' user group
       if (isEmailVerified && agreedToEverything && userNameSet) {
@@ -230,7 +229,7 @@ export const updateReferralController = async (
     }
 
     // Get referral code from request
-    const referralCode = req.params.referralCode;
+    const referralCode = req.body.referralCode;
     if (!referralCode) throw new BadRequestError();
 
     // Look for the user with the given referral code

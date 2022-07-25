@@ -36,14 +36,14 @@ export interface SigmateJwtPayload extends jwt.JwtPayload {
  * @returns New access token (JWT)
  */
 export const createAccessToken = (
-  userId: string,
+  userId: UserIdType,
   group: string,
   isAdmin: boolean
 ) => {
   return jwt.sign({ tok: JWT_TYP_ACCESS, group, isAdmin }, getECPrivateKey(), {
     issuer: JWT_ISS,
     algorithm: JWT_ALG,
-    subject: userId,
+    subject: userId.toString(),
     expiresIn: JWT_EXP_ACCESS,
   });
 };
@@ -56,14 +56,14 @@ export const createAccessToken = (
  * @returns New refresh token
  */
 export const createRefreshToken = (
-  userId: string,
+  userId: UserIdType,
   group: string,
   isAdmin: boolean
 ) => {
   return jwt.sign({ tok: JWT_TYP_REFRESH, group, isAdmin }, getECPrivateKey(), {
     issuer: JWT_ISS,
     algorithm: JWT_ALG,
-    subject: userId,
+    subject: userId.toString(),
     expiresIn: JWT_EXP_REFRESH,
   });
 };
@@ -77,7 +77,7 @@ export const createRefreshToken = (
  * @throws DatabaseError
  */
 export const renewAccessToken = async (
-  userId: string,
+  userId: UserIdType,
   group: string,
   isAdmin: boolean
 ): Promise<string> => {
@@ -95,7 +95,7 @@ export const renewAccessToken = async (
  * @throws DatabaseError
  */
 export const renewRefreshToken = async (
-  userId: string,
+  userId: UserIdType,
   group: string,
   isAdmin: boolean
 ): Promise<string> => {
@@ -113,7 +113,7 @@ export const renewRefreshToken = async (
  * @returns Sigmate access and refresh token of the given user
  */
 export const retrieveTokens = async (
-  userId: string,
+  userId: UserIdType,
   group: string,
   isAdmin: boolean,
   renew = true
@@ -150,7 +150,7 @@ export const retrieveTokens = async (
         getECPublicKey(),
         {
           issuer: JWT_ISS,
-          subject: userId,
+          subject: userId.toString(),
           algorithms: [JWT_ALG],
         }
       ) as SigmateJwtPayload;
@@ -175,7 +175,7 @@ export const retrieveTokens = async (
         getECPublicKey(),
         {
           issuer: JWT_ISS,
-          subject: userId,
+          subject: userId.toString(),
           algorithms: [JWT_ALG],
         }
       ) as SigmateJwtPayload;
