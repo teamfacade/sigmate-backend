@@ -97,7 +97,7 @@ export const setPrimaryProfile = async (
     profile = await findProfileById(profile);
   }
 
-  if (typeof user === 'string') {
+  if (typeof user === 'number') {
     user = await findUserById(user);
   }
 

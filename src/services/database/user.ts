@@ -1,5 +1,4 @@
 import { Credentials } from 'google-auth-library';
-import { v4 as uuidv4 } from 'uuid';
 import { BaseError } from 'sequelize';
 import db from '../../models';
 import User, {
@@ -156,24 +155,23 @@ export const createUser = async (
   userAuthDTO: UserAuthDTO,
   userProfileDTO: UserProfileDTO
 ) => {
-  const userId = uuidv4();
   const referralCode = await generateUniqueReferralCode();
 
   try {
     const createdUser = await db.sequelize.transaction(async (transaction) => {
-      await User.create(
+      const user = await User.create(
         {
-          userId,
-          userName: userDTO.userName || userId,
+          ...userDTO,
           // Give same privileges as an unauthenticated user for now, and then
           // give newbie privileges when email is verified and username is set
           // (which is not done here)
           group: NEW_USER_USERGROUP,
           referralCode,
-          ...userDTO,
         },
         { transaction }
       );
+
+      const userId = user.userId;
 
       const profile = await UserProfile.create(
         {
@@ -189,6 +187,12 @@ export const createUser = async (
         { where: { userId }, transaction }
       );
 
+      const auth = await createUserAuth({
+        userId,
+        ...userAuthDTO,
+      });
+      if (!auth) throw new ApiError('ERR_DB');
+
       return await User.findOne({
         where: { userId },
         include: { model: UserProfile, as: 'primaryProfile' },
@@ -197,14 +201,9 @@ export const createUser = async (
     });
     if (!createdUser) throw new ApiError('ERR_DB');
 
-    const auth = await createUserAuth({
-      userId: createdUser.userId,
-      ...userAuthDTO,
-    });
-    if (!auth) throw new ApiError('ERR_DB');
-
     return createdUser;
   } catch (error) {
+    console.error(error);
     if (error instanceof BaseError) throw getErrorFromSequelizeError(error);
     throw error;
   }
@@ -223,6 +222,7 @@ export const createUserGoogle = async (
   const userDTO: UserCreationDTO = {
     email: googleProfile.email,
     emailVerified: true,
+    googleAccount: googleProfile.email,
     googleAccountId: googleProfile.id,
     locale: googleProfile.locale,
   };
@@ -236,8 +236,6 @@ export const createUserGoogle = async (
   const userProfileDTO: UserProfileDTO = {
     displayName: googleProfile.displayName,
     picture: googleProfile.coverPhoto,
-    googleAccount: googleProfile.email,
-    googleAccountId: googleProfile.id,
   };
 
   return await createUser(userDTO, userAuthDTO, userProfileDTO);

@@ -1,6 +1,6 @@
 import { body, CustomValidator, param } from 'express-validator';
-import User, { availableThemes } from '../../models/User';
-import { inMySQLIntRange, isReferralCode, toBoolean, toDate } from './utils';
+import User, { availableThemes, USERNAME_MAX_LENGTH } from '../../models/User';
+import { inMySQLIntRange } from './utils';
 import isURL from 'validator/lib/isURL';
 
 const isUserNameAvailable: CustomValidator = async (value: string, { req }) => {
@@ -15,7 +15,7 @@ const isUserNameAvailable: CustomValidator = async (value: string, { req }) => {
 export const followsUserNamePolicy: CustomValidator = (value) => {
   // Check length
   if (value.length < 3) throw new Error('TOO_SHORT');
-  if (value.length > 32) throw new Error('TOO_LONG');
+  if (value.length > USERNAME_MAX_LENGTH) throw new Error('TOO_LONG');
 
   // ignore cases
   value = value.toLowerCase();
@@ -75,6 +75,21 @@ export const checkUserNameChangeInterval: CustomValidator = (
   throw new Error('ERR_USERNAME_CHANGE_INTERVAL');
 };
 
+const isReferralCode: CustomValidator = (value: string) => {
+  if (!value) throw new Error('REQUIRED');
+  if (value.length !== 16) throw new Error('NOT_REFERRAL_CODE');
+  if (value.slice(0, 3) !== 'sg-') throw new Error('NOT_REFERRAL_CODE');
+  if (value[9] !== '-') throw new Error('NOT_REFERRAL_CODE');
+  return true;
+};
+
+const isReferralCodeMine: CustomValidator = (value, { req }) => {
+  if (req.isUnauthenticated() || !req.user) throw new Error('ERR_UNAUTHORIZED');
+  const myReferralCode = req.user.referralCode;
+  if (value === myReferralCode) throw new Error('ERR_CANNOT_REFER_SELF');
+  return true;
+};
+
 export const validateUserName = body('userName')
   .optional()
   .escape()
@@ -86,11 +101,13 @@ export const validateUserName = body('userName')
   .isLength({ max: 32 })
   .withMessage('TOO_LONG')
   .bail()
+  .custom(followsUserNamePolicy)
+  .bail()
+  .custom(checkUserNameChangeInterval)
+  .bail()
   .custom(isUserNameAvailable)
   .withMessage('DUPLICATE')
-  .bail()
-  .custom(followsUserNamePolicy)
-  .custom(checkUserNameChangeInterval);
+  .bail();
 
 export const validateUserNameCheck = body('userName')
   .notEmpty()
@@ -101,7 +118,7 @@ export const validateUserNameCheck = body('userName')
   .isLength({ min: 3 })
   .withMessage('TOO_SHORT')
   .bail()
-  .isLength({ max: 32 })
+  .isLength({ max: USERNAME_MAX_LENGTH })
   .withMessage('TOO_LONG')
   .bail()
   .custom(isUserNameAvailable)
@@ -110,32 +127,38 @@ export const validateUserNameCheck = body('userName')
 
 export const validateUserPatch = [
   body('userId').optional().isEmpty().withMessage('UNKNOWN'),
-  body('googleAccountId').optional().isEmpty().withMessage('UNKNOWN'),
   validateUserName,
+  body('userNameUpdatedAt').optional().isEmpty().withMessage('UNKNOWN'),
   body('email')
     .optional()
-    .escape()
     .trim()
     .stripLow()
     .isEmail()
     .withMessage('NOT_EMAIL')
     .bail()
-    .isLength({ max: 191 })
+    .isLength({ min: 1, max: 191 })
     .withMessage('TOO_LONG'),
   body('emailVerified').optional().isEmpty().withMessage('UNKNOWN'),
   body('group').isEmpty().withMessage('UNKNOWN'),
-  body('primaryProfile')
+  body('primaryProfileId')
     .optional()
     .isInt()
     .custom(inMySQLIntRange())
-    .withMessage('NOT_INT'),
+    .withMessage('NOT_INT')
+    .toInt(),
   body('isTester')
     .optional()
     .isBoolean()
     .withMessage('NOT_BOOLEAN')
-    .customSanitizer(toBoolean),
+    .toBoolean(),
   body('isAdmin').optional().isEmpty().withMessage('UNKNOWN'),
   body('metamaskWallet').optional().isEmpty().withMessage('UNKNOWN'),
+  body('googleAccount').optional().isEmpty().withMessage('UNKNOWN'),
+  body('googleAccountId').optional().isEmpty().withMessage('UNKNOWN'),
+  body('twitterHandle').optional().isEmpty().withMessage('UNKNOWN'),
+  body('twitterVerified').optional().isEmpty().withMessage('UNKNOWN'),
+  body('discordAccount').optional().isEmpty().withMessage('UNKNOWN'),
+  body('discordVerified').optional().isEmpty().withMessage('UNKNOWN'),
   body('lastLoginAt').optional().isEmpty().withMessage('UNKNOWN'),
   body('locale')
     .optional()
@@ -162,55 +185,55 @@ export const validateUserPatch = [
     .isBoolean()
     .withMessage('NOT_BOOLEAN')
     .bail()
-    .customSanitizer(toBoolean),
+    .toBoolean(),
   body('emailMarketing')
     .optional()
     .isBoolean()
     .withMessage('NOT_BOOLEAN')
     .bail()
-    .customSanitizer(toBoolean),
+    .toBoolean(),
   body('cookiesEssential')
     .optional()
     .isBoolean()
     .withMessage('NOT_BOOLEAN')
     .bail()
-    .customSanitizer(toBoolean),
+    .toBoolean(),
   body('cookiesAnalytics')
     .optional()
     .isBoolean()
     .withMessage('NOT_BOOLEAN')
     .bail()
-    .customSanitizer(toBoolean),
-  body('cookieEssential')
+    .toBoolean(),
+  body('cookiesFunctional')
     .optional()
     .isBoolean()
     .withMessage('NOT_BOOLEAN')
     .bail()
-    .customSanitizer(toBoolean),
+    .toBoolean(),
   body('cookiesTargeting')
     .optional()
     .isBoolean()
     .withMessage('NOT_BOOLEAN')
     .bail()
-    .customSanitizer(toBoolean),
+    .toBoolean(),
   body('agreeTos')
     .optional()
     .isISO8601()
     .withMessage('NOT_DATE')
     .bail()
-    .customSanitizer(toDate),
+    .toDate(),
   body('agreePrivacy')
     .optional()
     .isISO8601()
     .withMessage('NOT_DATE')
     .bail()
-    .customSanitizer(toDate),
+    .toDate(),
   body('agreeLegal')
     .optional()
     .isISO8601()
     .withMessage('NOT_DATE')
     .bail()
-    .customSanitizer(toDate),
+    .toDate(),
   body('referralCode').optional().isEmpty().withMessage('UNKNOWN'),
   body('referredBy').optional().isEmpty().withMessage('UNKNOWN'),
 ];
@@ -233,4 +256,17 @@ export const validateCheckReferralCode = param('referralCode')
   .trim()
   .stripLow()
   .escape()
-  .custom(isReferralCode);
+  .custom(isReferralCode)
+  .bail()
+  .custom(isReferralCodeMine);
+
+export const validateUpdateReferralCode = body('referralCode')
+  .notEmpty()
+  .withMessage('REQUIRED')
+  .bail()
+  .trim()
+  .stripLow()
+  .escape()
+  .custom(isReferralCode)
+  .bail()
+  .custom(isReferralCodeMine);

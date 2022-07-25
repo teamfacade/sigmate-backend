@@ -1,11 +1,5 @@
 import { body, param } from 'express-validator';
-import {
-  inMySQLIntRange,
-  isEmailOrEmpty,
-  normalizeEmailIfNotEmpty,
-  toBoolean,
-  toInt,
-} from './utils';
+import { inMySQLIntRange, toBoolean, toInt } from './utils';
 
 export const validateGetProfile = param('profileId')
   .trim()
@@ -61,16 +55,6 @@ const validateProfileOptionalFields = [
     .stripLow()
     .isLength({ max: 128 })
     .withMessage('TOO_LONG'),
-  body('displayEmail')
-    .optional()
-    .trim()
-    .escape()
-    .stripLow()
-    .custom(isEmailOrEmpty)
-    .withMessage('NOT_EMAIL')
-    .bail()
-    .customSanitizer(normalizeEmailIfNotEmpty),
-  body('displayEmailVerified').optional().isEmpty().withMessage('UNKNOWN'),
   body('picture').optional().isEmpty().withMessage('UNKNOWN'),
   body('bio')
     .optional()
@@ -78,45 +62,6 @@ const validateProfileOptionalFields = [
     .stripLow(true)
     .isByteLength({ max: 65535 })
     .withMessage('TOO_LONG'),
-  body('organization').optional().trim().stripLow().isLength({ max: 128 }),
-  body('websiteUrl')
-    .optional()
-    .trim()
-    .escape()
-    .stripLow()
-    .isURL()
-    .withMessage('NOT_URL'),
-  body('googleAccount')
-    .optional()
-    .trim()
-    .escape()
-    .stripLow()
-    .isEmail()
-    .withMessage('NOT_EMAIL'),
-  body('googleAccountId').optional().isEmpty().withMessage('UNKNOWN'),
-  body('twitterHandle')
-    .optional()
-    .trim()
-    .escape()
-    .stripLow()
-    .isLength({ max: 16 })
-    .withMessage('TOO_LONG'),
-  body('twitterVerified').optional().isEmpty().withMessage('UNKNOWN'),
-  body('discordInviteCode')
-    .optional()
-    .trim()
-    .escape()
-    .stripLow()
-    .isLength({ max: 64 })
-    .withMessage('TOO_LONG'),
-  body('discordInviteCode')
-    .optional()
-    .trim()
-    .escape()
-    .stripLow()
-    .isLength({ max: 16 })
-    .withMessage('TOO_LONG'),
-  body('discordVerified').optional().isEmpty().withMessage('UNKNOWN'),
   body('team')
     .optional()
     .isInt()

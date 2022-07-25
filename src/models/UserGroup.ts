@@ -2,9 +2,9 @@ import { Sequelize } from 'sequelize';
 import { DataType, Table, Model, Column } from 'sequelize-typescript';
 import { DatabaseObject } from '.';
 
-export const GROUP_ID_MAX_LENGTH = 32;
+export const GROUP_ID_MAX_LENGTH = 16;
 export type GroupIdType = string;
-export const groupIdDataType = DataType.STRING(32);
+export const groupIdDataType = DataType.STRING(16);
 
 export interface UserGroupModelAttributes {
   groupId: string;

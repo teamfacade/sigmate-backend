@@ -6,10 +6,10 @@ import {
   DataType,
 } from 'sequelize-typescript';
 import { DatabaseObject } from '.';
-import { userIdDataType } from './User';
+import { userIdDataType, UserIdType } from './User';
 
 export interface AdminUserModelAttributes {
-  userId: string;
+  userId: UserIdType;
   appointedBy: string;
   appointedAt: Date;
   canAdminContent: boolean;

@@ -49,7 +49,7 @@ export const isMyselfParams = (
   next: NextFunction
 ) => {
   if (req.isAuthenticated()) {
-    const { userId } = req.params;
+    const userId = req.params.userId ? parseInt(req.params.userId) : undefined;
     if (userId === req.user.userId) {
       next();
     } else {
