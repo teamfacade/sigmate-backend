@@ -1,6 +1,7 @@
 import { Sequelize } from 'sequelize-typescript';
 import databaseConfig from '../config/database';
 import AdminUser, { associateAdminUser, initAdminUser } from './AdminUser';
+import Document from './Document';
 import User, { associateUser, initUser } from './User';
 import UserAuth, { associateUserAuth, initUserAuth } from './UserAuth';
 import UserGroup, { associateUserGroup, initUserGroup } from './UserGroup';
@@ -29,11 +30,19 @@ export type DatabaseObject = {
   UserAuth: typeof UserAuth;
   UserProfile: typeof UserProfile;
   AdminUser: typeof AdminUser;
+  Document: typeof Document;
 };
 
 const initDatabase = () => {
   const sequelize = initSequelize();
-  sequelize.addModels([User, UserGroup, UserAuth, UserProfile, AdminUser]);
+  sequelize.addModels([
+    User,
+    UserGroup,
+    UserAuth,
+    UserProfile,
+    AdminUser,
+    Document,
+  ]);
 
   initUser(sequelize);
   initUserGroup(sequelize);
@@ -48,6 +57,7 @@ const initDatabase = () => {
     UserAuth,
     UserProfile,
     AdminUser,
+    Document,
   };
 
   associateUser(db);
