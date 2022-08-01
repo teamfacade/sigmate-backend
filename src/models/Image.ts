@@ -20,9 +20,7 @@ export interface ImageAttributes {
   originalFilesize: number; // size in bytes
   caption?: string; // also used as alt attribute in img tag
   mimetype: string; // HTTP mimetype header
-  processed: boolean; // whether post-processing is complete for this image
   md5: string; // md5 hash of image file. duplication prevention
-  createdAt: Date;
   blocks?: Block[];
   creatorDevice: UserDevice;
   creator?: User;
@@ -36,7 +34,7 @@ export type ImageCreationAttributes = Optional<
 @Table({
   tableName: 'images',
   modelName: 'Image',
-  timestamps: false,
+  timestamps: true,
   paranoid: false,
   underscored: true,
   charset: 'utf8mb4',
@@ -46,7 +44,6 @@ export default class Image extends Model<
   ImageAttributes,
   ImageCreationAttributes
 > {
-  @AllowNull(false)
   @PrimaryKey
   @Default(DataType.UUIDV4)
   @Column(DataType.UUID)
@@ -66,15 +63,8 @@ export default class Image extends Model<
   @Column(DataType.STRING(191))
   mimetype!: ImageAttributes['mimetype'];
 
-  @Column(DataType.BOOLEAN)
-  processed!: ImageAttributes['processed'];
-
   @Column(DataType.STRING(32))
   md5!: ImageAttributes['md5'];
-
-  @Default(DataType.NOW)
-  @Column(DataType.DATE)
-  createdAt!: ImageAttributes['createdAt'];
 
   @HasMany(() => Block)
   blocks: ImageAttributes['blocks'];

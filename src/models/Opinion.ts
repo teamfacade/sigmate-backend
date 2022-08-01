@@ -3,12 +3,16 @@ import {
   BelongsTo,
   Column,
   DataType,
+  HasMany,
   Model,
   Table,
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
 import Block from './Block';
+import BlockVerification from './BlockVerification';
 import Document from './Document';
+import OpinionVerification from './OpinionVerification';
+import UrlVerification from './UrlVerification';
 import User from './User';
 import UserDevice from './UserDevice';
 
@@ -18,7 +22,10 @@ export interface OpinionAttributes {
   content: string;
   document?: Document;
   block?: Block;
-  verification?: any; // TODO
+  blockVerification?: BlockVerification;
+  opinionVerification?: OpinionVerification;
+  urlVerification?: UrlVerification;
+  opinionVerifications?: OpinionVerification[]; // verifications made on this opinion
   creatorDevice: UserDevice;
   creator?: User;
 }
@@ -50,7 +57,18 @@ export default class Opinion extends Model<
   @BelongsTo(() => Block)
   block: OpinionAttributes['block'];
 
-  // TODO verification
+  @BelongsTo(() => BlockVerification)
+  blockVerification: OpinionAttributes['blockVerification'];
+
+  @BelongsTo(() => OpinionVerification, 'verificationOpinionId')
+  opinionVerification: OpinionAttributes['opinionVerification'];
+
+  @BelongsTo(() => UrlVerification)
+  urlVerification: OpinionAttributes['urlVerification'];
+
+  // verifications made to this opinion
+  @HasMany(() => OpinionVerification, 'subjectId')
+  opinionVerifications: OpinionAttributes['opinionVerifications'];
 
   @BelongsTo(() => UserDevice)
   creatorDevice!: OpinionAttributes['creatorDevice'];

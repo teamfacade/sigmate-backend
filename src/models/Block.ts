@@ -18,11 +18,11 @@ export interface BlockAttributes {
   id: number;
   element: string;
   style: JSON;
-  initStructre?: JSON;
+  initStructure?: JSON;
   currentStructure?: JSON;
+  textContent?: string;
   isTemplate: boolean;
-  isFlagged: boolean;
-  isBlocked: boolean;
+  parent: Block;
   children?: Block[];
   image?: Image;
   url?: Url;
@@ -56,27 +56,23 @@ export default class Block extends Model<
   style!: BlockAttributes['style'];
 
   @Column(DataType.JSON)
-  initStructure: BlockAttributes['initStructre'];
+  initStructure: BlockAttributes['initStructure'];
 
   @Column(DataType.JSON)
   currentStructure: BlockAttributes['currentStructure'];
+
+  @Column(DataType.TEXT)
+  textContent!: BlockAttributes['textContent'];
 
   @AllowNull(false)
   @Default(false)
   @Column(DataType.BOOLEAN)
   isTemplate!: BlockAttributes['isTemplate'];
 
-  @AllowNull(false)
-  @Default(false)
-  @Column(DataType.BOOLEAN)
-  isFlagged!: BlockAttributes['isFlagged'];
+  @BelongsTo(() => Block, 'parentId')
+  parent!: BlockAttributes['parent'];
 
-  @AllowNull(false)
-  @Default(false)
-  @Column(DataType.BOOLEAN)
-  isBlocked!: BlockAttributes['isBlocked'];
-
-  @HasMany(() => Block)
+  @HasMany(() => Block, 'parentId')
   children!: BlockAttributes['children'];
 
   @BelongsTo(() => Image)
