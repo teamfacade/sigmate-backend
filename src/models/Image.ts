@@ -1,6 +1,7 @@
 import {
   AllowNull,
   BelongsTo,
+  BelongsToMany,
   Column,
   DataType,
   Default,
@@ -11,6 +12,7 @@ import {
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
 import Block from './Block';
+import ForumPost from './ForumPost';
 import User from './User';
 import UserDevice from './UserDevice';
 
@@ -24,6 +26,7 @@ export interface ImageAttributes {
   blocks?: Block[];
   creatorDevice: UserDevice;
   creator?: User;
+  forumPosts?: ForumPost;
 }
 
 export type ImageCreationAttributes = Optional<
@@ -74,4 +77,7 @@ export default class Image extends Model<
 
   @BelongsTo(() => User)
   creator!: ImageAttributes['creator'];
+
+  @BelongsToMany(() => ForumPost, 'forumPostImage')
+  forumPosts: ImageAttributes['forumPosts'];
 }
