@@ -7,29 +7,39 @@ import {
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
 import Collection from './Collection';
+import User from './User';
+import UserDevice from './UserDevice';
 
-export interface NFTAttributes {
+export interface NftAttributes {
   id: number;
   contractAddress: string;
   tokenNumber: number;
   collection: Collection;
   imageUrl: string;
+  createdBy?: User;
+  createdByDevice?: UserDevice;
 }
 
-export type NFTCreationAttributes = Optional<NFTAttributes, 'id'>;
+export type NftCreationAttributes = Optional<NftAttributes, 'id'>;
 
-export default class NFT extends Model<NFTAttributes, NFTCreationAttributes> {
+export default class Nft extends Model<NftAttributes, NftCreationAttributes> {
   @AllowNull(false)
   @Column(DataType.STRING(64))
-  contractAddress!: NFTAttributes['contractAddress'];
+  contractAddress!: NftAttributes['contractAddress'];
 
   @AllowNull(false)
   @Column(DataType.INTEGER)
-  tokenNumber!: NFTAttributes['tokenNumber'];
+  tokenNumber!: NftAttributes['tokenNumber'];
 
   @BelongsTo(() => Collection)
-  collection!: NFTAttributes['collection'];
+  collection!: NftAttributes['collection'];
 
   @Column(DataType.STRING(1024))
-  imageUrl!: NFTAttributes['imageUrl'];
+  imageUrl!: NftAttributes['imageUrl'];
+
+  @BelongsTo(() => User)
+  createdBy: NftAttributes['createdBy'];
+
+  @BelongsTo(() => UserDevice)
+  createdByDevice: NftAttributes['createdByDevice'];
 }

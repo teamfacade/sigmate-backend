@@ -26,8 +26,8 @@ export interface OpinionAttributes {
   opinionVerification?: OpinionVerification;
   urlVerification?: UrlVerification;
   opinionVerifications?: OpinionVerification[]; // verifications made on this opinion
-  creatorDevice: UserDevice;
-  creator?: User;
+  createdByDevice: UserDevice;
+  createdBy?: User;
 }
 
 export type OpinionCreationAttributes = Optional<OpinionAttributes, 'id'>;
@@ -71,8 +71,8 @@ export default class Opinion extends Model<
   opinionVerifications: OpinionAttributes['opinionVerifications'];
 
   @BelongsTo(() => UserDevice)
-  creatorDevice!: OpinionAttributes['creatorDevice'];
+  createdByDevice!: OpinionAttributes['createdByDevice'];
 
   @BelongsTo(() => User)
-  creator: OpinionAttributes['creator'];
+  createdBy: OpinionAttributes['createdBy'];
 }

@@ -7,7 +7,6 @@ import {
   Table,
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
-import AdminUser from './AdminUser';
 import ForumComment from './ForumComment';
 import ForumPost from './ForumPost';
 import User from './User';
@@ -22,8 +21,11 @@ export interface ForumReportAttributes {
   createdBy: User;
   createdByDevice: UserDevice;
   feedbackType?: number;
-  feedback?: string;
-  feedbackBy?: AdminUser;
+  feedbackContent?: string;
+  feedbackBy?: User;
+  feedbackByDevice?: UserDevice;
+  deletedBy?: User;
+  deletedByDevice?: UserDevice;
 }
 
 export type ForumReportCreationAttributes = Optional<
@@ -36,7 +38,7 @@ export type ForumReportCreationAttributes = Optional<
   tableName: 'forum_reports',
   underscored: true,
   timestamps: true,
-  paranoid: false,
+  paranoid: true,
   charset: 'utf8mb4',
   collate: 'utf8mb4_general_ci',
 })
@@ -48,7 +50,7 @@ export default class ForumReport extends Model<
   @Column(DataType.INTEGER)
   reason!: ForumReportAttributes['reason'];
 
-  @Column(DataType.STRING(255))
+  @Column(DataType.TEXT)
   description: ForumReportAttributes['description'];
 
   @BelongsTo(() => ForumPost)
@@ -58,19 +60,28 @@ export default class ForumReport extends Model<
   comment: ForumReportAttributes['comment'];
 
   @AllowNull(false)
-  @BelongsTo(() => User)
+  @BelongsTo(() => User, 'createdById')
   createdBy!: ForumReportAttributes['createdBy'];
 
   @AllowNull(false)
-  @BelongsTo(() => UserDevice)
+  @BelongsTo(() => UserDevice, 'createdByDeviceId')
   createdByDevice!: ForumReportAttributes['createdByDevice'];
 
   @Column(DataType.INTEGER)
   feedbackType: ForumReportAttributes['feedbackType'];
 
-  @Column(DataType.STRING(255))
-  feedback: ForumReportAttributes['feedback'];
+  @Column(DataType.TEXT)
+  feedbackContent: ForumReportAttributes['feedbackContent'];
 
-  @BelongsTo(() => AdminUser)
+  @BelongsTo(() => User, 'feedbackById')
   feedbackBy: ForumReportAttributes['feedbackBy'];
+
+  @BelongsTo(() => UserDevice, 'feedbackByDeviceId')
+  feedbackByDevice: ForumReportAttributes['feedbackByDevice'];
+
+  @BelongsTo(() => User, 'deletedById')
+  deletedBy: ForumReportAttributes['deletedBy'];
+
+  @BelongsTo(() => UserDevice, 'deletedByDeviceId')
+  deletedByDevice: ForumReportAttributes['deletedByDevice'];
 }

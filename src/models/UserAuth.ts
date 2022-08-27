@@ -1,80 +1,43 @@
 import {
   Model,
-  Sequelize,
   DataType,
   Table,
   Column,
+  BelongsTo,
 } from 'sequelize-typescript';
-import { DatabaseObject } from '.';
-import { userIdDataType, UserIdType } from './User';
+import User from './User';
 
-export interface UserAuthModelAttributes {
-  userId: UserIdType;
+export interface UserAuthAttributes {
+  user: User;
   sigmateAccessToken?: string;
   sigmateRefreshToken?: string;
   googleAccessToken?: string;
   googleRefreshToken?: string;
 }
 
-export type UserAuthCreationAttributes = UserAuthModelAttributes;
+export type UserAuthDTO = Partial<UserAuthAttributes>;
 
-export type UserAuthDTO = Partial<UserAuthModelAttributes>;
-export type UserAuthCreationDTO = UserAuthCreationAttributes;
+@Table({
+  tableName: 'user_auths',
+  modelName: 'UserAuth',
+  underscored: true,
+  timestamps: false,
+  charset: 'utf8mb4',
+  collate: 'utf8mb4_general_ci',
+})
+export default class UserAuth extends Model<UserAuthAttributes> {
+  @BelongsTo(() => User, 'userId')
+  user!: UserAuthAttributes['user'];
 
-@Table
-export default class UserAuth extends Model<
-  UserAuthModelAttributes,
-  UserAuthCreationAttributes
-> {
-  @Column
-  public readonly userId!: UserIdType;
-  @Column
-  public sigmateAccessToken!: string;
-  @Column
-  public sigmateRefreshToken!: string;
-  @Column
-  public googleAccessToken!: string;
-  @Column
-  public googleRefreshToken!: string;
+  @Column(DataType.STRING(512))
+  sigmateAccessToken: UserAuthAttributes['sigmateAccessToken'];
+
+  @Column(DataType.STRING(512))
+  sigmateRefreshToken: UserAuthAttributes['sigmateRefreshToken'];
+
+  @Column(DataType.STRING(512))
+  googleAccessToken: UserAuthAttributes['googleAccessToken'];
+
+  @Column(DataType.STRING(512))
+  googleRefreshToken: UserAuthAttributes['googleRefreshToken'];
 }
-
-export const initUserAuth = (sequelize: Sequelize) => {
-  UserAuth.init(
-    {
-      userId: {
-        type: userIdDataType,
-        primaryKey: true,
-      },
-      sigmateAccessToken: {
-        type: DataType.STRING(512),
-      },
-      sigmateRefreshToken: {
-        type: DataType.STRING(512),
-      },
-      googleAccessToken: {
-        type: DataType.STRING(512),
-      },
-      googleRefreshToken: {
-        type: DataType.STRING(255),
-      },
-    },
-    {
-      sequelize,
-      tableName: 'user_auths',
-      modelName: 'UserAuth',
-      timestamps: false,
-      underscored: true,
-      charset: 'utf8mb4',
-      collate: 'utf8mb4_general_ci',
-    }
-  );
-};
-
-export const associateUserAuth = (db: DatabaseObject) => {
-  // One user auth information per one user
-  db.UserAuth.belongsTo(db.User, {
-    foreignKey: 'userId',
-    onUpdate: 'CASCADE',
-    onDelete: 'CASCADE',
-  });
-};

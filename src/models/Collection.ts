@@ -13,7 +13,7 @@ import CollectionType from './CollectionType';
 import CollectionUtility from './CollectionUtility';
 import Document from './Document';
 import MintingSchedule from './MintingSchedule';
-import NFT from './NFT';
+import Nft from './Nft';
 import User from './User';
 import UserDevice from './UserDevice';
 
@@ -43,15 +43,15 @@ export interface CollectionAttributes {
   imageUrl?: string;
   bannerImageUrl?: string;
   document?: Document;
-  createdBy: User;
-  createdByDevice: UserDevice;
-  updatedBy: User;
-  updatedByDevice: UserDevice;
+  createdBy?: User;
+  createdByDevice?: UserDevice;
+  updatedBy?: User;
+  updatedByDevice?: UserDevice;
   mintingSchedules: MintingSchedule[];
   type: CollectionType;
   utility: CollectionUtility;
   marketplace: string;
-  nfts: NFT[];
+  nfts: Nft[];
 }
 
 export type CollectionCreationAttributes = Optional<CollectionAttributes, 'id'>;
@@ -149,16 +149,16 @@ export default class Collection extends Model<
   document: CollectionAttributes['document'];
 
   @BelongsTo(() => User, 'createdById')
-  createdBy!: CollectionAttributes['createdBy'];
+  createdBy: CollectionAttributes['createdBy'];
 
   @BelongsTo(() => UserDevice, 'createdByDeviceId')
-  createdByDevice!: CollectionAttributes['createdByDevice'];
+  createdByDevice: CollectionAttributes['createdByDevice'];
 
   @BelongsTo(() => User, 'updatedById')
-  updatedBy!: CollectionAttributes['updatedBy'];
+  updatedBy: CollectionAttributes['updatedBy'];
 
   @BelongsTo(() => UserDevice, 'updatedByDeviceId')
-  updatedByDevice!: CollectionAttributes['updatedByDevice'];
+  updatedByDevice: CollectionAttributes['updatedByDevice'];
 
   @HasMany(() => MintingSchedule)
   mintingSchedules!: CollectionAttributes['mintingSchedules'];
@@ -173,6 +173,6 @@ export default class Collection extends Model<
   @Column(DataType.STRING(191))
   marketplace!: CollectionAttributes['marketplace'];
 
-  @HasMany(() => NFT)
+  @HasMany(() => Nft)
   nfts!: CollectionAttributes['nfts'];
 }

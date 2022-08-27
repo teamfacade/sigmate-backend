@@ -10,8 +10,10 @@ export interface OpinionVerificationAttributes {
   verificationType: VerificationType;
   verificationOpinion?: Opinion; // opinion explaining the verification
   subject: Opinion;
-  creatorDevice: UserDevice;
-  creator?: User;
+  createdByDevice: UserDevice;
+  createdBy?: User;
+  deletedByDevice?: UserDevice;
+  deletedBy?: User;
 }
 
 export type OpinionVerificationCreationAttributes = Optional<
@@ -39,9 +41,15 @@ export default class OpinionVerification extends Model<
   @BelongsTo(() => Opinion, 'subjectId')
   subject!: OpinionVerificationAttributes['subject'];
 
-  @BelongsTo(() => UserDevice)
-  creatorDevice!: OpinionVerificationAttributes['creatorDevice'];
+  @BelongsTo(() => UserDevice, 'createdByDeviceId')
+  createdByDevice!: OpinionVerificationAttributes['createdByDevice'];
 
-  @BelongsTo(() => User)
-  creator!: OpinionVerificationAttributes['creator'];
+  @BelongsTo(() => User, 'createdById')
+  createdBy!: OpinionVerificationAttributes['createdBy'];
+
+  @BelongsTo(() => UserDevice, 'deletedByDeviceId')
+  deletedByDevice: OpinionVerificationAttributes['deletedByDevice'];
+
+  @BelongsTo(() => User, 'deletedById')
+  deletedBy: OpinionVerificationAttributes['deletedBy'];
 }

@@ -17,8 +17,10 @@ export interface UrlVerificationAttributes {
   verificationType: VerificationType;
   verificationOpinion?: Opinion;
   subject: Url;
-  creatorDevice: UserDevice;
-  creator?: User;
+  createdByDevice: UserDevice;
+  createdBy?: User;
+  deletedByDevice?: UserDevice;
+  deletedBy?: User;
 }
 
 export type UrlVerificationCreationAttributes = Optional<
@@ -47,9 +49,15 @@ export default class UrlVerification extends Model<
   subject!: UrlVerificationAttributes['subject'];
 
   @AllowNull(false)
-  @BelongsTo(() => UserDevice)
-  creatorDevice!: UrlVerificationAttributes['creatorDevice'];
+  @BelongsTo(() => UserDevice, 'createdByDeviceId')
+  createdByDevice!: UrlVerificationAttributes['createdByDevice'];
 
-  @BelongsTo(() => User)
-  creator!: UrlVerificationAttributes['creator'];
+  @BelongsTo(() => User, 'createdById')
+  createdBy!: UrlVerificationAttributes['createdBy'];
+
+  @BelongsTo(() => UserDevice, 'deletedByDeviceId')
+  deletedByDevice: UrlVerificationAttributes['deletedByDevice'];
+
+  @BelongsTo(() => User, 'deletedById')
+  deletedBy: UrlVerificationAttributes['deletedBy'];
 }

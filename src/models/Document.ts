@@ -32,8 +32,11 @@ export interface DocumentAttributes {
   blocks?: Block[];
   categories?: Category[];
   audits?: DocumentAudit[];
-  creatorDevice: UserDevice;
-  creator: User;
+  createdByDevice: UserDevice;
+  createdBy: User;
+  updatedByDevice?: UserDevice;
+  updatedBy?: User;
+  deletedByDevice?: UserDevice;
   deletedBy?: User;
 }
 
@@ -107,11 +110,20 @@ export default class Document extends Model<
   audits: DocumentAttributes['audits'];
 
   @AllowNull(false)
-  @BelongsTo(() => UserDevice)
-  creatorDevice!: DocumentAttributes['creatorDevice'];
+  @BelongsTo(() => UserDevice, 'createdByDeviceId')
+  createdByDevice!: DocumentAttributes['createdByDevice'];
 
-  @BelongsTo(() => User, 'creatorId')
-  creator!: DocumentAttributes['creator'];
+  @BelongsTo(() => User, 'createdById')
+  createdBy!: DocumentAttributes['createdBy'];
+
+  @BelongsTo(() => UserDevice, 'updatedByDeviceId')
+  updatedByDevice: DocumentAttributes['updatedByDevice'];
+
+  @BelongsTo(() => User, 'updatedById')
+  updatedBy: DocumentAttributes['updatedBy'];
+
+  @BelongsTo(() => UserDevice, 'deletedByDeviceId')
+  deletedByDevice: DocumentAttributes['deletedByDevice'];
 
   @BelongsTo(() => User, 'deletedById')
   deletedBy: DocumentAttributes['deletedBy'];

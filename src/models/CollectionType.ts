@@ -16,6 +16,8 @@ export interface CollectionTypeAttributes {
   name: string;
   createdBy: User;
   createdByDevice: UserDevice;
+  updatedBy?: User;
+  updatedByDevice?: UserDevice;
 }
 
 export type CollectionTypeCreationAttributes = Optional<
@@ -41,10 +43,16 @@ export default class CollectionType extends Model<
   name!: CollectionTypeAttributes['name'];
 
   @AllowNull(false)
-  @BelongsTo(() => User)
+  @BelongsTo(() => User, 'createdById')
   createdBy!: CollectionTypeAttributes['createdBy'];
 
   @AllowNull(false)
-  @BelongsTo(() => UserDevice)
+  @BelongsTo(() => UserDevice, 'createdByDeviceId')
   createdByDevice!: CollectionTypeAttributes['createdByDevice'];
+
+  @BelongsTo(() => User, 'updatedById')
+  updatedBy: CollectionTypeAttributes['updatedBy'];
+
+  @BelongsTo(() => UserDevice, 'updatedByDeviceId')
+  updatedByDevice: CollectionTypeAttributes['updatedByDevice'];
 }

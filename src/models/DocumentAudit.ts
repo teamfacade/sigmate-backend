@@ -26,10 +26,12 @@ export interface DocumentAuditAttributes {
   parent?: Document;
   blocks?: Block[];
   categories?: Category[];
-  editorDevice: UserDevice;
-  editor?: User;
+  createdByDevice: UserDevice;
+  createdBy?: User;
+  approvedByDevice?: UserDevice;
   approvedBy?: User;
   approvedAt?: Date;
+  revertedByDevice?: UserDevice;
   revertedBy?: User;
   revertedAt?: Date;
 }
@@ -86,17 +88,23 @@ export default class DocumentAudit extends Model<
   categories: DocumentAuditAttributes['categories'];
 
   @AllowNull(false)
-  @BelongsTo(() => UserDevice)
-  editorDevice!: DocumentAuditAttributes['editorDevice'];
+  @BelongsTo(() => UserDevice, 'createdByDeviceId')
+  createdByDevice!: DocumentAuditAttributes['createdByDevice'];
 
-  @BelongsTo(() => User, 'editorId')
-  editor: DocumentAuditAttributes['editor'];
+  @BelongsTo(() => User, 'createdById')
+  createdBy: DocumentAuditAttributes['createdBy'];
+
+  @BelongsTo(() => UserDevice, 'approvedByDeviceId')
+  approvedByDevice!: DocumentAuditAttributes['approvedByDevice'];
 
   @BelongsTo(() => User, 'approvedById')
   approvedBy: DocumentAuditAttributes['approvedBy'];
 
   @Column(DataType.DATE)
   approvedAt: DocumentAuditAttributes['approvedAt'];
+
+  @BelongsTo(() => UserDevice, 'revertedByDeviceId')
+  revertedByDevice: DocumentAuditAttributes['revertedByDevice'];
 
   @BelongsTo(() => User, 'revertedById')
   revertedBy: DocumentAuditAttributes['revertedBy'];

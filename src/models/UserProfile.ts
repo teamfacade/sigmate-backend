@@ -1,113 +1,41 @@
-import {
-  Model,
-  Sequelize,
-  Table,
-  DataType,
-  Column,
-  HasOne,
-} from 'sequelize-typescript';
+import { Model, DataType, Column, BelongsTo } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
-import { DatabaseObject } from '.';
 import Require from '../types/Require';
-import User, { userIdDataType, UserIdType } from './User';
+import Image from './Image';
+import User from './User';
 
 export type ProfileIdType = number;
 export const profileIdDataType = DataType.INTEGER;
 
-export interface UserProfileModelAttributes {
-  profileId: ProfileIdType;
-  userId: UserIdType;
-  isPrimary: boolean;
+export interface UserProfileAttributes {
+  id: ProfileIdType;
+  user: User;
   displayName?: string;
-  picture?: string;
   bio?: string;
-  team?: number;
+  profileImage?: Image;
 }
 
 export type UserProfileCreationAttributes = Optional<
-  UserProfileModelAttributes,
-  'profileId' | 'isPrimary'
+  UserProfileAttributes,
+  'id'
 >;
 
-export type UserProfileDTO = Partial<UserProfileModelAttributes>;
-export type UserProfileCreationDTO = Require<UserProfileDTO, 'userId'>;
+export type UserProfileDTO = Partial<UserProfileAttributes>;
+export type UserProfileCreationDTO = Require<UserProfileDTO, 'id'>;
 
-@Table
 export default class UserProfile extends Model<
-  UserProfileModelAttributes,
+  UserProfileAttributes,
   UserProfileCreationAttributes
 > {
-  @Column
-  public readonly profileId!: ProfileIdType;
-  @Column
-  public userId!: UserIdType;
-  @Column
-  public isPrimary!: boolean;
-  @Column
-  public displayName!: string;
-  @Column
-  public picture!: string;
-  @Column
-  public bio!: string;
-  @Column
-  public team!: number;
+  @BelongsTo(() => User)
+  user!: UserProfileAttributes['user'];
 
-  @HasOne(() => User, 'primaryProfileId')
-  public primaryUser!: User;
+  @Column(DataType.STRING(191))
+  displayName: UserProfileAttributes['displayName'];
+
+  @Column(DataType.TEXT)
+  bio: UserProfileAttributes['bio'];
+
+  @BelongsTo(() => Image, 'profileImageId')
+  profileImage: UserProfileAttributes['profileImage'];
 }
-
-export const initUserProfile = (sequelize: Sequelize) => {
-  UserProfile.init(
-    {
-      profileId: {
-        type: profileIdDataType,
-        primaryKey: true,
-        autoIncrement: true,
-      },
-      userId: {
-        type: userIdDataType,
-        allowNull: false,
-      },
-      isPrimary: {
-        type: DataType.BOOLEAN,
-        allowNull: false,
-        defaultValue: false,
-      },
-      displayName: {
-        type: DataType.STRING(128),
-      },
-      picture: {
-        type: DataType.STRING(512),
-      },
-      bio: {
-        type: DataType.TEXT,
-      },
-      team: {
-        type: DataType.INTEGER,
-      },
-    },
-    {
-      sequelize,
-      tableName: 'user_profiles',
-      modelName: 'UserProfile',
-      timestamps: true,
-      paranoid: true,
-      underscored: true,
-      charset: 'utf8mb4',
-      collate: 'utf8mb4_general_ci',
-    }
-  );
-};
-
-export const associateUserProfile = (db: DatabaseObject) => {
-  // Many user profiles belong to one user
-  db.UserProfile.belongsTo(db.User, {
-    foreignKey: 'userId',
-  });
-
-  // One default user profile exist for one user
-  db.UserProfile.hasOne(db.User, {
-    foreignKey: 'primaryProfileId',
-    as: 'primaryProfile',
-  });
-};

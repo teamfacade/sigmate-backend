@@ -21,7 +21,7 @@ export interface ForumPostViewAttributes {
 
 export type ForumPostViewCreationAttributes = Optional<
   ForumPostViewAttributes,
-  'id'
+  'id' | 'createdAt'
 >;
 
 export default class ForumPostView extends Model<

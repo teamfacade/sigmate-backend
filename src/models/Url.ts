@@ -24,17 +24,16 @@ export interface UrlAttributes {
   description?: string;
   favicon?: string;
   thumbnail?: string; // meta-image from og tags
-  isAlive: boolean;
-  isBlocked: boolean;
+  isBanned: boolean;
   blocks?: Block[];
   urlVerifications: UrlVerification[];
-  creatorDevice: UserDevice;
-  creator: User;
+  createdByDevice: UserDevice;
+  createdBy: User;
 }
 
 export type UrlCreationAttributes = Optional<
   UrlAttributes,
-  'id' | 'domain' | 'isAlive' | 'isBlocked'
+  'id' | 'domain' | 'isBanned'
 >;
 
 @Table({
@@ -73,15 +72,10 @@ export default class Url extends Model<UrlAttributes, UrlCreationAttributes> {
   @Column(DataType.STRING(512))
   thumbnail: UrlAttributes['thumbnail'];
 
-  @Default(true)
-  @AllowNull(false)
-  @Column(DataType.BOOLEAN)
-  isAlive!: UrlAttributes['isAlive'];
-
   @Default(false)
   @AllowNull(false)
   @Column(DataType.BOOLEAN)
-  isBlocked!: UrlAttributes['isBlocked'];
+  isBanned!: UrlAttributes['isBanned'];
 
   @HasMany(() => Block)
   blocks: UrlAttributes['blocks'];
@@ -90,9 +84,9 @@ export default class Url extends Model<UrlAttributes, UrlCreationAttributes> {
   urlVerifications!: UrlAttributes['urlVerifications'];
 
   @AllowNull(false)
-  @BelongsTo(() => UserDevice, 'creatorDeviceId')
-  creatorDevice!: UrlAttributes['creatorDevice'];
+  @BelongsTo(() => UserDevice)
+  createdByDevice!: UrlAttributes['createdByDevice'];
 
-  @BelongsTo(() => User, 'creatorId')
-  creator!: UrlAttributes['creator'];
+  @BelongsTo(() => User)
+  createdBy!: UrlAttributes['createdBy'];
 }

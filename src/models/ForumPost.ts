@@ -22,8 +22,12 @@ export interface ForumPostAttributes {
   id: number;
   title: string;
   content: string;
-  author: User;
-  authorDevice: UserDevice;
+  createdBy: User;
+  createdByDevice: UserDevice;
+  updatedBy?: User;
+  updatedByDevice?: UserDevice;
+  deletedBy?: User;
+  deletedByDevice?: UserDevice;
   views?: ForumPostView[];
   votes?: ForumPostVote[];
   comments?: ForumComment[];
@@ -54,12 +58,28 @@ export default class ForumPost extends Model<ForumPostAttributes> {
   content!: ForumPostAttributes['content'];
 
   @AllowNull(false)
-  @BelongsTo(() => User)
-  author!: ForumPostAttributes['author'];
+  @BelongsTo(() => User, 'createdById')
+  createdBy!: ForumPostAttributes['createdBy'];
 
   @AllowNull(false)
-  @BelongsTo(() => UserDevice)
-  authorDevice!: ForumPostAttributes['authorDevice'];
+  @BelongsTo(() => UserDevice, 'createdByDeviceId')
+  createdByDevice!: ForumPostAttributes['createdByDevice'];
+
+  @AllowNull(false)
+  @BelongsTo(() => User, 'updatedById')
+  updatedBy: ForumPostAttributes['updatedBy'];
+
+  @AllowNull(false)
+  @BelongsTo(() => UserDevice, 'updatedByDeviceId')
+  updatedByDevice: ForumPostAttributes['updatedByDevice'];
+
+  @AllowNull(false)
+  @BelongsTo(() => User, 'deletedById')
+  deletedBy: ForumPostAttributes['deletedBy'];
+
+  @AllowNull(false)
+  @BelongsTo(() => UserDevice, 'deletedByDeviceId')
+  deletedByDevice: ForumPostAttributes['deletedByDevice'];
 
   @HasMany(() => ForumPostView)
   views!: ForumPostAttributes['views'];

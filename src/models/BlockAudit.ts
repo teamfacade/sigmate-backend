@@ -25,10 +25,12 @@ export interface BlockAuditAttributes {
   structure?: string;
   parent?: Block;
   children?: Block[];
-  editorDevice?: UserDevice;
-  editor?: User;
+  createdByDevice?: UserDevice;
+  createdBy?: User;
+  approvedByDevice?: UserDevice;
   approvedBy?: User;
   approvedAt?: Date;
+  revertedByDevice?: UserDevice;
   revertedBy?: User;
   revertedAt?: Date;
 }
@@ -77,17 +79,23 @@ export default class BlockAudit extends Model<
   children: BlockAuditAttributes['children'];
 
   @AllowNull(false)
-  @BelongsTo(() => UserDevice)
-  editorDevice!: BlockAuditAttributes['editorDevice'];
+  @BelongsTo(() => UserDevice, 'createdByDeviceId')
+  createdByDevice!: BlockAuditAttributes['createdByDevice'];
 
-  @BelongsTo(() => User, 'editorId')
-  editor!: BlockAuditAttributes['editor'];
+  @BelongsTo(() => User, 'createdById')
+  createdBy!: BlockAuditAttributes['createdBy'];
+
+  @BelongsTo(() => UserDevice, 'approvedByDeviceId')
+  approvedByDevice: BlockAuditAttributes['approvedByDevice'];
 
   @BelongsTo(() => User, 'approvedById')
-  approvedBy!: BlockAuditAttributes['approvedBy'];
+  approvedBy: BlockAuditAttributes['approvedBy'];
 
   @Column(DataType.DATE)
-  approvedAt!: BlockAuditAttributes['approvedAt'];
+  approvedAt: BlockAuditAttributes['approvedAt'];
+
+  @BelongsTo(() => UserDevice, 'revertedByDeviceId')
+  revertedByDevice: BlockAuditAttributes['revertedByDevice'];
 
   @BelongsTo(() => User, 'revertedById')
   revertedBy: BlockAuditAttributes['revertedBy'];

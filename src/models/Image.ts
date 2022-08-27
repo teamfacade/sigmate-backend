@@ -15,6 +15,7 @@ import Block from './Block';
 import ForumPost from './ForumPost';
 import User from './User';
 import UserDevice from './UserDevice';
+import UserProfile from './UserProfile';
 
 export interface ImageAttributes {
   id: string; // UUID (also the filename in our servers)
@@ -24,9 +25,10 @@ export interface ImageAttributes {
   mimetype: string; // HTTP mimetype header
   md5: string; // md5 hash of image file. duplication prevention
   blocks?: Block[];
-  creatorDevice: UserDevice;
-  creator?: User;
+  createdByDevice: UserDevice;
+  createdBy?: User;
   forumPosts?: ForumPost;
+  profiles?: UserProfile[];
 }
 
 export type ImageCreationAttributes = Optional<
@@ -73,11 +75,14 @@ export default class Image extends Model<
   blocks: ImageAttributes['blocks'];
 
   @BelongsTo(() => UserDevice)
-  creatorDevice!: ImageAttributes['creatorDevice'];
+  createdByDevice!: ImageAttributes['createdByDevice'];
 
   @BelongsTo(() => User)
-  creator!: ImageAttributes['creator'];
+  createdBy!: ImageAttributes['createdBy'];
 
   @BelongsToMany(() => ForumPost, 'forumPostImage')
   forumPosts: ImageAttributes['forumPosts'];
+
+  @HasMany(() => UserProfile, 'profileImageId')
+  profiles: ImageAttributes['profiles'];
 }

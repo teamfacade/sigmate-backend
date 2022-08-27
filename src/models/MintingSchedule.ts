@@ -25,7 +25,9 @@ export interface MintingScheduleAttributes {
   mintingPriceSymbol?: string; // ETH/KLAYTN/SOL/Matic
   createdBy: User;
   createdByDevice: UserDevice;
-  savedUsers?: User[];
+  updatedBy?: User;
+  updatedByDevice?: UserDevice;
+  savedUsers?: User[]; // "add to my calendar"
 }
 
 export type MintingScheduleCreationAttributes = Optional<
@@ -79,8 +81,14 @@ export default class MintingSchedule extends Model<
   createdBy!: MintingScheduleAttributes['createdBy'];
 
   @AllowNull(false)
-  @BelongsTo(() => UserDevice)
+  @BelongsTo(() => UserDevice, 'createdByDeviceId')
   createdByDevice!: MintingScheduleAttributes['createdByDevice'];
+
+  @BelongsTo(() => User, 'updatedById')
+  updatedBy: MintingScheduleAttributes['updatedBy'];
+
+  @BelongsTo(() => UserDevice, 'updatedByDeviceId')
+  updatedByDevice: MintingScheduleAttributes['updatedByDevice'];
 
   @BelongsToMany(() => User, 'savedMintingSchedules')
   savedUsers: MintingScheduleAttributes['savedUsers'];

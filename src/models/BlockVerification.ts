@@ -1,4 +1,10 @@
-import { BelongsTo, HasOne, Model, Table } from 'sequelize-typescript';
+import {
+  AllowNull,
+  BelongsTo,
+  HasOne,
+  Model,
+  Table,
+} from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
 import Block from './Block';
 import Opinion from './Opinion';
@@ -11,8 +17,10 @@ export interface BlockVerificationAttributes {
   verificationType: VerificationType;
   verificationOpinion?: Opinion; // opinion explaining the verification
   subject: Block;
-  creatorDevice: UserDevice;
-  creator?: User;
+  createdByDevice: UserDevice;
+  createdBy: User;
+  deletedByDevice?: UserDevice;
+  deletedBy?: User;
 }
 
 export type BlockVerificationCreationAttributes = Optional<
@@ -37,12 +45,21 @@ export default class BlockVerification extends Model<
   @HasOne(() => Opinion)
   verificationOpinion: BlockVerificationAttributes['verificationOpinion'];
 
+  @AllowNull(false)
   @BelongsTo(() => Block)
   subject!: BlockVerificationAttributes['subject'];
 
-  @BelongsTo(() => UserDevice)
-  creatorDevice!: BlockVerificationAttributes['creatorDevice'];
+  @AllowNull(false)
+  @BelongsTo(() => UserDevice, 'createdByDeviceId')
+  createdByDevice!: BlockVerificationAttributes['createdByDevice'];
 
-  @BelongsTo(() => User)
-  creator!: BlockVerificationAttributes['creator'];
+  @AllowNull(false)
+  @BelongsTo(() => User, 'createdById')
+  createdBy!: BlockVerificationAttributes['createdBy'];
+
+  @BelongsTo(() => UserDevice, 'deletedByDeviceId')
+  deletedByDevice: BlockVerificationAttributes['deletedByDevice'];
+
+  @BelongsTo(() => User, 'deletedById')
+  deletedBy: BlockVerificationAttributes['deletedBy'];
 }

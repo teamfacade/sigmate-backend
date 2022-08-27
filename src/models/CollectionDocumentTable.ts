@@ -1,6 +1,8 @@
 import { AllowNull, BelongsTo, Model } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
 import Block from './Block';
+import User from './User';
+import UserDevice from './UserDevice';
 
 export interface CollectionDocumentTableAttributes {
   id: number;
@@ -16,6 +18,10 @@ export interface CollectionDocumentTableAttributes {
   websiteUrlBlock: Block;
   blockchainBlock: Block;
   marketplaceBlock: Block;
+  createdBy: User;
+  createdByDevice: UserDevice;
+  updatedBy?: User;
+  updatedByDevice?: UserDevice;
 }
 
 export type CollectionDocumentTableCreationAttributes = Optional<
@@ -74,4 +80,16 @@ export default class CollectionDocumentTable extends Model<
   @AllowNull(false)
   @BelongsTo(() => Block, 'marketplaceBlockId')
   marketplaceBlock!: CollectionDocumentTableAttributes['marketplaceBlock'];
+
+  @BelongsTo(() => User, 'createdById')
+  createdBy!: CollectionDocumentTableAttributes['createdBy'];
+
+  @BelongsTo(() => UserDevice, 'createdByDeviceId')
+  createdByDevice!: CollectionDocumentTableAttributes['createdByDevice'];
+
+  @BelongsTo(() => User, 'updatedById')
+  updatedBy: CollectionDocumentTableAttributes['updatedBy'];
+
+  @BelongsTo(() => UserDevice, 'updatedByDeviceId')
+  updatedByDevice: CollectionDocumentTableAttributes['updatedByDevice'];
 }

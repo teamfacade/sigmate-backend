@@ -16,8 +16,10 @@ import UserDevice from './UserDevice';
 export interface ForumCommentAttributes {
   id: number;
   content: string;
-  author: User;
-  authorDevice: UserDevice;
+  createdBy: User;
+  createdByDevice: UserDevice;
+  deletedBy: User;
+  deletedByDevice: UserDevice;
   votes: ForumCommentVote[];
   post: ForumPost;
   parent?: ForumComment;
@@ -47,12 +49,20 @@ export default class ForumComment extends Model<
   content!: ForumCommentAttributes['content'];
 
   @AllowNull(false)
-  @BelongsTo(() => User)
-  author!: ForumCommentAttributes['author'];
+  @BelongsTo(() => User, 'createdById')
+  createdBy!: ForumCommentAttributes['createdBy'];
 
   @AllowNull(false)
-  @BelongsTo(() => UserDevice)
-  authorDevice!: ForumCommentAttributes['authorDevice'];
+  @BelongsTo(() => UserDevice, 'createdByDeviceId')
+  createdByDevice!: ForumCommentAttributes['createdByDevice'];
+
+  @AllowNull(false)
+  @BelongsTo(() => User, 'deletedById')
+  deletedBy!: ForumCommentAttributes['deletedBy'];
+
+  @AllowNull(false)
+  @BelongsTo(() => UserDevice, 'deletedByDeviceId')
+  deletedByDevice!: ForumCommentAttributes['deletedByDevice'];
 
   @HasMany(() => ForumCommentVote)
   votes!: ForumCommentAttributes['votes'];

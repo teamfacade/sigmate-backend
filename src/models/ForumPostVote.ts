@@ -17,6 +17,8 @@ export interface ForumPostVoteAttributes {
   like: boolean;
   createdBy: User;
   createdByDevice: UserDevice;
+  deletedBy?: User;
+  deletedByDevice?: UserDevice;
 }
 
 export type ForumPostVoteCreationAttributes = Optional<
@@ -29,7 +31,7 @@ export type ForumPostVoteCreationAttributes = Optional<
   tableName: 'forum_post_votes',
   timestamps: true,
   underscored: true,
-  paranoid: false,
+  paranoid: true,
 })
 export default class ForumPostVote extends Model<
   ForumPostVoteAttributes,
@@ -44,10 +46,18 @@ export default class ForumPostVote extends Model<
   like!: ForumPostVoteAttributes['like']; // true: upvote (+1), false: downvote (-1)
 
   @AllowNull(false)
-  @BelongsTo(() => User)
+  @BelongsTo(() => User, 'createdById')
   createdBy!: ForumPostVoteAttributes['createdBy'];
 
   @AllowNull(false)
-  @BelongsTo(() => UserDevice)
+  @BelongsTo(() => UserDevice, 'createdByDeviceId')
   createdByDevice!: ForumPostVoteAttributes['createdByDevice'];
+
+  @AllowNull(false)
+  @BelongsTo(() => User, 'deletedById')
+  deletedBy: ForumPostVoteAttributes['deletedBy'];
+
+  @AllowNull(false)
+  @BelongsTo(() => UserDevice, 'deletedByDeviceId')
+  deletedByDevice: ForumPostVoteAttributes['deletedByDevice'];
 }

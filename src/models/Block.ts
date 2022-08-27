@@ -31,8 +31,11 @@ export interface BlockAttributes {
   children?: Block[];
   initialBlock: Block;
   audits?: BlockAudit[];
-  creatorDevice: UserDevice;
-  creator?: User;
+  createdByDevice: UserDevice;
+  createdBy?: User;
+  updatedByDevice?: UserDevice;
+  updatedBy?: User;
+  deletedByDevice?: UserDevice;
   deletedBy?: User;
 }
 
@@ -127,11 +130,20 @@ export default class Block extends Model<
   @HasMany(() => BlockAudit)
   audits: BlockAttributes['audits'];
 
-  @BelongsTo(() => UserDevice)
-  creatorDevice!: BlockAttributes['creatorDevice'];
+  @BelongsTo(() => UserDevice, 'createdByDeviceId')
+  createdByDevice!: BlockAttributes['createdByDevice'];
 
-  @BelongsTo(() => User, 'creatorId')
-  creator: BlockAttributes['creator'];
+  @BelongsTo(() => User, 'createdById')
+  createdBy: BlockAttributes['createdBy'];
+
+  @BelongsTo(() => UserDevice, 'updatedByDeviceId')
+  updatedByDevice: BlockAttributes['updatedByDevice'];
+
+  @BelongsTo(() => User, 'updatedById')
+  updatedBy: BlockAttributes['updatedBy'];
+
+  @BelongsTo(() => UserDevice, 'deletedByDeviceId')
+  deletedByDevice: BlockAttributes['deletedByDevice'];
 
   @BelongsTo(() => User, 'deletedById')
   deletedBy: BlockAttributes['deletedBy'];

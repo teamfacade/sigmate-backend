@@ -22,11 +22,11 @@ export interface CategoryAttributes {
   name: string;
   description?: string;
   parent?: Category; // fk
-  children?: Category;
+  children?: Category[];
   template?: Document; // fk. if set, enforce this template to all documents
   thumbnail?: Image; // img src url
-  creatorDevice: UserDevice; // fk
-  creator?: User; // fk
+  createdByDevice: UserDevice; // fk
+  createdBy?: User; // fk
   documents?: Document[];
   documentAudits?: DocumentAudit[];
   forumPosts?: ForumPost[];
@@ -64,15 +64,15 @@ export default class Category extends Model<
   @HasOne(() => Document)
   template: CategoryAttributes['template'];
 
-  @HasOne(() => Image, 'thumbnailId')
+  @HasOne(() => Image)
   thumbnail: CategoryAttributes['thumbnail'];
 
   @AllowNull(false)
   @BelongsTo(() => UserDevice)
-  creatorDevice!: CategoryAttributes['creatorDevice'];
+  createdByDevice!: CategoryAttributes['createdByDevice'];
 
   @BelongsTo(() => User)
-  creator: CategoryAttributes['creator'];
+  createdBy: CategoryAttributes['createdBy'];
 
   @BelongsToMany(() => Document, 'categoryDocuments')
   documents: CategoryAttributes['documents'];
