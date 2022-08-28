@@ -26,6 +26,7 @@ const jwtStrategy = new JwtStrategy(
     try {
       if (token && tok === JWT_TYP_ACCESS) {
         const user = await findUserByAccessToken(token);
+        console.log('user', user);
         done(null, user);
       } else {
         done(null, false);

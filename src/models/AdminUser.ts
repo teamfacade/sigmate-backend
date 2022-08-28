@@ -37,10 +37,13 @@ export default class AdminUser extends Model<
   AdminUserAttributes,
   AdminUserCreationAttributes
 > {
-  @BelongsTo(() => User, 'userId')
+  @BelongsTo(() => User, { as: 'adminUser', foreignKey: 'userId' })
   user!: AdminUserAttributes['user'];
 
-  @BelongsTo(() => User, 'appointedById')
+  @BelongsTo(() => User, {
+    as: 'appointedAdminUsers',
+    foreignKey: 'appointedById',
+  })
   appointedBy!: AdminUserAttributes['appointedBy'];
 
   @BelongsTo(() => UserDevice, 'appointedByDeviceId')

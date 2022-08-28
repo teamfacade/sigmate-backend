@@ -1,6 +1,6 @@
 import { Credentials } from 'google-auth-library';
 import db from '../../models';
-import User, { UserCreationDTO } from '../../models/User';
+import User, { UserCreationDTO, UserDTO } from '../../models/User';
 import UserAuth, { UserAuthDTO } from '../../models/UserAuth';
 import UserGroup from '../../models/UserGroup';
 import UserProfile, {
@@ -8,7 +8,9 @@ import UserProfile, {
   UserProfileCreationDTO,
 } from '../../models/UserProfile';
 import ApiError from '../../utils/errors/ApiError';
+import ConflictError from '../../utils/errors/ConflictError';
 import SequelizeError from '../../utils/errors/SequelizeError';
+import UnauthenticatedError from '../../utils/errors/UnauthenticatedError';
 import { GoogleProfile } from '../auth/google';
 import { createAccessToken, createRefreshToken } from '../auth/token';
 import { generateReferralCode } from '../user/referral';
@@ -17,6 +19,17 @@ export const findUserById = async (userId: number) => {
   try {
     return await User.findOne({
       where: { id: userId },
+      include: [UserGroup, UserProfile],
+    });
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+export const findUserByUserName = async (userName: string) => {
+  try {
+    return await User.findOne({
+      where: { userName },
       include: [UserGroup, UserProfile],
     });
   } catch (error) {
@@ -119,6 +132,7 @@ export const createUserGoogle = async (
 ) => {
   const userDTO: UserCreationDTO = {
     email: googleProfile.email,
+    emailVerified: true,
     googleAccount: googleProfile.email,
     googleAccountId: googleProfile.id,
     locale: googleProfile.locale,
@@ -136,4 +150,62 @@ export const createUserGoogle = async (
   };
 
   return await createUser(userDTO, userAuthDTO, userProfileDTO);
+};
+
+export const updateUser = async (user: User, userDTO: UserDTO) => {
+  try {
+    // If username has been changed, record that time
+    if (userDTO.userName) {
+      userDTO.userNameUpdatedAt = new Date();
+    }
+
+    // If email has been changed, mark as unverified
+    if (userDTO.email) {
+      userDTO.emailVerified = false;
+    }
+
+    return await user.update(userDTO);
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+export const deleteUser = async (user: User | null | undefined) => {
+  try {
+    if (!user) throw new UnauthenticatedError();
+    const d = new Date().getTime();
+
+    const userName = user.userName ? `${user.userName}-d${d}` : undefined;
+    const email = user.email ? `${user.email || ''}-d${d}` : undefined;
+    const googleAccountId = user.googleAccountId
+      ? `${user.googleAccountId || ''}-d${d}`
+      : undefined;
+
+    const userAuth = user.userAuth || (await user.$get('userAuth'));
+    if (!userAuth) throw new ConflictError();
+
+    const primaryProfile =
+      user.primaryProfile || (await user.$get('primaryProfile'));
+    if (!primaryProfile) throw new ConflictError();
+
+    const adminUser = user.adminUser || (await user.$get('adminUser'));
+
+    await db.sequelize.transaction(async (transaction) => {
+      const deletePromises: Promise<any>[] = [
+        user.update(
+          { userName, email, googleAccountId, isAdmin: false },
+          { transaction }
+        ),
+        userAuth.destroy({ transaction }),
+        primaryProfile.destroy({ transaction }),
+      ];
+
+      if (adminUser) deletePromises.push(adminUser.destroy({ transaction }));
+
+      await Promise.all(deletePromises);
+      await user.destroy({ transaction });
+    });
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
 };

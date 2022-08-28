@@ -1,6 +1,5 @@
-import { body, CustomValidator, param } from 'express-validator';
+import { body, CustomValidator, param, query } from 'express-validator';
 import User, { availableThemes, USERNAME_MAX_LENGTH } from '../../models/User';
-import { inMySQLIntRange } from './utils';
 import isURL from 'validator/lib/isURL';
 
 const isUserNameAvailable: CustomValidator = async (value: string, { req }) => {
@@ -109,7 +108,7 @@ export const validateUserName = body('userName')
   .withMessage('DUPLICATE')
   .bail();
 
-export const validateUserNameCheck = body('userName')
+export const validateUserNameCheck = query('userName')
   .notEmpty()
   .withMessage('REQUIRED')
   .escape()
@@ -140,12 +139,7 @@ export const validateUserPatch = [
     .withMessage('TOO_LONG'),
   body('emailVerified').optional().isEmpty().withMessage('UNKNOWN'),
   body('group').isEmpty().withMessage('UNKNOWN'),
-  body('primaryProfileId')
-    .optional()
-    .isInt()
-    .custom(inMySQLIntRange())
-    .withMessage('NOT_INT')
-    .toInt(),
+  body('primaryProfile').optional().isEmpty().withMessage('UNKNOWN'),
   body('isTester')
     .optional()
     .isBoolean()
@@ -216,24 +210,9 @@ export const validateUserPatch = [
     .withMessage('NOT_BOOLEAN')
     .bail()
     .toBoolean(),
-  body('agreeTos')
-    .optional()
-    .isISO8601()
-    .withMessage('NOT_DATE')
-    .bail()
-    .toDate(),
-  body('agreePrivacy')
-    .optional()
-    .isISO8601()
-    .withMessage('NOT_DATE')
-    .bail()
-    .toDate(),
-  body('agreeLegal')
-    .optional()
-    .isISO8601()
-    .withMessage('NOT_DATE')
-    .bail()
-    .toDate(),
+  body('agreeTos').optional().isEmpty().withMessage('UNKNOWN'),
+  body('agreePrivacy').optional().isEmpty().withMessage('UNKNOWN'),
+  body('agreeLegal').optional().isEmpty().withMessage('UNKNOWN'),
   body('referralCode').optional().isEmpty().withMessage('UNKNOWN'),
   body('referredBy').optional().isEmpty().withMessage('UNKNOWN'),
 ];

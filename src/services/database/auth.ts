@@ -1,6 +1,7 @@
 import jwt from 'jsonwebtoken';
 import { Transaction } from 'sequelize';
 import { BaseError } from 'sequelize';
+import AdminUser from '../../models/AdminUser';
 import User, { UserAttributes } from '../../models/User';
 import UserAuth, { UserAuthDTO } from '../../models/UserAuth';
 import UserGroup from '../../models/UserGroup';
@@ -74,7 +75,12 @@ export const findUserByAccessToken = async (accessToken: string) => {
   try {
     const user = await User.findOne({
       where: { id: userId, isAdmin },
-      include: [UserGroup, UserAuth],
+      include: [
+        UserGroup,
+        UserAuth,
+        UserProfile,
+        { model: AdminUser, as: 'adminUser' },
+      ],
     });
 
     // User not found

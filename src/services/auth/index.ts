@@ -105,7 +105,7 @@ export const logoutController = async (
 ) => {
   try {
     await voidAccessToken(req.user);
-    res.status(204);
+    res.status(204).send();
   } catch (error) {
     next(error);
   }
@@ -118,7 +118,7 @@ export const logoutAllController = async (
 ) => {
   try {
     await voidRefreshToken(req.user);
-    res.status(204);
+    res.status(204).send();
   } catch (error) {
     next(error);
   }

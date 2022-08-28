@@ -1,7 +1,8 @@
 import { body, param } from 'express-validator';
+import { USERNAME_MAX_LENGTH } from '../../models/User';
 import { inMySQLIntRange, toBoolean, toInt } from './utils';
 
-export const validateGetProfile = param('profileId')
+export const validateGetProfileByProfileId = param('profileId')
   .trim()
   .escape()
   .stripLow()
@@ -13,6 +14,17 @@ export const validateGetProfile = param('profileId')
   .withMessage('NOT_INT')
   .bail()
   .customSanitizer(toInt);
+
+export const validateGetProfileByUserName = param('userName')
+  .trim()
+  .escape()
+  .stripLow()
+  .notEmpty()
+  .withMessage('REQUIRED')
+  .bail()
+  .isLength({ min: 3, max: USERNAME_MAX_LENGTH })
+  .withMessage('LENGTH')
+  .bail();
 
 export const requireProfileIdInParam = param('profileId')
   .trim()

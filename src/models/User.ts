@@ -168,14 +168,14 @@ export default class User extends Model<
   UserAttributes,
   UserCreationAttributes
 > {
-  @Unique
+  @Unique('userName')
   @Column(DataType.STRING(16 + 15))
   userName!: UserAttributes['userName'];
 
   @Column(DataType.DATE)
   userNameUpdatedAt!: UserAttributes['userNameUpdatedAt'];
 
-  @Unique
+  @Unique('email')
   @AllowNull(false)
   @Column(DataType.STRING(191))
   email!: UserAttributes['email'];
@@ -279,10 +279,13 @@ export default class User extends Model<
   @HasOne(() => UserAuth, 'userId')
   userAuth!: UserAttributes['userAuth'];
 
-  @HasOne(() => AdminUser, 'userId')
+  @HasOne(() => AdminUser, { as: 'adminUser', foreignKey: 'userId' })
   adminUser: UserAttributes['adminUser'];
 
-  @HasMany(() => AdminUser, 'appointedById')
+  @HasMany(() => AdminUser, {
+    as: 'appointedAdminUsers',
+    foreignKey: 'appointedById',
+  })
   appointedAdminUsers: UserAttributes['appointedAdminUsers'];
 
   @HasMany(() => Block, 'createdById')

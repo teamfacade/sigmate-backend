@@ -40,7 +40,7 @@ export default class CollectionType extends Model<
   CollectionTypeAttributes,
   CollectionTypeCreationAttributes
 > {
-  @Unique
+  @Unique('name')
   @AllowNull(false)
   @Column(DataType.STRING(64))
   name!: CollectionTypeAttributes['name'];
