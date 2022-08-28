@@ -108,21 +108,33 @@ export const validateUserName = body('userName')
   .withMessage('DUPLICATE')
   .bail();
 
-export const validateUserNameCheck = query('userName')
-  .notEmpty()
-  .withMessage('REQUIRED')
-  .escape()
-  .trim()
-  .stripLow()
-  .isLength({ min: 3 })
-  .withMessage('TOO_SHORT')
-  .bail()
-  .isLength({ max: USERNAME_MAX_LENGTH })
-  .withMessage('TOO_LONG')
-  .bail()
-  .custom(isUserNameAvailable)
-  .bail()
-  .custom(followsUserNamePolicy);
+export const validateUserCheck = [
+  query('userName')
+    .optional()
+    .notEmpty()
+    .withMessage('REQUIRED')
+    .escape()
+    .trim()
+    .stripLow()
+    .isLength({ min: 3 })
+    .withMessage('TOO_SHORT')
+    .bail()
+    .isLength({ max: USERNAME_MAX_LENGTH })
+    .withMessage('TOO_LONG')
+    .bail()
+    .custom(followsUserNamePolicy),
+  query('referralCode')
+    .optional()
+    .notEmpty()
+    .withMessage('EMPTY')
+    .bail()
+    .escape()
+    .trim()
+    .stripLow()
+    .isLength({ min: 16, max: 16 })
+    .withMessage('LENGTH')
+    .bail(),
+];
 
 export const validateUserPatch = [
   body('userId').optional().isEmpty().withMessage('UNKNOWN'),

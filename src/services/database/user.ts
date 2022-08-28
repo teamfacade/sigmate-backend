@@ -37,6 +37,16 @@ export const findUserByUserName = async (userName: string) => {
   }
 };
 
+export const findUserByReferralCode = async (referralCode: string) => {
+  try {
+    return await User.findOne({
+      where: { referralCode },
+    });
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
 /**
  * Check if the given referral code is already being used by another user
  * @param code referral code

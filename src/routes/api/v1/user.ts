@@ -6,7 +6,7 @@ import {
 import handleBadRequest from '../../../middlewares/handleBadRequest';
 import pickModelProperties from '../../../middlewares/pickModelProperties';
 import {
-  validateUserNameCheck,
+  validateUserCheck,
   validateUserPatch,
 } from '../../../middlewares/validators/user';
 import User from '../../../models/User';
@@ -36,7 +36,7 @@ userRouter
 userRouter.get(
   '/check',
   isAuthenticated,
-  validateUserNameCheck,
+  validateUserCheck,
   handleBadRequest,
   checkUserController
 );

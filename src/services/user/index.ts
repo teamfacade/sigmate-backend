@@ -1,8 +1,12 @@
 import { NextFunction, Request, Response } from 'express';
 import User, { UserDTO } from '../../models/User';
-import BadRequestError from '../../utils/errors/BadRequestError';
 import UnauthenticatedError from '../../utils/errors/UnauthenticatedError';
-import { deleteUser, updateUser } from '../database/user';
+import {
+  deleteUser,
+  findUserByReferralCode,
+  findUserByUserName,
+  updateUser,
+} from '../database/user';
 
 export const userToJSON = (user: User) => {
   const {
@@ -147,14 +151,46 @@ export const checkUserController = async (
   next: NextFunction
 ) => {
   try {
-    const { userName } = req.query;
+    const userName = req.query?.userName as string;
+    const referralCode = req.query?.referralCode as string;
 
-    // Check if username exists
-    if (!userName) throw new BadRequestError();
+    const response: {
+      success: boolean;
+      userName?: {
+        userName: string;
+        isAvailable: boolean;
+      };
+      referralCode?: {
+        referralCode: string;
+        isValid: boolean;
+      };
+    } = { success: true };
 
-    // Validation already performed with middleware, so
-    // if we reached here, username is available
-    res.status(200).json({ success: true, userName });
+    // Check if username is available
+    if (userName) {
+      response.userName = { userName, isAvailable: true };
+      const user = await findUserByUserName(userName);
+      if (user) {
+        response.success = false;
+        response.userName.isAvailable = false;
+      }
+    }
+
+    // Check if referralcode is valid
+    if (referralCode) {
+      response.referralCode = { referralCode, isValid: false };
+      const user = await findUserByReferralCode(referralCode);
+      if (user) {
+        // If it is my own referralCode, return not valid
+        const me = req.user;
+        if (!me) throw new UnauthenticatedError();
+        if (user.id !== me.id) response.referralCode.isValid = true;
+      }
+
+      if (response.success) response.success = response.referralCode.isValid;
+    }
+
+    res.status(response.success ? 200 : 409).json(response);
   } catch (error) {
     next(error);
   }
