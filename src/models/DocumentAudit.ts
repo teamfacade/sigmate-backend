@@ -1,10 +1,8 @@
 import {
-  AllowNull,
   BelongsTo,
   BelongsToMany,
   Column,
   DataType,
-  HasMany,
   HasOne,
   Model,
   Table,
@@ -16,6 +14,7 @@ import Document from './Document';
 import Category from './Category';
 import User from './User';
 import UserDevice from './UserDevice';
+import DocumentAuditCategory from './DocumentAuditCategory';
 
 export interface DocumentAuditAttributes {
   id: number;
@@ -81,13 +80,9 @@ export default class DocumentAudit extends Model<
   @BelongsTo(() => Document, 'auditParentId')
   parent: DocumentAuditAttributes['parent'];
 
-  @HasMany(() => Block)
-  blocks: DocumentAuditAttributes['blocks'];
-
-  @BelongsToMany(() => Category, 'categoryDocumentAudits')
+  @BelongsToMany(() => Category, () => DocumentAuditCategory)
   categories: DocumentAuditAttributes['categories'];
 
-  @AllowNull(false)
   @BelongsTo(() => UserDevice, 'createdByDeviceId')
   createdByDevice!: DocumentAuditAttributes['createdByDevice'];
 

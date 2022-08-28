@@ -10,8 +10,10 @@ import {
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
 import BlockAudit from './BlockAudit';
+import BlockVerification from './BlockVerification';
 import Document from './Document';
 import Image from './Image';
+import Opinion from './Opinion';
 import Url from './Url';
 import User from './User';
 import UserDevice from './UserDevice';
@@ -20,6 +22,7 @@ export type BlockIdType = number;
 export interface BlockAttributes {
   id: BlockIdType;
   document: Document;
+  opinions?: Opinion[];
   element: string;
   isInitial: boolean;
   style: string;
@@ -31,6 +34,7 @@ export interface BlockAttributes {
   children?: Block[];
   initialBlock: Block;
   audits?: BlockAudit[];
+  verifications?: BlockVerification[];
   createdByDevice: UserDevice;
   createdBy?: User;
   updatedByDevice?: UserDevice;
@@ -57,9 +61,11 @@ export default class Block extends Model<
   BlockAttributes,
   BlockCreationAttributes
 > {
-  @AllowNull(false)
-  @BelongsTo(() => Document)
+  @BelongsTo(() => Document, 'documentId')
   document!: BlockAttributes['document']; // cannot edit after creation
+
+  @HasMany(() => Opinion, 'blockId')
+  opinions: BlockAttributes['opinions'];
 
   @AllowNull(false)
   @Column(DataType.STRING(16))
@@ -95,11 +101,11 @@ export default class Block extends Model<
   textContent!: BlockAttributes['textContent'];
 
   // An image block (no children)
-  @BelongsTo(() => Image)
+  @BelongsTo(() => Image, 'imageId')
   image!: BlockAttributes['image'];
 
   // An url block (no children)
-  @BelongsTo(() => Url)
+  @BelongsTo(() => Url, 'urlId')
   url!: BlockAttributes['url'];
 
   // Has children blocks (1D array)
@@ -127,8 +133,11 @@ export default class Block extends Model<
   @BelongsTo(() => Block, 'initialBlockId')
   initialBlock!: BlockAttributes['initialBlock'];
 
-  @HasMany(() => BlockAudit)
+  @HasMany(() => BlockAudit, 'blockId')
   audits: BlockAttributes['audits'];
+
+  @HasMany(() => BlockVerification, 'blockId')
+  verifications: BlockAttributes['verifications'];
 
   @BelongsTo(() => UserDevice, 'createdByDeviceId')
   createdByDevice!: BlockAttributes['createdByDevice'];

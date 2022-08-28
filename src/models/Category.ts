@@ -5,14 +5,16 @@ import {
   Column,
   DataType,
   HasMany,
-  HasOne,
   Model,
   Table,
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
 import Document from './Document';
 import DocumentAudit from './DocumentAudit';
+import DocumentAuditCategory from './DocumentAuditCategory';
+import DocumentCategory from './DocumentCategory';
 import ForumPost from './ForumPost';
+import ForumPostCategory from './ForumPostCategory';
 import Image from './Image';
 import User from './User';
 import UserDevice from './UserDevice';
@@ -61,25 +63,21 @@ export default class Category extends Model<
   @HasMany(() => Category, 'parentId')
   children: CategoryAttributes['children'];
 
-  @HasOne(() => Document)
-  template: CategoryAttributes['template'];
-
-  @HasOne(() => Image)
+  @BelongsTo(() => Image, 'thumbnailId')
   thumbnail: CategoryAttributes['thumbnail'];
 
-  @AllowNull(false)
-  @BelongsTo(() => UserDevice)
+  @BelongsTo(() => UserDevice, 'createdByDeviceId')
   createdByDevice!: CategoryAttributes['createdByDevice'];
 
-  @BelongsTo(() => User)
+  @BelongsTo(() => User, 'createdById')
   createdBy: CategoryAttributes['createdBy'];
 
-  @BelongsToMany(() => Document, 'categoryDocuments')
+  @BelongsToMany(() => Document, () => DocumentCategory)
   documents: CategoryAttributes['documents'];
 
-  @BelongsToMany(() => DocumentAudit, 'categoryDocumentAudits')
+  @BelongsToMany(() => DocumentAudit, () => DocumentAuditCategory)
   documentAudits: CategoryAttributes['documentAudits'];
 
-  @BelongsToMany(() => ForumPost, 'forumPostCategories')
+  @BelongsToMany(() => ForumPost, () => ForumPostCategory)
   forumPosts: CategoryAttributes['forumPosts'];
 }

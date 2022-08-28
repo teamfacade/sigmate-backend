@@ -145,7 +145,7 @@ export default class Collection extends Model<
   @Column(DataType.STRING(1024))
   bannerImageUrl: CollectionAttributes['bannerImageUrl'];
 
-  @HasOne(() => Document)
+  @HasOne(() => Document, 'collectionId')
   document: CollectionAttributes['document'];
 
   @BelongsTo(() => User, 'createdById')
@@ -160,19 +160,19 @@ export default class Collection extends Model<
   @BelongsTo(() => UserDevice, 'updatedByDeviceId')
   updatedByDevice: CollectionAttributes['updatedByDevice'];
 
-  @HasMany(() => MintingSchedule)
+  @HasMany(() => MintingSchedule, 'collectionId')
   mintingSchedules!: CollectionAttributes['mintingSchedules'];
 
-  @BelongsTo(() => CollectionType)
+  @BelongsTo(() => CollectionType, 'collectionTypeId')
   type!: CollectionAttributes['type'];
 
-  @BelongsTo(() => CollectionUtility)
+  @BelongsTo(() => CollectionUtility, 'collectionUtilityId')
   utility!: CollectionAttributes['utility'];
 
   @AllowNull(false)
   @Column(DataType.STRING(191))
   marketplace!: CollectionAttributes['marketplace'];
 
-  @HasMany(() => Nft)
+  @HasMany(() => Nft, 'collectionId')
   nfts!: CollectionAttributes['nfts'];
 }

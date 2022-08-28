@@ -1,10 +1,4 @@
-import {
-  AllowNull,
-  BelongsTo,
-  HasOne,
-  Model,
-  Table,
-} from 'sequelize-typescript';
+import { BelongsTo, HasOne, Model, Table } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
 import Opinion from './Opinion';
 import Url from './Url';
@@ -39,16 +33,15 @@ export default class UrlVerification extends Model<
   UrlVerificationAttributes,
   UrlVerificationCreationAttributes
 > {
-  @BelongsTo(() => VerificationType)
+  @BelongsTo(() => VerificationType, 'vtypeId')
   verficationType!: UrlVerificationAttributes['verificationType'];
 
-  @HasOne(() => Opinion)
+  @HasOne(() => Opinion, 'urlVerificationId')
   verificationOpinion!: UrlVerificationAttributes['verificationOpinion'];
 
-  @BelongsTo(() => Url)
+  @BelongsTo(() => Url, 'urlId')
   subject!: UrlVerificationAttributes['subject'];
 
-  @AllowNull(false)
   @BelongsTo(() => UserDevice, 'createdByDeviceId')
   createdByDevice!: UrlVerificationAttributes['createdByDevice'];
 

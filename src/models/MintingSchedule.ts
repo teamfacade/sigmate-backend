@@ -12,6 +12,7 @@ import { Optional } from 'sequelize/types';
 import Collection from './Collection';
 import User from './User';
 import UserDevice from './UserDevice';
+import UserSavedMintingSchedule from './UserSavedMintingSchedule';
 
 export interface MintingScheduleAttributes {
   id: number;
@@ -66,8 +67,7 @@ export default class MintingSchedule extends Model<
   @Column(DataType.TEXT)
   description: MintingScheduleAttributes['description'];
 
-  @AllowNull(false)
-  @BelongsTo(() => Collection)
+  @BelongsTo(() => Collection, 'collectionId')
   collection!: MintingScheduleAttributes['collection'];
 
   @Column(DataType.STRING(191))
@@ -76,11 +76,9 @@ export default class MintingSchedule extends Model<
   @Column(DataType.STRING(10))
   mintingPriceSymbol: MintingScheduleAttributes['mintingPriceSymbol'];
 
-  @AllowNull(false)
   @BelongsTo(() => User, 'createdById')
   createdBy!: MintingScheduleAttributes['createdBy'];
 
-  @AllowNull(false)
   @BelongsTo(() => UserDevice, 'createdByDeviceId')
   createdByDevice!: MintingScheduleAttributes['createdByDevice'];
 
@@ -90,6 +88,6 @@ export default class MintingSchedule extends Model<
   @BelongsTo(() => UserDevice, 'updatedByDeviceId')
   updatedByDevice: MintingScheduleAttributes['updatedByDevice'];
 
-  @BelongsToMany(() => User, 'savedMintingSchedules')
+  @BelongsToMany(() => User, () => UserSavedMintingSchedule)
   savedUsers: MintingScheduleAttributes['savedUsers'];
 }

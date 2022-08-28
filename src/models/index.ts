@@ -1,6 +1,6 @@
 import { Sequelize } from 'sequelize-typescript';
 import databaseConfig from '../config/database';
-import AdminUser, { associateAdminUser, initAdminUser } from './AdminUser';
+import AdminUser from './AdminUser';
 import Block from './Block';
 import BlockAudit from './BlockAudit';
 import BlockVerification from './BlockVerification';
@@ -11,9 +11,14 @@ import CollectionType from './CollectionType';
 import CollectionUtility from './CollectionUtility';
 import Document from './Document';
 import DocumentAudit from './DocumentAudit';
+import DocumentAuditCategory from './DocumentAuditCategory';
+import DocumentCategory from './DocumentCategory';
 import ForumComment from './ForumComment';
 import ForumCommentVote from './ForumCommentVote';
 import ForumPost from './ForumPost';
+import ForumPostCategory from './ForumPostCategory';
+import ForumPostImage from './ForumPostImage';
+import ForumPostTag from './ForumPostTag';
 import ForumPostView from './ForumPostView';
 import ForumPostVote from './ForumPostVote';
 import ForumReport from './ForumReport';
@@ -25,16 +30,14 @@ import Opinion from './Opinion';
 import OpinionVerification from './OpinionVerification';
 import Url from './Url';
 import UrlVerification from './UrlVerification';
-import User, { associateUser, initUser } from './User';
+import User from './User';
 import UserAgent from './UserAgent';
 import UserAttendance from './UserAttendance';
-import UserAuth, { associateUserAuth, initUserAuth } from './UserAuth';
+import UserAuth from './UserAuth';
 import UserDevice from './UserDevice';
-import UserGroup, { associateUserGroup, initUserGroup } from './UserGroup';
-import UserProfile, {
-  associateUserProfile,
-  initUserProfile,
-} from './UserProfile';
+import UserGroup from './UserGroup';
+import UserProfile from './UserProfile';
+import UserSavedMintingSchedule from './UserSavedMintingSchedule';
 import VerificationType from './VerificationType';
 
 const config = databaseConfig[process.env.NODE_ENV];
@@ -63,34 +66,61 @@ export type DatabaseObject = {
 const initDatabase = () => {
   const sequelize = initSequelize();
   sequelize.addModels([
-    User,
-    UserGroup,
-    UserAuth,
-    UserProfile,
     AdminUser,
-    UserAgent,
-    UserDevice,
-    UserAttendance,
-
-    Document,
-    DocumentAudit,
     Block,
     BlockAudit,
     BlockVerification,
-    Opinion,
-    OpinionVerification,
-    Url,
-    UrlVerification,
-    VerificationType,
     Category,
     Collection,
     CollectionDocumentTable,
     CollectionType,
     CollectionUtility,
-    Nft,
+    Document,
+    DocumentAudit,
+    DocumentAuditCategory,
+    DocumentCategory,
+    ForumComment,
+    ForumCommentVote,
+    ForumPost,
+    ForumPostCategory,
+    ForumPostImage,
+    ForumPostTag,
+    ForumPostView,
+    ForumPostVote,
+    ForumReport,
+    ForumTag,
     Image,
     MintingSchedule,
+    Nft,
+    Opinion,
+    OpinionVerification,
+    Url,
+    UrlVerification,
+    User,
+    UserAgent,
+    UserAttendance,
+    UserAuth,
+    UserDevice,
+    UserGroup,
+    UserProfile,
+    UserSavedMintingSchedule,
+    VerificationType,
+  ]);
 
+  const db = {
+    sequelize,
+    AdminUser,
+    Block,
+    BlockAudit,
+    BlockVerification,
+    Category,
+    Collection,
+    CollectionDocumentTable,
+    CollectionType,
+    CollectionUtility,
+    Document,
+    DocumentAudit,
+    DocumentCategory,
     ForumComment,
     ForumCommentVote,
     ForumPost,
@@ -98,29 +128,22 @@ const initDatabase = () => {
     ForumPostVote,
     ForumReport,
     ForumTag,
-  ]);
-
-  initUser(sequelize);
-  initUserGroup(sequelize);
-  initUserAuth(sequelize);
-  initUserProfile(sequelize);
-  initAdminUser(sequelize);
-
-  const db: DatabaseObject = {
-    sequelize,
+    Image,
+    MintingSchedule,
+    Nft,
+    Opinion,
+    OpinionVerification,
+    Url,
+    UrlVerification,
     User,
-    UserGroup,
+    UserAgent,
+    UserAttendance,
     UserAuth,
+    UserDevice,
+    UserGroup,
     UserProfile,
-    AdminUser,
-    Document,
+    VerificationType,
   };
-
-  associateUser(db);
-  associateUserGroup(db);
-  associateUserAuth(db);
-  associateUserProfile(db);
-  associateAdminUser(db);
 
   return db;
 };

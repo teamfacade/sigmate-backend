@@ -11,6 +11,7 @@ import {
   Default,
   HasOne,
   HasMany,
+  BelongsToMany,
 } from 'sequelize-typescript';
 import UserGroup from './UserGroup';
 import UserProfile from './UserProfile';
@@ -41,6 +42,7 @@ import OpinionVerification from './OpinionVerification';
 import Url from './Url';
 import UrlVerification from './UrlVerification';
 import UserAttendance from './UserAttendance';
+import UserSavedMintingSchedule from './UserSavedMintingSchedule';
 
 export type UserIdType = number;
 export const userIdDataType = DataType.INTEGER;
@@ -120,6 +122,7 @@ export interface UserAttributes {
   createdImages?: Image[];
   createdMintingSchedules?: MintingSchedule[];
   updatedMintingSchedules?: MintingSchedule[];
+  savedMintingSchedules?: MintingSchedule[];
   createdNfts?: Nft[];
   createdOpinions?: Opinion[];
   createdOpinionVerifications?: OpinionVerification[];
@@ -182,11 +185,10 @@ export default class User extends Model<
   @Column(DataType.BOOLEAN)
   emailVerified!: UserAttributes['emailVerified'];
 
-  @AllowNull(false)
-  @BelongsTo(() => UserGroup, { onUpdate: 'CASCADE', onDelete: 'RESTRICT' })
+  @BelongsTo(() => UserGroup, 'groupId')
   group!: UserAttributes['group'];
 
-  @HasOne(() => UserProfile)
+  @HasOne(() => UserProfile, 'primaryProfileId')
   primaryProfile!: UserAttributes['primaryProfile'];
 
   @AllowNull(false)
@@ -274,7 +276,7 @@ export default class User extends Model<
   @BelongsTo(() => User, 'referredById')
   referredBy: UserAttributes['referredBy'];
 
-  @HasOne(() => UserAuth)
+  @HasOne(() => UserAuth, 'userId')
   userAuth!: UserAttributes['userAuth'];
 
   @HasOne(() => AdminUser, 'userId')
@@ -307,7 +309,7 @@ export default class User extends Model<
   @HasMany(() => BlockVerification, 'deletedById')
   deletedBlockVerifications: UserAttributes['deletedBlockVerifications'];
 
-  @HasMany(() => Category)
+  @HasMany(() => Category, 'createdById')
   createdCategories: UserAttributes['createdCategories'];
 
   @HasMany(() => Collection, 'createdById')
@@ -373,7 +375,7 @@ export default class User extends Model<
   @HasMany(() => ForumPost, 'deletedById')
   deletedForumPosts: UserAttributes['deletedForumPosts'];
 
-  @HasMany(() => ForumPostView)
+  @HasMany(() => ForumPostView, 'viewedById')
   forumPostViews: UserAttributes['forumPostViews'];
 
   @HasMany(() => ForumPostVote, 'createdById')
@@ -391,10 +393,10 @@ export default class User extends Model<
   @HasMany(() => ForumReport, 'deletedById')
   deletedForumReports: UserAttributes['deletedForumReports'];
 
-  @HasMany(() => ForumReport)
+  @HasMany(() => ForumTag, 'createdById')
   createdForumTags: UserAttributes['createdForumTags'];
 
-  @HasMany(() => Image)
+  @HasMany(() => Image, 'createdById')
   createdImages: UserAttributes['createdImages'];
 
   @HasMany(() => MintingSchedule, 'createdById')
@@ -403,10 +405,13 @@ export default class User extends Model<
   @HasMany(() => MintingSchedule, 'updatedById')
   updatedMintingSchedules: UserAttributes['updatedMintingSchedules'];
 
-  @HasMany(() => Nft)
+  @BelongsToMany(() => MintingSchedule, () => UserSavedMintingSchedule)
+  savedMintingSchedules: UserAttributes['savedMintingSchedules'];
+
+  @HasMany(() => Nft, 'createdById')
   createdNfts: UserAttributes['createdNfts'];
 
-  @HasMany(() => Opinion)
+  @HasMany(() => Opinion, 'createdById')
   createdOpinions: UserAttributes['createdOpinions'];
 
   @HasMany(() => OpinionVerification, 'createdById')
@@ -415,7 +420,7 @@ export default class User extends Model<
   @HasMany(() => OpinionVerification, 'deletedById')
   deletedOpinionVerifications: UserAttributes['deletedOpinionVerifications'];
 
-  @HasMany(() => Url)
+  @HasMany(() => Url, 'createdById')
   createdUrls: UserAttributes['createdUrls'];
 
   @HasMany(() => UrlVerification, 'createdById')
@@ -424,6 +429,6 @@ export default class User extends Model<
   @HasMany(() => UrlVerification, 'deletedById')
   deletedUrlVerifications: UserAttributes['deletedUrlVerifications'];
 
-  @HasMany(() => UserAttendance)
+  @HasMany(() => UserAttendance, 'createdById')
   userAttendanceRecords: UserAttributes['userAttendanceRecords'];
 }

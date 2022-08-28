@@ -11,6 +11,7 @@ import {
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
 import Block from './Block';
+import BlockAudit from './BlockAudit';
 import UrlVerification from './UrlVerification';
 import User from './User';
 import UserDevice from './UserDevice';
@@ -26,6 +27,7 @@ export interface UrlAttributes {
   thumbnail?: string; // meta-image from og tags
   isBanned: boolean;
   blocks?: Block[];
+  blockAudits?: BlockAudit[];
   urlVerifications: UrlVerification[];
   createdByDevice: UserDevice;
   createdBy: User;
@@ -77,16 +79,18 @@ export default class Url extends Model<UrlAttributes, UrlCreationAttributes> {
   @Column(DataType.BOOLEAN)
   isBanned!: UrlAttributes['isBanned'];
 
-  @HasMany(() => Block)
+  @HasMany(() => Block, 'urlId')
   blocks: UrlAttributes['blocks'];
 
-  @HasMany(() => UrlVerification)
+  @HasMany(() => BlockAudit, 'urlId')
+  blockAudits: UrlAttributes['blockAudits'];
+
+  @HasMany(() => UrlVerification, 'urlId')
   urlVerifications!: UrlAttributes['urlVerifications'];
 
-  @AllowNull(false)
-  @BelongsTo(() => UserDevice)
+  @BelongsTo(() => UserDevice, 'createdByDeviceId')
   createdByDevice!: UrlAttributes['createdByDevice'];
 
-  @BelongsTo(() => User)
+  @BelongsTo(() => User, 'createdById')
   createdBy!: UrlAttributes['createdBy'];
 }

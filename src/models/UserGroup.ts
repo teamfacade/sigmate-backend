@@ -7,6 +7,7 @@ import {
   Default,
   HasMany,
 } from 'sequelize-typescript';
+import { Optional } from 'sequelize/types';
 import User from './User';
 
 export const GROUP_ID_MAX_LENGTH = 16;
@@ -27,7 +28,7 @@ export interface UserGroupAttributes {
   users?: User[];
 }
 
-export type UserGroupCreationAttributes = UserGroupAttributes;
+export type UserGroupCreationAttributes = Optional<UserGroupAttributes, 'id'>;
 
 @Table({
   tableName: 'user_groups',
@@ -74,6 +75,6 @@ export default class UserGroup extends Model<
   @Column(DataType.BOOLEAN)
   canParticipateEvent!: UserGroupAttributes['canParticipateEvent'];
 
-  @HasMany(() => User)
+  @HasMany(() => User, 'groupId')
   users: UserGroupAttributes['users'];
 }

@@ -3,16 +3,19 @@ import {
   BelongsTo,
   Column,
   DataType,
+  HasMany,
   Model,
   Table,
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
+import Collection from './Collection';
 import User from './User';
 import UserDevice from './UserDevice';
 
 export interface CollectionUtilityAttributes {
   id: number;
   name: string;
+  collections?: Collection[];
   createdBy: User;
   createdByDevice: UserDevice;
   updatedBy?: User;
@@ -40,11 +43,12 @@ export default class CollectionUtility extends Model<
   @Column(DataType.STRING(64))
   name!: CollectionUtilityAttributes['name'];
 
-  @AllowNull(false)
+  @HasMany(() => Collection, 'collectionUtilityId')
+  collections: CollectionUtilityAttributes['collections'];
+
   @BelongsTo(() => User, 'createdById')
   createdBy!: CollectionUtilityAttributes['createdBy'];
 
-  @AllowNull(false)
   @BelongsTo(() => UserDevice, 'createdByDeviceId')
   createdByDevice!: CollectionUtilityAttributes['createdByDevice'];
 

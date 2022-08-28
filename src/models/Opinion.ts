@@ -51,28 +51,28 @@ export default class Opinion extends Model<
   @Column(DataType.TEXT)
   content!: OpinionAttributes['content'];
 
-  @BelongsTo(() => Document)
+  @BelongsTo(() => Document, 'documentId')
   document: OpinionAttributes['document'];
 
-  @BelongsTo(() => Block)
+  @BelongsTo(() => Block, 'blockId')
   block: OpinionAttributes['block'];
 
-  @BelongsTo(() => BlockVerification)
+  @BelongsTo(() => BlockVerification, 'blockVerificationId')
   blockVerification: OpinionAttributes['blockVerification'];
 
   @BelongsTo(() => OpinionVerification, 'verificationOpinionId')
   opinionVerification: OpinionAttributes['opinionVerification'];
 
-  @BelongsTo(() => UrlVerification)
+  @BelongsTo(() => UrlVerification, 'urlVerificationId')
   urlVerification: OpinionAttributes['urlVerification'];
 
   // verifications made to this opinion
   @HasMany(() => OpinionVerification, 'subjectId')
   opinionVerifications: OpinionAttributes['opinionVerifications'];
 
-  @BelongsTo(() => UserDevice)
+  @BelongsTo(() => UserDevice, 'createdByDeviceId')
   createdByDevice!: OpinionAttributes['createdByDevice'];
 
-  @BelongsTo(() => User)
+  @BelongsTo(() => User, 'createdById')
   createdBy: OpinionAttributes['createdBy'];
 }

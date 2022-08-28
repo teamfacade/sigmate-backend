@@ -37,27 +37,22 @@ export default class ForumPostVote extends Model<
   ForumPostVoteAttributes,
   ForumPostVoteCreationAttributes
 > {
-  @AllowNull(false)
-  @BelongsTo(() => ForumPost)
+  @BelongsTo(() => ForumPost, 'forumPostId')
   post!: ForumPostVoteAttributes['post'];
 
   @AllowNull(false)
   @Column(DataType.BOOLEAN)
   like!: ForumPostVoteAttributes['like']; // true: upvote (+1), false: downvote (-1)
 
-  @AllowNull(false)
   @BelongsTo(() => User, 'createdById')
   createdBy!: ForumPostVoteAttributes['createdBy'];
 
-  @AllowNull(false)
   @BelongsTo(() => UserDevice, 'createdByDeviceId')
   createdByDevice!: ForumPostVoteAttributes['createdByDevice'];
 
-  @AllowNull(false)
   @BelongsTo(() => User, 'deletedById')
   deletedBy: ForumPostVoteAttributes['deletedBy'];
 
-  @AllowNull(false)
   @BelongsTo(() => UserDevice, 'deletedByDeviceId')
   deletedByDevice: ForumPostVoteAttributes['deletedByDevice'];
 }

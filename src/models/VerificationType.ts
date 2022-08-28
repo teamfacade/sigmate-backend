@@ -35,12 +35,12 @@ export default class VerificationType extends Model<VerificationTypeAttributes> 
   @Column(DataType.BOOLEAN)
   isUpvote!: VerificationTypeAttributes['isUpvote'];
 
-  @HasMany(() => BlockVerification)
+  @HasMany(() => BlockVerification, 'vtypeId')
   blockVerifications!: VerificationTypeAttributes['blockVerifications'];
 
-  @HasMany(() => OpinionVerification)
+  @HasMany(() => OpinionVerification, 'vtypeId')
   opinionVerifications!: VerificationTypeAttributes['opinionVerifications'];
 
-  @HasMany(() => UrlVerification)
+  @HasMany(() => UrlVerification, 'vtypeId')
   urlVerifications!: VerificationTypeAttributes['urlVerifications'];
 }

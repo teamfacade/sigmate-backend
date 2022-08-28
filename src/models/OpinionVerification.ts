@@ -32,7 +32,7 @@ export default class OpinionVerification extends Model<
   OpinionVerificationAttributes,
   OpinionVerificationCreationAttributes
 > {
-  @BelongsTo(() => VerificationType)
+  @BelongsTo(() => VerificationType, 'vtypeId')
   verificationType!: OpinionVerificationAttributes['verificationType'];
 
   @HasOne(() => Opinion, 'verificationOpinionId')

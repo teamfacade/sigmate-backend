@@ -1,10 +1,4 @@
-import {
-  AllowNull,
-  BelongsTo,
-  HasOne,
-  Model,
-  Table,
-} from 'sequelize-typescript';
+import { BelongsTo, HasOne, Model, Table } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
 import Block from './Block';
 import Opinion from './Opinion';
@@ -39,21 +33,18 @@ export default class BlockVerification extends Model<
   BlockVerificationAttributes,
   BlockVerificationCreationAttributes
 > {
-  @BelongsTo(() => VerificationType)
+  @BelongsTo(() => VerificationType, 'vtypeId')
   verificationType!: BlockVerificationAttributes['verificationType'];
 
-  @HasOne(() => Opinion)
+  @HasOne(() => Opinion, 'blockVerificationId')
   verificationOpinion: BlockVerificationAttributes['verificationOpinion'];
 
-  @AllowNull(false)
-  @BelongsTo(() => Block)
+  @BelongsTo(() => Block, 'blockId')
   subject!: BlockVerificationAttributes['subject'];
 
-  @AllowNull(false)
   @BelongsTo(() => UserDevice, 'createdByDeviceId')
   createdByDevice!: BlockVerificationAttributes['createdByDevice'];
 
-  @AllowNull(false)
   @BelongsTo(() => User, 'createdById')
   createdBy!: BlockVerificationAttributes['createdBy'];
 

@@ -11,8 +11,12 @@ import {
 import { Optional } from 'sequelize/types';
 import Category from './Category';
 import ForumComment from './ForumComment';
+import ForumPostCategory from './ForumPostCategory';
+import ForumPostImage from './ForumPostImage';
+import ForumPostTag from './ForumPostTag';
 import ForumPostView from './ForumPostView';
 import ForumPostVote from './ForumPostVote';
+import ForumReport from './ForumReport';
 import ForumTag from './ForumTag';
 import Image from './Image';
 import User from './User';
@@ -31,6 +35,7 @@ export interface ForumPostAttributes {
   views?: ForumPostView[];
   votes?: ForumPostVote[];
   comments?: ForumComment[];
+  reports?: ForumReport[];
   categories: Category[];
   tags?: ForumTag[];
   images?: Image[];
@@ -57,48 +62,45 @@ export default class ForumPost extends Model<ForumPostAttributes> {
   @Column(DataType.TEXT)
   content!: ForumPostAttributes['content'];
 
-  @AllowNull(false)
   @BelongsTo(() => User, 'createdById')
   createdBy!: ForumPostAttributes['createdBy'];
 
-  @AllowNull(false)
   @BelongsTo(() => UserDevice, 'createdByDeviceId')
   createdByDevice!: ForumPostAttributes['createdByDevice'];
 
-  @AllowNull(false)
   @BelongsTo(() => User, 'updatedById')
   updatedBy: ForumPostAttributes['updatedBy'];
 
-  @AllowNull(false)
   @BelongsTo(() => UserDevice, 'updatedByDeviceId')
   updatedByDevice: ForumPostAttributes['updatedByDevice'];
 
-  @AllowNull(false)
   @BelongsTo(() => User, 'deletedById')
   deletedBy: ForumPostAttributes['deletedBy'];
 
-  @AllowNull(false)
   @BelongsTo(() => UserDevice, 'deletedByDeviceId')
   deletedByDevice: ForumPostAttributes['deletedByDevice'];
 
-  @HasMany(() => ForumPostView)
-  views!: ForumPostAttributes['views'];
+  @HasMany(() => ForumPostView, 'forumPostId')
+  views: ForumPostAttributes['views'];
 
-  @HasMany(() => ForumPostVote)
-  votes!: ForumPostAttributes['votes'];
+  @HasMany(() => ForumPostVote, 'forumPostId')
+  votes: ForumPostAttributes['votes'];
 
-  @HasMany(() => ForumComment)
+  @HasMany(() => ForumComment, 'forumPostId')
   comments: ForumPostAttributes['comments'];
 
-  @BelongsToMany(() => Category, 'forumPostCategories')
+  @HasMany(() => ForumReport, 'forumPostId')
+  reports: ForumPostAttributes['reports'];
+
+  @BelongsToMany(() => Category, () => ForumPostCategory)
   categories!: ForumPostAttributes['categories'];
 
-  @BelongsToMany(() => ForumTag, 'forumPostTags')
+  @BelongsToMany(() => ForumTag, () => ForumPostTag)
   tags: ForumPostAttributes['tags'];
 
   @Column(DataType.DATE)
   contentUpdatedAt: ForumPostAttributes['contentUpdatedAt'];
 
-  @BelongsToMany(() => Image, 'forumPostImages')
+  @BelongsToMany(() => Image, () => ForumPostImage)
   images: ForumPostAttributes['images'];
 }

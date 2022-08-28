@@ -37,19 +37,15 @@ export default class AdminUser extends Model<
   AdminUserAttributes,
   AdminUserCreationAttributes
 > {
-  @AllowNull(false)
   @BelongsTo(() => User, 'userId')
   user!: AdminUserAttributes['user'];
 
-  @AllowNull(false)
   @BelongsTo(() => User, 'appointedById')
   appointedBy!: AdminUserAttributes['appointedBy'];
 
-  @AllowNull(false)
-  @BelongsTo(() => UserDevice)
+  @BelongsTo(() => UserDevice, 'appointedByDeviceId')
   appointedByDevice!: AdminUserAttributes['appointedByDevice'];
 
-  @AllowNull(false)
   @Column(DataType.DATE)
   appointedAt!: AdminUserAttributes['appointedAt'];
 

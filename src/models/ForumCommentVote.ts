@@ -37,26 +37,22 @@ export default class ForumCommentVote extends Model<
   ForumCommentVoteAttributes,
   ForumCommentVoteCreationAttributes
 > {
-  @BelongsTo(() => ForumComment)
+  @BelongsTo(() => ForumComment, 'forumCommentId')
   comment!: ForumCommentVoteAttributes['comment'];
 
   @AllowNull(false)
   @Column(DataType.BOOLEAN)
   like!: ForumCommentVoteAttributes['like'];
 
-  @AllowNull(false)
   @BelongsTo(() => User, 'createdById')
   createdBy!: ForumCommentVoteAttributes['createdBy'];
 
-  @AllowNull(false)
   @BelongsTo(() => UserDevice, 'createdByDeviceId')
   createdByDevice!: ForumCommentVoteAttributes['createdByDevice'];
 
-  @AllowNull(false)
   @BelongsTo(() => User, 'deletedById')
   deletedBy: ForumCommentVoteAttributes['deletedBy'];
 
-  @AllowNull(false)
   @BelongsTo(() => UserDevice, 'deletedByDeviceId')
   deletedByDevice: ForumCommentVoteAttributes['deletedByDevice'];
 }

@@ -4,6 +4,7 @@ import {
   Column,
   DataType,
   Model,
+  Table,
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
 import Collection from './Collection';
@@ -12,9 +13,9 @@ import UserDevice from './UserDevice';
 
 export interface NftAttributes {
   id: number;
+  collection: Collection;
   contractAddress: string;
   tokenNumber: number;
-  collection: Collection;
   imageUrl: string;
   createdBy?: User;
   createdByDevice?: UserDevice;
@@ -22,7 +23,16 @@ export interface NftAttributes {
 
 export type NftCreationAttributes = Optional<NftAttributes, 'id'>;
 
+@Table({
+  tableName: 'nfts',
+  modelName: 'Nft',
+  timestamps: true,
+  underscored: true,
+})
 export default class Nft extends Model<NftAttributes, NftCreationAttributes> {
+  @BelongsTo(() => Collection, 'collectionId')
+  collection!: NftAttributes['collection'];
+
   @AllowNull(false)
   @Column(DataType.STRING(64))
   contractAddress!: NftAttributes['contractAddress'];
@@ -31,15 +41,12 @@ export default class Nft extends Model<NftAttributes, NftCreationAttributes> {
   @Column(DataType.INTEGER)
   tokenNumber!: NftAttributes['tokenNumber'];
 
-  @BelongsTo(() => Collection)
-  collection!: NftAttributes['collection'];
-
   @Column(DataType.STRING(1024))
   imageUrl!: NftAttributes['imageUrl'];
 
-  @BelongsTo(() => User)
+  @BelongsTo(() => User, 'createdById')
   createdBy: NftAttributes['createdBy'];
 
-  @BelongsTo(() => UserDevice)
+  @BelongsTo(() => UserDevice, 'createdByDeviceId')
   createdByDevice: NftAttributes['createdByDevice'];
 }

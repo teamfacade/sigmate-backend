@@ -12,7 +12,10 @@ import {
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
 import Block from './Block';
+import BlockAudit from './BlockAudit';
+import Category from './Category';
 import ForumPost from './ForumPost';
+import ForumPostImage from './ForumPostImage';
 import User from './User';
 import UserDevice from './UserDevice';
 import UserProfile from './UserProfile';
@@ -25,10 +28,12 @@ export interface ImageAttributes {
   mimetype: string; // HTTP mimetype header
   md5: string; // md5 hash of image file. duplication prevention
   blocks?: Block[];
+  blockAudits?: BlockAudit[];
   createdByDevice: UserDevice;
   createdBy?: User;
   forumPosts?: ForumPost;
   profiles?: UserProfile[];
+  thumbnailCategories?: Category[]; // categories that use this image as the thumbnail
 }
 
 export type ImageCreationAttributes = Optional<
@@ -71,18 +76,24 @@ export default class Image extends Model<
   @Column(DataType.STRING(32))
   md5!: ImageAttributes['md5'];
 
-  @HasMany(() => Block)
+  @HasMany(() => Block, 'imageId')
   blocks: ImageAttributes['blocks'];
 
-  @BelongsTo(() => UserDevice)
+  @HasMany(() => BlockAudit, 'imageId')
+  blockAudits: ImageAttributes['blockAudits'];
+
+  @BelongsTo(() => UserDevice, 'createdByDeviceId')
   createdByDevice!: ImageAttributes['createdByDevice'];
 
-  @BelongsTo(() => User)
+  @BelongsTo(() => User, 'createdById')
   createdBy!: ImageAttributes['createdBy'];
 
-  @BelongsToMany(() => ForumPost, 'forumPostImage')
+  @BelongsToMany(() => ForumPost, () => ForumPostImage)
   forumPosts: ImageAttributes['forumPosts'];
 
   @HasMany(() => UserProfile, 'profileImageId')
   profiles: ImageAttributes['profiles'];
+
+  @HasMany(() => Category, 'thumbnailId')
+  thumbnailCategories: ImageAttributes['thumbnailCategories'];
 }

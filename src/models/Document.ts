@@ -5,7 +5,6 @@ import {
   Column,
   DataType,
   HasMany,
-  HasOne,
   Model,
   Table,
 } from 'sequelize-typescript';
@@ -16,6 +15,9 @@ import DocumentAudit from './DocumentAudit';
 import Category from './Category';
 import User from './User';
 import UserDevice from './UserDevice';
+import Collection from './Collection';
+import Opinion from './Opinion';
+import DocumentCategory from './DocumentCategory';
 
 export type DocumentIdType = number;
 export const documentIdDataTypes = DataType.INTEGER;
@@ -30,8 +32,10 @@ export interface DocumentAttributes {
   parent?: Document;
   children?: Document[];
   blocks?: Block[];
+  opinions?: Opinion[];
   categories?: Category[];
   audits?: DocumentAudit[];
+  collection?: Collection;
   createdByDevice: UserDevice;
   createdBy: User;
   updatedByDevice?: UserDevice;
@@ -62,13 +66,6 @@ export default class Document extends Model<
   @Column(DataType.STRING(191))
   title!: DocumentAttributes['title'];
 
-  @Column({
-    type: DataType.BOOLEAN,
-    allowNull: false,
-    defaultValue: false,
-  })
-  isTemplate!: DocumentAttributes['isTemplate'];
-
   @Column(DataType.TEXT)
   textContent?: DocumentAttributes['textContent'];
 
@@ -87,9 +84,6 @@ export default class Document extends Model<
     }
   }
 
-  @HasOne(() => Document, 'templateId')
-  template?: DocumentAttributes['template'];
-
   @BelongsTo(() => Document, 'parentId')
   parent: DocumentAttributes['parent'];
 
@@ -100,16 +94,21 @@ export default class Document extends Model<
   @HasMany(() => Document, 'parentId')
   children?: DocumentAttributes['children'];
 
-  @HasMany(() => Block)
+  @HasMany(() => Block, 'documentId')
   blocks: DocumentAttributes['blocks'];
 
-  @BelongsToMany(() => Category, 'categoryDocuments')
+  @HasMany(() => Opinion, 'documentId')
+  opinions: DocumentAttributes['opinions'];
+
+  @BelongsToMany(() => Category, () => DocumentCategory)
   categories: DocumentAttributes['categories'];
 
-  @HasMany(() => DocumentAudit)
+  @HasMany(() => DocumentAudit, 'documentId')
   audits: DocumentAttributes['audits'];
 
-  @AllowNull(false)
+  @BelongsTo(() => Collection, 'collectionId')
+  collection: DocumentAttributes['collection'];
+
   @BelongsTo(() => UserDevice, 'createdByDeviceId')
   createdByDevice!: DocumentAttributes['createdByDevice'];
 

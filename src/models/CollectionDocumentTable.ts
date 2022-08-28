@@ -1,4 +1,4 @@
-import { AllowNull, BelongsTo, Model } from 'sequelize-typescript';
+import { BelongsTo, Model, Table } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
 import Block from './Block';
 import User from './User';
@@ -29,55 +29,51 @@ export type CollectionDocumentTableCreationAttributes = Optional<
   'id'
 >;
 
+@Table({
+  tableName: 'collection_document_tables',
+  modelName: 'CollectionDocumentTable',
+  timestamps: true,
+  underscored: true,
+  charset: 'utf8mb4',
+  collate: 'utf8mb4_general_ci',
+})
 export default class CollectionDocumentTable extends Model<
   CollectionDocumentTableAttributes,
   CollectionDocumentTableCreationAttributes
 > {
-  @AllowNull(false)
   @BelongsTo(() => Block, 'teamBlockId')
   teamBlock!: CollectionDocumentTableAttributes['teamBlock'];
 
-  @AllowNull(false)
   @BelongsTo(() => Block, 'rugpoolBlockId')
   rugpoolBlock!: CollectionDocumentTableAttributes['rugpoolBlock'];
 
-  @AllowNull(false)
   @BelongsTo(() => Block, 'typeBlockId')
   typeBlock!: CollectionDocumentTableAttributes['typeBlock'];
 
-  @AllowNull(false)
   @BelongsTo(() => Block, 'utilityBlockId')
   utilityBlock!: CollectionDocumentTableAttributes['utilityBlock'];
 
-  @AllowNull(false)
   @BelongsTo(() => Block, 'mintingPriceWLBlockId')
   mintingPriceWLBlock!: CollectionDocumentTableAttributes['mintingPriceWLBlock'];
 
-  @AllowNull(false)
   @BelongsTo(() => Block, 'mintingPricePublicBlockId')
   mintingPricePublicBlock!: CollectionDocumentTableAttributes['mintingPricePublicBlock'];
 
-  @AllowNull(false)
   @BelongsTo(() => Block, 'currentPriceBlockId')
   currentPriceBlock!: CollectionDocumentTableAttributes['currentPriceBlock'];
 
-  @AllowNull(false)
   @BelongsTo(() => Block, 'discordUrlBlockId')
   discordUrlBlock!: CollectionDocumentTableAttributes['discordUrlBlock'];
 
-  @AllowNull(false)
   @BelongsTo(() => Block, 'twitterUrlBlockId')
   twitterUrlBlock!: CollectionDocumentTableAttributes['twitterUrlBlock'];
 
-  @AllowNull(false)
   @BelongsTo(() => Block, 'websiteUrlBlockId')
   websiteUrlBlock!: CollectionDocumentTableAttributes['websiteUrlBlock'];
 
-  @AllowNull(false)
   @BelongsTo(() => Block, 'blockchainBlockId')
   blockchainBlock!: CollectionDocumentTableAttributes['blockchainBlock'];
 
-  @AllowNull(false)
   @BelongsTo(() => Block, 'marketplaceBlockId')
   marketplaceBlock!: CollectionDocumentTableAttributes['marketplaceBlock'];
 

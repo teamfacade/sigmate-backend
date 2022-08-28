@@ -63,10 +63,10 @@ export default class BlockAudit extends Model<
   @Column(DataType.TEXT)
   textContent!: BlockAuditAttributes['textContent'];
 
-  @BelongsTo(() => Image)
+  @BelongsTo(() => Image, 'imageId')
   image!: BlockAuditAttributes['image'];
 
-  @BelongsTo(() => Url)
+  @BelongsTo(() => Url, 'urlId')
   url!: BlockAuditAttributes['url'];
 
   @Column(DataType.TEXT)
@@ -78,7 +78,6 @@ export default class BlockAudit extends Model<
   @HasMany(() => Block, 'parentId')
   children: BlockAuditAttributes['children'];
 
-  @AllowNull(false)
   @BelongsTo(() => UserDevice, 'createdByDeviceId')
   createdByDevice!: BlockAuditAttributes['createdByDevice'];
 

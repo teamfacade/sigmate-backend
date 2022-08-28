@@ -10,6 +10,7 @@ import {
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
 import ForumPost from './ForumPost';
+import ForumPostTag from './ForumPostTag';
 import User from './User';
 import UserDevice from './UserDevice';
 
@@ -41,7 +42,7 @@ export default class ForumTag extends Model<
   @Column(DataType.STRING(191))
   name!: ForumTagAttributes['name'];
 
-  @BelongsToMany(() => ForumPost, 'forumPostTags')
+  @BelongsToMany(() => ForumPost, () => ForumPostTag)
   posts: ForumTagAttributes['posts'];
 
   @Default(false)
@@ -49,11 +50,9 @@ export default class ForumTag extends Model<
   @Column(DataType.BOOLEAN)
   isBanned!: ForumTagAttributes['isBanned'];
 
-  @AllowNull(false)
-  @BelongsTo(() => User)
+  @BelongsTo(() => User, 'createdById')
   createdBy!: ForumTagAttributes['createdBy'];
 
-  @AllowNull(false)
-  @BelongsTo(() => UserDevice)
+  @BelongsTo(() => UserDevice, 'createdByDeviceId')
   createdByDevice!: ForumTagAttributes['createdByDevice'];
 }

@@ -14,7 +14,7 @@ const syncDatabase = () => {
           .transaction(async (transaction) => {
             await UserGroup.create(
               {
-                groupId: 'unauthenticated',
+                groupName: 'unauthenticated',
                 canCreateDocument: true,
                 canEditDocument: false,
                 canReqeustDocumentEdit: true,
@@ -29,7 +29,7 @@ const syncDatabase = () => {
 
             await UserGroup.create(
               {
-                groupId: 'banned',
+                groupName: 'banned',
                 canCreateDocument: false,
                 canEditDocument: false,
                 canReqeustDocumentEdit: false,
@@ -44,7 +44,7 @@ const syncDatabase = () => {
 
             await UserGroup.create(
               {
-                groupId: 'newbie',
+                groupName: 'newbie',
                 canCreateDocument: true,
                 canEditDocument: false,
                 canReqeustDocumentEdit: true,
@@ -59,7 +59,7 @@ const syncDatabase = () => {
 
             await UserGroup.create(
               {
-                groupId: 'authenticated',
+                groupName: 'authenticated',
                 canCreateDocument: true,
                 canEditDocument: true,
                 canReqeustDocumentEdit: true,
@@ -74,7 +74,7 @@ const syncDatabase = () => {
 
             await UserGroup.create(
               {
-                groupId: 'certified',
+                groupName: 'certified',
                 canCreateDocument: true,
                 canEditDocument: true,
                 canReqeustDocumentEdit: true,
@@ -89,7 +89,7 @@ const syncDatabase = () => {
 
             await UserGroup.create(
               {
-                groupId: 'admin',
+                groupName: 'admin',
                 canCreateDocument: true,
                 canEditDocument: true,
                 canReqeustDocumentEdit: true,

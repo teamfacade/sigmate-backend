@@ -142,7 +142,7 @@ export default class UserDevice extends Model<
   @Column(DataType.STRING)
   remarks!: UserDeviceAttributes['remarks'];
 
-  @HasMany(() => AdminUser)
+  @HasMany(() => AdminUser, 'appointedByDeviceId')
   appointedAdminUsers: UserDeviceAttributes['appointedAdminUsers'];
 
   @HasMany(() => Block, 'createdByDeviceId')
@@ -169,7 +169,7 @@ export default class UserDevice extends Model<
   @HasMany(() => BlockVerification, 'deletedByDeviceId')
   deletedBlockVerifications: UserDeviceAttributes['deletedBlockVerifications'];
 
-  @HasMany(() => Category)
+  @HasMany(() => Category, 'createdByDeviceId')
   createdCategories: UserDeviceAttributes['createdCategories'];
 
   @HasMany(() => Collection, 'createdByDeviceId')
@@ -235,7 +235,7 @@ export default class UserDevice extends Model<
   @HasMany(() => ForumPost, 'deletedByDeviceId')
   deletedForumPosts: UserDeviceAttributes['deletedForumPosts'];
 
-  @HasMany(() => ForumPostView)
+  @HasMany(() => ForumPostView, 'viewedByDeviceId')
   forumPostViews: UserDeviceAttributes['forumPostViews'];
 
   @HasMany(() => ForumPostVote, 'createdByDeviceId')
@@ -253,10 +253,10 @@ export default class UserDevice extends Model<
   @HasMany(() => ForumReport, 'deletedByDeviceId')
   deletedForumReports: UserDeviceAttributes['deletedForumReports'];
 
-  @HasMany(() => ForumTag)
+  @HasMany(() => ForumTag, 'createdByDeviceId')
   createdForumTags: UserDeviceAttributes['createdForumTags'];
 
-  @HasMany(() => Image)
+  @HasMany(() => Image, 'createdByDeviceId')
   createdImages: UserDeviceAttributes['createdImages'];
 
   @HasMany(() => MintingSchedule, 'createdByDeviceId')
@@ -265,10 +265,10 @@ export default class UserDevice extends Model<
   @HasMany(() => MintingSchedule, 'updatedByDeviceId')
   updatedMintingSchedules: UserDeviceAttributes['updatedMintingSchedules'];
 
-  @HasMany(() => Nft)
+  @HasMany(() => Nft, 'createdByDeviceId')
   createdNfts: UserDeviceAttributes['createdNfts'];
 
-  @HasMany(() => Opinion)
+  @HasMany(() => Opinion, 'createdByDeviceId')
   createdOpinions: UserDeviceAttributes['createdOpinions'];
 
   @HasMany(() => OpinionVerification, 'createdByDeviceId')
@@ -277,7 +277,7 @@ export default class UserDevice extends Model<
   @HasMany(() => OpinionVerification, 'deletedByDeviceId')
   deletedOpinionVerifications: UserDeviceAttributes['deletedOpinionVerifications'];
 
-  @HasMany(() => Url)
+  @HasMany(() => Url, 'createdByDeviceId')
   createdUrls: UserDeviceAttributes['createdUrls'];
 
   @HasMany(() => UrlVerification, 'createdByDeviceId')
@@ -286,6 +286,6 @@ export default class UserDevice extends Model<
   @HasMany(() => UrlVerification, 'deletedByDeviceId')
   deletedUrlVerifications: UserDeviceAttributes['deletedUrlVerifications'];
 
-  @HasMany(() => UserAttendance)
+  @HasMany(() => UserAttendance, 'createdByDeviceId')
   userAttendanceRecords?: UserDeviceAttributes['userAttendanceRecords'];
 }

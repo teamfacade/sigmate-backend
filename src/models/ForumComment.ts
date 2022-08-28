@@ -10,6 +10,7 @@ import {
 import { Optional } from 'sequelize/types';
 import ForumCommentVote from './ForumCommentVote';
 import ForumPost from './ForumPost';
+import ForumReport from './ForumReport';
 import User from './User';
 import UserDevice from './UserDevice';
 
@@ -24,6 +25,7 @@ export interface ForumCommentAttributes {
   post: ForumPost;
   parent?: ForumComment;
   replies?: ForumComment[];
+  reports?: ForumReport[];
 }
 
 export type ForumCommentCreationAttributes = Optional<
@@ -48,31 +50,30 @@ export default class ForumComment extends Model<
   @Column(DataType.TEXT)
   content!: ForumCommentAttributes['content'];
 
-  @AllowNull(false)
   @BelongsTo(() => User, 'createdById')
   createdBy!: ForumCommentAttributes['createdBy'];
 
-  @AllowNull(false)
   @BelongsTo(() => UserDevice, 'createdByDeviceId')
   createdByDevice!: ForumCommentAttributes['createdByDevice'];
 
-  @AllowNull(false)
   @BelongsTo(() => User, 'deletedById')
   deletedBy!: ForumCommentAttributes['deletedBy'];
 
-  @AllowNull(false)
   @BelongsTo(() => UserDevice, 'deletedByDeviceId')
   deletedByDevice!: ForumCommentAttributes['deletedByDevice'];
 
-  @HasMany(() => ForumCommentVote)
+  @HasMany(() => ForumCommentVote, 'forumCommentId')
   votes!: ForumCommentAttributes['votes'];
 
-  @BelongsTo(() => ForumPost)
+  @BelongsTo(() => ForumPost, 'forumPostId')
   post!: ForumCommentAttributes['post'];
 
-  @BelongsTo(() => ForumComment)
+  @BelongsTo(() => ForumComment, 'parentId')
   parent: ForumCommentAttributes['parent'];
 
-  @HasMany(() => ForumComment)
+  @HasMany(() => ForumComment, 'parentId')
   replies: ForumCommentAttributes['replies'];
+
+  @HasMany(() => ForumReport, 'forumCommentId')
+  reports: ForumCommentAttributes['reports'];
 }

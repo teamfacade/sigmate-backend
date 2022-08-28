@@ -53,17 +53,15 @@ export default class ForumReport extends Model<
   @Column(DataType.TEXT)
   description: ForumReportAttributes['description'];
 
-  @BelongsTo(() => ForumPost)
+  @BelongsTo(() => ForumPost, 'forumPostId')
   post: ForumReportAttributes['post'];
 
-  @BelongsTo(() => ForumComment)
+  @BelongsTo(() => ForumComment, 'forumCommentId')
   comment: ForumReportAttributes['comment'];
 
-  @AllowNull(false)
   @BelongsTo(() => User, 'createdById')
   createdBy!: ForumReportAttributes['createdBy'];
 
-  @AllowNull(false)
   @BelongsTo(() => UserDevice, 'createdByDeviceId')
   createdByDevice!: ForumReportAttributes['createdByDevice'];
 

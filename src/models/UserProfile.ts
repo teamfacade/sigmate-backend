@@ -1,4 +1,10 @@
-import { Model, DataType, Column, BelongsTo } from 'sequelize-typescript';
+import {
+  Model,
+  DataType,
+  Column,
+  BelongsTo,
+  Table,
+} from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
 import Require from '../types/Require';
 import Image from './Image';
@@ -23,11 +29,19 @@ export type UserProfileCreationAttributes = Optional<
 export type UserProfileDTO = Partial<UserProfileAttributes>;
 export type UserProfileCreationDTO = Require<UserProfileDTO, 'id'>;
 
+@Table({
+  tableName: 'user_profiles',
+  modelName: 'UserProfile',
+  timestamps: true,
+  underscored: true,
+  charset: 'utf8mb4',
+  collate: 'utf8mb4_general_ci',
+})
 export default class UserProfile extends Model<
   UserProfileAttributes,
   UserProfileCreationAttributes
 > {
-  @BelongsTo(() => User)
+  @BelongsTo(() => User, 'primaryProfileId')
   user!: UserProfileAttributes['user'];
 
   @Column(DataType.STRING(191))

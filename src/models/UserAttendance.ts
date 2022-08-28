@@ -5,6 +5,7 @@ import {
   DataType,
   Default,
   Model,
+  Table,
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
 import User from './User';
@@ -12,8 +13,8 @@ import UserDevice from './UserDevice';
 
 export interface UserAttendanceAttributes {
   id: number;
-  user: User;
-  device: UserDevice;
+  createdBy: User;
+  createdByDevice: UserDevice;
   createdAt: Date;
 }
 
@@ -22,17 +23,21 @@ export type UserAttendanceCreationAttributes = Optional<
   'id'
 >;
 
+@Table({
+  tableName: 'user_attendances',
+  modelName: 'UserAttendance',
+  timestamps: false,
+  underscored: true,
+})
 export default class UserAttendance extends Model<
   UserAttendanceAttributes,
   UserAttendanceCreationAttributes
 > {
-  @AllowNull(false)
-  @BelongsTo(() => User)
-  user!: UserAttendanceAttributes['user'];
+  @BelongsTo(() => User, 'createdById')
+  createdBy!: UserAttendanceAttributes['createdBy'];
 
-  @AllowNull(false)
-  @BelongsTo(() => UserDevice)
-  device!: UserAttendanceAttributes['device'];
+  @BelongsTo(() => UserDevice, 'createdByDeviceId')
+  createdByDevice!: UserAttendanceAttributes['createdByDevice'];
 
   @AllowNull(false)
   @Default(DataType.NOW)
