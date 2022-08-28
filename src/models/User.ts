@@ -59,10 +59,13 @@ export interface UserAttributes {
   isTester: boolean;
   isAdmin: boolean;
   metamaskWallet?: string;
+  isMetamaskWalletPublic: boolean;
   googleAccount?: string;
   googleAccountId?: string;
   twitterHandle?: string;
+  isTwitterHandlePublic: boolean;
   discordAccount?: string;
+  isDiscordAccountPublic: boolean;
   lastLoginAt?: Date;
   locale?: string;
   theme?: string;
@@ -138,6 +141,9 @@ export type UserCreationAttributes = Optional<
   | 'id'
   | 'userNameUpdatedAt'
   | 'emailVerified'
+  | 'isMetamaskWalletPublic'
+  | 'isTwitterHandlePublic'
+  | 'isDiscordAccountPublic'
   | 'group'
   | 'primaryProfile'
   | 'isTester'
@@ -204,6 +210,11 @@ export default class User extends Model<
   @Column(DataType.STRING(64))
   metamaskWallet: UserAttributes['metamaskWallet'];
 
+  @Default(false)
+  @AllowNull(false)
+  @Column(DataType.BOOLEAN)
+  isMetamaskWalletPublic!: UserAttributes['isMetamaskWalletPublic'];
+
   @Column(DataType.STRING(191))
   googleAccount: UserAttributes['googleAccount'];
 
@@ -213,8 +224,18 @@ export default class User extends Model<
   @Column(DataType.STRING(16))
   twitterHandle: UserAttributes['twitterHandle'];
 
+  @Default(false)
+  @AllowNull(false)
+  @Column(DataType.BOOLEAN)
+  isTwitterHandlePublic!: UserAttributes['isTwitterHandlePublic'];
+
   @Column(DataType.STRING(64))
   discordAccount: UserAttributes['discordAccount'];
+
+  @Default(false)
+  @AllowNull(false)
+  @Column(DataType.BOOLEAN)
+  isDiscordAccountPublic!: UserAttributes['isDiscordAccountPublic'];
 
   @Default(DataType.NOW)
   @AllowNull(false)

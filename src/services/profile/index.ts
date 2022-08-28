@@ -1,5 +1,6 @@
 import { NextFunction, Request, Response } from 'express';
-import { UserProfileAttributes } from '../../models/UserProfile';
+import User from '../../models/User';
+import UserProfile, { UserProfileAttributes } from '../../models/UserProfile';
 import BadRequestError from '../../utils/errors/BadRequestError';
 import ConflictError from '../../utils/errors/ConflictError';
 import NotFoundError from '../../utils/errors/NotFoundError';
@@ -15,9 +16,46 @@ export type ProfileResponse = {
   success: boolean;
   user?: {
     id?: number;
-    userName: string;
+    userName?: string;
+    metamaskWallet?: string;
+    twitterHandle?: string;
+    discordAccount?: string;
   };
-  profile: Omit<UserProfileAttributes, 'user'>;
+  profile?: Omit<UserProfileAttributes, 'user'>;
+};
+
+const profileToJSON = (
+  profile: UserProfile,
+  user: User | undefined = undefined
+) => {
+  const res: Omit<ProfileResponse, 'success'> = {};
+  user = user || profile.user;
+
+  if (user) {
+    res.user = {
+      id: user.id,
+      userName: user.userName,
+      metamaskWallet: user.isMetamaskWalletPublic
+        ? user.metamaskWallet
+        : undefined,
+      twitterHandle: user.isTwitterHandlePublic
+        ? user.twitterHandle
+        : undefined,
+      discordAccount: user.isDiscordAccountPublic
+        ? user.discordAccount
+        : undefined,
+    };
+  }
+
+  res.profile = {
+    id: profile.id,
+    displayName: profile.displayName,
+    bio: profile.bio,
+    profileImage: profile.profileImage,
+    profileImageUrl: profile.profileImageUrl,
+  };
+
+  return res;
 };
 
 export const getProfileByProfileIdController = async (
@@ -39,17 +77,7 @@ export const getProfileByProfileIdController = async (
 
     const response: ProfileResponse = {
       success: true,
-      user: {
-        id: req.isAuthenticated() ? profile.user.id || undefined : undefined,
-        userName,
-      },
-      profile: {
-        id: profile.id,
-        displayName: profile.displayName,
-        bio: profile.bio,
-        profileImage: profile.profileImage,
-        profileImageUrl: profile.profileImageUrl,
-      },
+      ...profileToJSON(profile),
     };
 
     res.status(200).json(response);
@@ -69,17 +97,7 @@ export const getProfileByUserNameController = async (
     if (!user || !user.userName) throw new NotFoundError();
     const response: ProfileResponse = {
       success: true,
-      user: {
-        id: req.isAuthenticated() ? user.id : undefined,
-        userName: user?.userName,
-      },
-      profile: {
-        id: user.primaryProfile.id,
-        displayName: user.primaryProfile.displayName,
-        bio: user.primaryProfile.bio,
-        profileImage: user.primaryProfile.profileImage,
-        profileImageUrl: user.primaryProfile.profileImageUrl,
-      },
+      ...profileToJSON(user.primaryProfile, user),
     };
 
     res.status(200).json(response);
@@ -102,13 +120,7 @@ export const getMyProfileController = async (
 
     const response: ProfileResponse = {
       success: true,
-      profile: {
-        id: profile.id,
-        displayName: profile.displayName,
-        bio: profile.bio,
-        profileImage: profile.profileImage,
-        profileImageUrl: profile.profileImageUrl,
-      },
+      ...profileToJSON(profile),
     };
 
     res.status(200).json(response);
@@ -135,13 +147,7 @@ export const updateMyPrimaryProfileController = async (
 
     const response: ProfileResponse = {
       success: true,
-      profile: {
-        id: updatedProfile.id,
-        displayName: updatedProfile.displayName,
-        bio: updatedProfile.bio,
-        profileImage: updatedProfile.profileImage,
-        profileImageUrl: updatedProfile.profileImageUrl,
-      },
+      ...profileToJSON(updatedProfile),
     };
 
     res.status(200).json(response);

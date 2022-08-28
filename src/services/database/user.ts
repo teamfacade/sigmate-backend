@@ -131,7 +131,6 @@ export const createUser = async (
 
     return createdUser;
   } catch (error) {
-    console.error(error); // TODO remove
     throw new SequelizeError(error as Error);
   }
 };

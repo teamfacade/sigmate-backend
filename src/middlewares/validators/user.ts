@@ -159,12 +159,28 @@ export const validateUserPatch = [
     .toBoolean(),
   body('isAdmin').optional().isEmpty().withMessage('UNKNOWN'),
   body('metamaskWallet').optional().isEmpty().withMessage('UNKNOWN'),
+  body('isMetamaskWalletPublic')
+    .optional()
+    .isBoolean()
+    .withMessage('NOT_BOOLEAN')
+    .bail()
+    .toBoolean(),
   body('googleAccount').optional().isEmpty().withMessage('UNKNOWN'),
   body('googleAccountId').optional().isEmpty().withMessage('UNKNOWN'),
   body('twitterHandle').optional().isEmpty().withMessage('UNKNOWN'),
-  body('twitterVerified').optional().isEmpty().withMessage('UNKNOWN'),
+  body('isTwitterHandlePublic')
+    .optional()
+    .isBoolean()
+    .withMessage('NOT_BOOLEAN')
+    .bail()
+    .toBoolean(),
   body('discordAccount').optional().isEmpty().withMessage('UNKNOWN'),
-  body('discordVerified').optional().isEmpty().withMessage('UNKNOWN'),
+  body('isDiscordAccountPublic')
+    .optional()
+    .isBoolean()
+    .withMessage('NOT_BOOLEAN')
+    .bail()
+    .toBoolean(),
   body('lastLoginAt').optional().isEmpty().withMessage('UNKNOWN'),
   body('locale')
     .optional()
