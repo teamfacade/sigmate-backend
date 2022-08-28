@@ -26,6 +26,7 @@ export type UserProfileCreationAttributes = Optional<
   'id' | 'user'
 >;
 
+export type UserProfileDTO = Partial<UserProfileAttributes>;
 export type UserProfileCreationDTO = Omit<UserProfileAttributes, 'id' | 'user'>;
 
 @Table({

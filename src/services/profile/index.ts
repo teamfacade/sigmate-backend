@@ -3,12 +3,17 @@ import { UserProfileAttributes } from '../../models/UserProfile';
 import BadRequestError from '../../utils/errors/BadRequestError';
 import ConflictError from '../../utils/errors/ConflictError';
 import NotFoundError from '../../utils/errors/NotFoundError';
-import { findProfileById } from '../database/profile';
+import UnauthenticatedError from '../../utils/errors/UnauthenticatedError';
+import {
+  findProfileById,
+  getPrimaryProfile,
+  updatePrimaryProfile,
+} from '../database/profile';
 import { findUserByUserName } from '../database/user';
 
 export type ProfileResponse = {
   success: boolean;
-  user: {
+  user?: {
     id?: number;
     userName: string;
   };
@@ -74,6 +79,68 @@ export const getProfileByUserNameController = async (
         bio: user.primaryProfile.bio,
         profileImage: user.primaryProfile.profileImage,
         profileImageUrl: user.primaryProfile.profileImageUrl,
+      },
+    };
+
+    res.status(200).json(response);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getMyProfileController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const user = req.user;
+    if (!user) throw new UnauthenticatedError();
+
+    const profile = await getPrimaryProfile(user);
+    if (!profile) throw new ConflictError();
+
+    const response: ProfileResponse = {
+      success: true,
+      profile: {
+        id: profile.id,
+        displayName: profile.displayName,
+        bio: profile.bio,
+        profileImage: profile.profileImage,
+        profileImageUrl: profile.profileImageUrl,
+      },
+    };
+
+    res.status(200).json(response);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateMyPrimaryProfileController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const user = req.user;
+    if (!user) throw new UnauthenticatedError();
+
+    const { displayName, bio } = req.body;
+
+    const updatedProfile = await updatePrimaryProfile(user, {
+      displayName,
+      bio,
+    });
+
+    const response: ProfileResponse = {
+      success: true,
+      profile: {
+        id: updatedProfile.id,
+        displayName: updatedProfile.displayName,
+        bio: updatedProfile.bio,
+        profileImage: updatedProfile.profileImage,
+        profileImageUrl: updatedProfile.profileImageUrl,
       },
     };
 
