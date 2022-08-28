@@ -95,6 +95,7 @@ export const createUser = async (
           },
           { transaction }
         ),
+        user.$set('group', newbieUserGroup, { transaction }),
       ]);
 
       user.primaryProfile = primaryProfile;

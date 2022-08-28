@@ -1,5 +1,5 @@
 import express from 'express';
-import { redirectGoogleOauth } from '../../services/controllers/oauth/google';
+import { redirectGoogleOauth } from '../../services/auth/google';
 
 const googleRouter = express.Router();
 

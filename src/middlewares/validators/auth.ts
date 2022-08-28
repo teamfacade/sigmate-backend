@@ -7,11 +7,7 @@ export const validateGoogleAuthCode = body('code')
   .withMessage('ERR_OAUTH_GOOGLE')
   .bail()
   .isLength({ max: 128 })
-  .withMessage('ERR_OAUTH_GOOGLE')
-  .isString()
-  .bail()
-  .withMessage('ERR_OAUTH_GOOGLE')
-  .bail();
+  .withMessage('ERR_OAUTH_GOOGLE');
 
 export const validateRenewAccessToken = body('refreshToken')
   .trim()

@@ -1,11 +1,15 @@
 import jwt from 'jsonwebtoken';
+import { Transaction } from 'sequelize';
 import { BaseError } from 'sequelize';
 import User, { UserAttributes } from '../../models/User';
-import UserAuth from '../../models/UserAuth';
+import UserAuth, { UserAuthDTO } from '../../models/UserAuth';
 import UserGroup from '../../models/UserGroup';
 import UserProfile from '../../models/UserProfile';
 import SequelizeError from '../../utils/errors/SequelizeError';
+import UnauthenticatedError from '../../utils/errors/UnauthenticatedError';
 import {
+  createAccessToken,
+  createRefreshToken,
   getECPublicKey,
   JWT_ALG,
   JWT_ISS,
@@ -74,13 +78,19 @@ export const findUserByAccessToken = async (accessToken: string) => {
     });
 
     // User not found
-    if (!user) return null;
+    if (!user) {
+      return null;
+    }
 
     // Wrong group name
-    if (user?.group.id.toString() !== group) return null;
+    if (user?.group.id !== group) {
+      return null;
+    }
 
-    // Wrong or expired access token
-    if (user.userAuth?.sigmateAccessToken !== accessToken) return null;
+    // Wrong access token
+    if (user.userAuth?.sigmateAccessToken !== accessToken) {
+      return null;
+    }
 
     return user;
   } catch (error) {
@@ -138,7 +148,7 @@ export const findUserByRefreshToken = async (refreshToken: string) => {
     if (!user) return null;
 
     // Wrong group name
-    if (user?.group.id.toString() !== group) return null;
+    if (user.group?.id !== group) return null;
 
     // Wrong or expired access token
     if (user.userAuth?.sigmateRefreshToken !== refreshToken) return null;
@@ -146,5 +156,111 @@ export const findUserByRefreshToken = async (refreshToken: string) => {
     return user;
   } catch (error) {
     throw new SequelizeError(error as BaseError);
+  }
+};
+
+export const renewTokens = async (
+  user: User | null | undefined,
+  options: {
+    accessToken: boolean;
+    refreshToken: boolean;
+    transaction?: Transaction;
+  } = {
+    accessToken: true,
+    refreshToken: false,
+  }
+) => {
+  // Check if user object is valid
+  if (!user) throw new UnauthenticatedError();
+  const userId = user.id;
+  let userAuth: UserAuth | null = user.userAuth || null;
+  if (!userAuth) {
+    userAuth = await user.$get('userAuth');
+  }
+  let userGroup: UserGroup | null = user.group;
+  if (!userGroup) {
+    userGroup = await user.$get('group');
+  }
+  const isAdmin = user.isAdmin || false;
+  if (!userId || !userAuth || !userGroup) throw new UnauthenticatedError();
+
+  // Check options
+  const {
+    accessToken: shouldRenewAccessToken = false,
+    refreshToken: shouldRenewRefreshToken = false,
+    transaction,
+  } = options;
+  const userAuthDTO: UserAuthDTO = {};
+  if (!shouldRenewAccessToken && !shouldRenewRefreshToken) return userAuthDTO;
+
+  // Generate fresh tokens
+  if (shouldRenewAccessToken) {
+    userAuthDTO.sigmateAccessToken = createAccessToken(
+      userId,
+      userGroup.id,
+      isAdmin
+    );
+  }
+
+  if (shouldRenewRefreshToken) {
+    userAuthDTO.sigmateRefreshToken = createRefreshToken(
+      userId,
+      userGroup.id,
+      isAdmin
+    );
+  }
+
+  // Update the database
+  try {
+    await userAuth.update(userAuthDTO, { transaction });
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+
+  return userAuthDTO;
+};
+
+export const renewAccessToken = async (
+  user: User | null | undefined,
+  transaction: Transaction | undefined = undefined
+) => {
+  const { sigmateAccessToken } = await renewTokens(user, {
+    accessToken: true,
+    refreshToken: false,
+    transaction,
+  });
+  return sigmateAccessToken;
+};
+
+export const renewRefreshToken = async (
+  user: User | null | undefined,
+  transaction: Transaction | undefined = undefined
+) => {
+  return await renewTokens(user, {
+    accessToken: true,
+    refreshToken: true,
+    transaction,
+  });
+};
+
+export const voidAccessToken = async (user: User | null | undefined) => {
+  try {
+    if (!user) throw new UnauthenticatedError();
+    const userAuth = user.userAuth || (await user.$get('userAuth'));
+    if (!userAuth) throw new UnauthenticatedError();
+    await userAuth.update({ sigmateAccessToken: '' });
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+export const voidRefreshToken = async (user: User | null | undefined) => {
+  try {
+    if (!user) throw new UnauthenticatedError();
+    const userAuth = user.userAuth || (await user.$get('userAuth'));
+    if (!userAuth) throw new UnauthenticatedError();
+    await userAuth.update({ sigmateAccessToken: '', sigmateRefreshToken: '' });
+  } catch (error) {
+    throw new SequelizeError(error as Error);
   }
 };
