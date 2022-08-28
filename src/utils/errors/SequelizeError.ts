@@ -11,8 +11,12 @@ import {
 } from 'sequelize';
 import ApiError from './ApiError';
 
-export default class sequelizeBaseError extends ApiError {
-  constructor(sequelizeBaseError: BaseError, clientMessage = 'ERR') {
+export default class SequelizeError extends ApiError {
+  constructor(sequelizeBaseError: Error, clientMessage = 'ERR') {
+    if (!(sequelizeBaseError instanceof BaseError)) {
+      throw sequelizeBaseError;
+    }
+
     let status = 500;
 
     if (

@@ -6,7 +6,6 @@ import {
   Table,
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
-import Require from '../types/Require';
 import Image from './Image';
 import User from './User';
 
@@ -18,16 +17,16 @@ export interface UserProfileAttributes {
   user: User;
   displayName?: string;
   bio?: string;
+  profileImageUrl?: string;
   profileImage?: Image;
 }
 
 export type UserProfileCreationAttributes = Optional<
   UserProfileAttributes,
-  'id'
+  'id' | 'user'
 >;
 
-export type UserProfileDTO = Partial<UserProfileAttributes>;
-export type UserProfileCreationDTO = Require<UserProfileDTO, 'id'>;
+export type UserProfileCreationDTO = Omit<UserProfileAttributes, 'id' | 'user'>;
 
 @Table({
   tableName: 'user_profiles',
@@ -41,7 +40,7 @@ export default class UserProfile extends Model<
   UserProfileAttributes,
   UserProfileCreationAttributes
 > {
-  @BelongsTo(() => User, 'primaryProfileId')
+  @BelongsTo(() => User, 'userId')
   user!: UserProfileAttributes['user'];
 
   @Column(DataType.STRING(191))
@@ -49,6 +48,9 @@ export default class UserProfile extends Model<
 
   @Column(DataType.TEXT)
   bio: UserProfileAttributes['bio'];
+
+  @Column(DataType.STRING(1024))
+  profileImageUrl: UserProfileAttributes['profileImageUrl'];
 
   @BelongsTo(() => Image, 'profileImageId')
   profileImage: UserProfileAttributes['profileImage'];

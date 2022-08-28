@@ -63,7 +63,7 @@ export interface UserAttributes {
   googleAccountId?: string;
   twitterHandle?: string;
   discordAccount?: string;
-  lastLoginAt: Date;
+  lastLoginAt?: Date;
   locale?: string;
   theme?: string;
   emailEssential: boolean;
@@ -139,6 +139,7 @@ export type UserCreationAttributes = Optional<
   | 'userNameUpdatedAt'
   | 'emailVerified'
   | 'group'
+  | 'primaryProfile'
   | 'isTester'
   | 'isAdmin'
   | 'emailEssential'
@@ -168,7 +169,6 @@ export default class User extends Model<
   UserCreationAttributes
 > {
   @Unique
-  @AllowNull(false)
   @Column(DataType.STRING(16 + 15))
   userName!: UserAttributes['userName'];
 
@@ -188,7 +188,7 @@ export default class User extends Model<
   @BelongsTo(() => UserGroup, 'groupId')
   group!: UserAttributes['group'];
 
-  @HasOne(() => UserProfile, 'primaryProfileId')
+  @HasOne(() => UserProfile, 'userId')
   primaryProfile!: UserAttributes['primaryProfile'];
 
   @AllowNull(false)
