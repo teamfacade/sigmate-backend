@@ -95,7 +95,7 @@ export const createUser = async (
         { transaction }
       );
 
-      const [primaryProfile, userAuth] = await Promise.all([
+      await Promise.all([
         user.$create<UserProfile>(
           'primaryProfile',
           { ...userProfileDTO },
@@ -121,10 +121,13 @@ export const createUser = async (
         user.$set('group', newbieUserGroup, { transaction }),
       ]);
 
-      user.primaryProfile = primaryProfile;
-      user.userAuth = userAuth;
+      const newUser = await User.findOne({
+        where: { id: user.id },
+        include: [UserGroup, UserProfile, UserAuth],
+        transaction,
+      });
 
-      return user;
+      return newUser;
     });
 
     if (!createdUser) throw new ApiError('ERR_DB');
