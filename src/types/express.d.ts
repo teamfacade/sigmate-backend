@@ -1,4 +1,5 @@
 import UserModel from '../models/User';
+import UserDevice from '../models/UserDevice';
 
 declare global {
   namespace Express {
@@ -12,6 +13,7 @@ declare global {
         page: number;
         offset: number;
       };
+      device?: UserDevice;
     }
   }
 }

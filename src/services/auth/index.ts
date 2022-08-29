@@ -50,17 +50,15 @@ export const sigmateLogin = async (user: User | null | undefined) => {
 
   // Update DB
   try {
-    await db.sequelize.transaction(async (transaction) => {
-      await Promise.all([
-        // Update last logged in time
-        user.update({ lastLoginAt: new Date() }, { transaction }),
-        // Renew tokens
-        renewTokens(user, {
-          accessToken: shouldRenewAccessToken,
-          refreshToken: shouldRenewRefreshToken,
-          transaction,
-        }),
-      ]);
+    return await db.sequelize.transaction(async (transaction) => {
+      // Update last logged in time
+      await user.update({ lastLoginAt: new Date() }, { transaction });
+      // Renew tokens
+      return await renewTokens(user, {
+        accessToken: shouldRenewAccessToken,
+        refreshToken: shouldRenewRefreshToken,
+        transaction,
+      });
     });
   } catch (error) {
     throw new SequelizeError(error as Error);

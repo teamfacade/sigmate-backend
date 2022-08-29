@@ -1,6 +1,7 @@
 import {
   AllowNull,
   BelongsTo,
+  BelongsToMany,
   Column,
   DataType,
   Default,
@@ -36,18 +37,23 @@ import Opinion from './Opinion';
 import OpinionVerification from './OpinionVerification';
 import Url from './Url';
 import UrlVerification from './UrlVerification';
+import User from './User';
 import UserAgent from './UserAgent';
 import UserAttendance from './UserAttendance';
+import UserOwnedDevice from './UserOwnedDevice';
 
 export type UserDeviceIdType = number;
 
 export interface UserDeviceAttributes {
   id: UserDeviceIdType;
-  ipv4: number;
+  ipv4?: number;
+  ipv6?: string;
+  userAgentId: number;
   userAgent: UserAgent;
   isFlagged: boolean;
   isBanned: boolean;
   remarks?: string;
+  users?: User[];
 
   appointedAdminUsers?: AdminUser[];
   createdBlocks?: Block[];
@@ -117,14 +123,16 @@ export default class UserDevice extends Model<
   UserDeviceCreationAttributes
 > {
   @Unique('device')
-  @AllowNull(false)
   @Column(DataType.INTEGER)
-  get ipv4(): string {
+  get ipv4() {
     return intToIp(this.getDataValue('ipv4'));
   }
-  set ipv4(value: string) {
+  set ipv4(value: string | undefined) {
     this.setDataValue('ipv4', ipToInt(value));
   }
+
+  @Column(DataType.STRING(60)) // 39 + trailing network masks
+  ipv6: UserDeviceAttributes['ipv6'];
 
   @BelongsTo(() => UserAgent, 'userAgentId')
   userAgent!: UserDeviceAttributes['userAgent'];
@@ -141,6 +149,9 @@ export default class UserDevice extends Model<
 
   @Column(DataType.STRING)
   remarks!: UserDeviceAttributes['remarks'];
+
+  @BelongsToMany(() => User, () => UserOwnedDevice)
+  users: UserDeviceAttributes['users'];
 
   @HasMany(() => AdminUser, 'appointedByDeviceId')
   appointedAdminUsers: UserDeviceAttributes['appointedAdminUsers'];

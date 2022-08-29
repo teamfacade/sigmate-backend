@@ -14,7 +14,12 @@ export interface UserAgentAttributes {
   id: number;
   uaHash: string;
   uaText: string;
-  userDevices: UserDevice[];
+  browser?: string;
+  os?: string;
+  deviceVendor?: string;
+  deviceModel?: string;
+  deviceType?: string;
+  userDevices?: UserDevice[];
 }
 
 export type UserAgentCreationAttributes = Optional<
@@ -35,13 +40,27 @@ export default class UserAgent extends Model<
   UserAgentCreationAttributes
 > {
   @Index('uaHash')
-  @AllowNull(false)
   @Column(DataType.STRING(32))
   uaHash!: UserAgentAttributes['uaHash'];
 
   @AllowNull(false)
   @Column(DataType.TEXT)
   uaText!: UserAgentAttributes['uaText'];
+
+  @Column(DataType.STRING(60))
+  browser: UserAgentAttributes['browser'];
+
+  @Column(DataType.STRING(60))
+  os: UserAgentAttributes['os'];
+
+  @Column(DataType.STRING(60))
+  deviceVendor: UserAgentAttributes['deviceVendor'];
+
+  @Column(DataType.STRING(60))
+  deviceModel: UserAgentAttributes['deviceModel'];
+
+  @Column(DataType.STRING(60))
+  deviceType: UserAgentAttributes['deviceType'];
 
   @HasMany(() => UserDevice, 'userAgentId')
   userDevices!: UserAgentAttributes['userDevices'];

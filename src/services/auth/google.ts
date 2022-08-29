@@ -163,15 +163,22 @@ export const handleGoogleOauth = async (
     if (user) {
       // returning user (login)
       response.user = user;
-      sigmateLogin(user);
+      const newTokens = await sigmateLogin(user);
+
+      // Make sure to return the renewed tokens
+      response.accessToken =
+        newTokens.sigmateAccessToken ||
+        response.user.userAuth?.sigmateAccessToken;
+      response.refreshToken =
+        newTokens.sigmateRefreshToken ||
+        response.user.userAuth?.sigmateRefreshToken;
     } else {
       // new user (sign up)
       response.user = await createUserGoogle(googleTokens, googleProfile);
+      response.accessToken = response.user.userAuth?.sigmateAccessToken;
+      response.refreshToken = response.user.userAuth?.sigmateRefreshToken;
       status = 201;
     }
-
-    response.accessToken = response.user.userAuth?.sigmateAccessToken;
-    response.refreshToken = response.user.userAuth?.sigmateRefreshToken;
 
     // Do not send raw UserAuth object back to client
     if (response.user.userAuth) {

@@ -43,6 +43,8 @@ import Url from './Url';
 import UrlVerification from './UrlVerification';
 import UserAttendance from './UserAttendance';
 import UserSavedMintingSchedule from './UserSavedMintingSchedule';
+import UserDevice from './UserDevice';
+import UserOwnedDevice from './UserOwnedDevice';
 
 export type UserIdType = number;
 export const userIdDataType = DataType.INTEGER;
@@ -83,6 +85,7 @@ export interface UserAttributes {
   referredUsers?: User[];
   userAuth?: UserAuth;
   adminUser?: AdminUser;
+  devices?: UserDevice[];
 
   appointedAdminUsers?: AdminUser[];
   createdBlocks?: Block[];
@@ -302,6 +305,9 @@ export default class User extends Model<
 
   @HasOne(() => AdminUser, { as: 'adminUser', foreignKey: 'userId' })
   adminUser: UserAttributes['adminUser'];
+
+  @BelongsToMany(() => UserDevice, () => UserOwnedDevice)
+  devices: UserAttributes['devices'];
 
   @HasMany(() => AdminUser, {
     as: 'appointedAdminUsers',

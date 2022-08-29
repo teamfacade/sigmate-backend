@@ -36,6 +36,7 @@ import UserAttendance from './UserAttendance';
 import UserAuth from './UserAuth';
 import UserDevice from './UserDevice';
 import UserGroup from './UserGroup';
+import UserOwnedDevice from './UserOwnedDevice';
 import UserProfile from './UserProfile';
 import UserSavedMintingSchedule from './UserSavedMintingSchedule';
 import VerificationType from './VerificationType';
@@ -102,6 +103,7 @@ const initDatabase = () => {
     UserAuth,
     UserDevice,
     UserGroup,
+    UserOwnedDevice,
     UserProfile,
     UserSavedMintingSchedule,
     VerificationType,

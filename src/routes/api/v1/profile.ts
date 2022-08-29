@@ -3,6 +3,7 @@ import {
   isAuthenticated,
   passportJwtAuth,
 } from '../../../middlewares/authMiddlewares';
+import getUserDevice from '../../../middlewares/getUserDevice';
 import handleBadRequest from '../../../middlewares/handleBadRequest';
 import {
   validateGetProfileByProfileId,
@@ -33,7 +34,7 @@ profileRouter.get(
 
 profileRouter
   .route('/')
-  .get(passportJwtAuth, isAuthenticated, getMyProfileController)
+  .get(getUserDevice, passportJwtAuth, isAuthenticated, getMyProfileController)
   .patch(
     passportJwtAuth,
     isAuthenticated,
