@@ -117,6 +117,9 @@ export const patchUserController = async (
       cookiesAnalytics,
       cookiesFunctional,
       cookiesTargeting,
+      agreeTos,
+      agreeLegal,
+      agreePrivacy,
     } = req.body;
 
     const userDTO = {
@@ -134,6 +137,9 @@ export const patchUserController = async (
       cookiesAnalytics,
       cookiesFunctional,
       cookiesTargeting,
+      agreeTos,
+      agreeLegal,
+      agreePrivacy,
     } as UserDTO;
 
     const updatedUser = await updateUser(user, userDTO);

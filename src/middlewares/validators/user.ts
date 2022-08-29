@@ -1,4 +1,10 @@
-import { body, CustomValidator, param, query } from 'express-validator';
+import {
+  body,
+  CustomSanitizer,
+  CustomValidator,
+  param,
+  query,
+} from 'express-validator';
 import User, { availableThemes, USERNAME_MAX_LENGTH } from '../../models/User';
 import isURL from 'validator/lib/isURL';
 
@@ -87,6 +93,14 @@ const isReferralCodeMine: CustomValidator = (value, { req }) => {
   const myReferralCode = req.user.referralCode;
   if (value === myReferralCode) throw new Error('ERR_CANNOT_REFER_SELF');
   return true;
+};
+
+const dateWithinRange: CustomSanitizer = (value: string) => {
+  const user = new Date(value);
+  const now = new Date();
+
+  if (Math.abs(user.getTime() - now.getTime()) > 60 * 1000) return now.toJSON();
+  return value;
 };
 
 export const validateUserName = body('userName')
@@ -238,9 +252,27 @@ export const validateUserPatch = [
     .withMessage('NOT_BOOLEAN')
     .bail()
     .toBoolean(),
-  body('agreeTos').optional().isEmpty().withMessage('UNKNOWN'),
-  body('agreePrivacy').optional().isEmpty().withMessage('UNKNOWN'),
-  body('agreeLegal').optional().isEmpty().withMessage('UNKNOWN'),
+  body('agreeTos')
+    .optional()
+    .isISO8601()
+    .withMessage('NOT_DATE')
+    .bail()
+    .customSanitizer(dateWithinRange)
+    .toDate(),
+  body('agreePrivacy')
+    .optional()
+    .isISO8601()
+    .withMessage('NOT_DATE')
+    .bail()
+    .customSanitizer(dateWithinRange)
+    .toDate(),
+  body('agreeLegal')
+    .optional()
+    .isISO8601()
+    .withMessage('NOT_DATE')
+    .bail()
+    .customSanitizer(dateWithinRange)
+    .toDate(),
   body('referralCode').optional().isEmpty().withMessage('UNKNOWN'),
   body('referredBy').optional().isEmpty().withMessage('UNKNOWN'),
 ];
