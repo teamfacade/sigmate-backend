@@ -5,6 +5,7 @@ import NotFoundError from '../../utils/errors/NotFoundError';
 import { findUserByGoogleId } from '../database/auth';
 import { createUserGoogle } from '../database/user';
 import { AuthResponse, sigmateLogin } from '.';
+import { userToJSON } from '../user';
 
 export const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_CLIENT_ID,
@@ -162,27 +163,25 @@ export const handleGoogleOauth = async (
     const response: AuthResponse = { success: true } as AuthResponse;
     if (user) {
       // returning user (login)
-      response.user = user;
       const newTokens = await sigmateLogin(user);
 
       // Make sure to return the renewed tokens
       response.accessToken =
-        newTokens.sigmateAccessToken ||
-        response.user.userAuth?.sigmateAccessToken;
+        newTokens.sigmateAccessToken || user.userAuth?.sigmateAccessToken;
       response.refreshToken =
-        newTokens.sigmateRefreshToken ||
-        response.user.userAuth?.sigmateRefreshToken;
+        newTokens.sigmateRefreshToken || user.userAuth?.sigmateRefreshToken;
+
+      // Send user information back to the user
+      response.user = userToJSON(user);
     } else {
       // new user (sign up)
-      response.user = await createUserGoogle(googleTokens, googleProfile);
-      response.accessToken = response.user.userAuth?.sigmateAccessToken;
-      response.refreshToken = response.user.userAuth?.sigmateRefreshToken;
-      status = 201;
-    }
+      const user = await createUserGoogle(googleTokens, googleProfile);
+      response.accessToken = user.userAuth?.sigmateAccessToken;
+      response.refreshToken = user.userAuth?.sigmateRefreshToken;
 
-    // Do not send raw UserAuth object back to client
-    if (response.user.userAuth) {
-      delete response.user.userAuth;
+      // Send user information back to the user
+      response.user = userToJSON(user);
+      status = 201;
     }
 
     res.status(status).json(response);

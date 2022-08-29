@@ -15,7 +15,7 @@ import { getECPublicKey, JWT_ALG, JWT_ISS } from './token';
 
 export type AuthResponse = {
   success: boolean;
-  user?: User;
+  user?: any;
   accessToken?: string;
   refreshToken?: string;
 };
