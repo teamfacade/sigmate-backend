@@ -32,7 +32,7 @@ export const validateProfilePatch = [
     .trim()
     .escape()
     .stripLow()
-    .isLength({ max: 128 })
+    .isLength({ max: 191 })
     .withMessage('TOO_LONG'),
   body('bio')
     .optional()
