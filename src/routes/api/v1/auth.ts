@@ -1,11 +1,13 @@
 import express from 'express';
 import {
+  isAuthenticated,
   isRefreshTokenValid,
-  passportJwtAuth,
 } from '../../../middlewares/authMiddlewares';
 import handleBadRequest from '../../../middlewares/handleBadRequest';
 import {
+  validateGetUserByMetaMaskWallet,
   validateGoogleAuthCode,
+  validateMetaMaskAuth,
   validateRenewAccessToken,
 } from '../../../middlewares/validators/auth';
 import { handleGoogleOauth } from '../../../services/auth/google';
@@ -13,6 +15,10 @@ import {
   renewAccessTokenController,
   renewRefreshTokenController,
 } from '../../../services/auth';
+import {
+  getUserByMetamaskWalletController,
+  metamaskAuthController,
+} from '../../../services/auth/metamask';
 
 const authRouter = express.Router();
 
@@ -21,6 +27,20 @@ authRouter.post(
   validateGoogleAuthCode,
   handleBadRequest,
   handleGoogleOauth
+);
+
+authRouter.get(
+  '/metamask',
+  validateGetUserByMetaMaskWallet,
+  handleBadRequest,
+  getUserByMetamaskWalletController
+);
+
+authRouter.post(
+  '/metamask/verify',
+  validateMetaMaskAuth,
+  handleBadRequest,
+  metamaskAuthController
 );
 
 authRouter.post(
@@ -33,7 +53,7 @@ authRouter.post(
 
 authRouter.post(
   '/token/renew/refresh',
-  passportJwtAuth,
+  isAuthenticated,
   renewRefreshTokenController
 );
 

@@ -13,6 +13,7 @@ export interface UserAuthAttributes {
   sigmateRefreshToken?: string;
   googleAccessToken?: string;
   googleRefreshToken?: string;
+  metamaskNonce?: number;
 }
 
 export type UserAuthDTO = Partial<UserAuthAttributes>;
@@ -40,4 +41,7 @@ export default class UserAuth extends Model<UserAuthAttributes> {
 
   @Column(DataType.STRING(512))
   googleRefreshToken: UserAuthAttributes['googleRefreshToken'];
+
+  @Column(DataType.INTEGER)
+  metamaskNonce: UserAuthAttributes['metamaskNonce'];
 }
