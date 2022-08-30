@@ -10,7 +10,7 @@ import { userToJSON } from '../user';
 export const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET,
-  'http://localhost:3000/oauth/google/callback'
+  'http://localhost:3000/auth'
 );
 
 const scope = [

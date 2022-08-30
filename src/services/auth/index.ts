@@ -31,19 +31,27 @@ export const sigmateLogin = async (user: User | null | undefined) => {
   const refreshToken = userAuth.sigmateRefreshToken || '';
   let shouldRenewAccessToken = false;
   try {
-    jwt.verify(accessToken, getECPublicKey(), {
-      issuer: JWT_ISS,
-      algorithms: [JWT_ALG],
-    });
+    if (accessToken) {
+      jwt.verify(accessToken, getECPublicKey(), {
+        issuer: JWT_ISS,
+        algorithms: [JWT_ALG],
+      });
+    } else {
+      shouldRenewAccessToken = true;
+    }
   } catch (tokenError) {
     shouldRenewAccessToken = true;
   }
   let shouldRenewRefreshToken = false;
   try {
-    jwt.verify(refreshToken, getECPublicKey(), {
-      issuer: JWT_ISS,
-      algorithms: [JWT_ALG],
-    });
+    if (refreshToken) {
+      jwt.verify(refreshToken, getECPublicKey(), {
+        issuer: JWT_ISS,
+        algorithms: [JWT_ALG],
+      });
+    } else {
+      shouldRenewRefreshToken = true;
+    }
   } catch (tokenError) {
     shouldRenewRefreshToken = true;
   }

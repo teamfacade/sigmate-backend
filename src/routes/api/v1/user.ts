@@ -4,12 +4,10 @@ import {
   passportJwtAuth,
 } from '../../../middlewares/authMiddlewares';
 import handleBadRequest from '../../../middlewares/handleBadRequest';
-import pickModelProperties from '../../../middlewares/pickModelProperties';
 import {
   validateUserCheck,
   validateUserPatch,
 } from '../../../middlewares/validators/user';
-import User from '../../../models/User';
 import {
   checkUserController,
   deleteUserController,
@@ -26,7 +24,6 @@ userRouter
   .get(isAuthenticated, getUserController)
   .patch(
     isAuthenticated,
-    pickModelProperties(User),
     validateUserPatch,
     handleBadRequest,
     patchUserController

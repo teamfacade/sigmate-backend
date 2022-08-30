@@ -1,4 +1,8 @@
 import { NextFunction, Request, Response } from 'express';
+import {
+  isReferralCode,
+  isReferralCodeMine,
+} from '../../middlewares/validators/user';
 import User, { UserDTO } from '../../models/User';
 import UnauthenticatedError from '../../utils/errors/UnauthenticatedError';
 import {
@@ -69,7 +73,7 @@ export const userToJSON = (user: User) => {
     referralCode,
     group,
     primaryProfile,
-    referredBy,
+    referredBy: referredBy ? referredBy.referralCode : null,
     adminUser,
   };
 
@@ -120,6 +124,7 @@ export const patchUserController = async (
       agreeTos,
       agreeLegal,
       agreePrivacy,
+      referredBy: referredByCode,
     } = req.body;
 
     const userDTO = {
@@ -140,6 +145,7 @@ export const patchUserController = async (
       agreeTos,
       agreeLegal,
       agreePrivacy,
+      referredByCode,
     } as UserDTO;
 
     const updatedUser = await updateUser(user, userDTO);
@@ -201,14 +207,14 @@ export const checkUserController = async (
     // Check if referralcode is valid
     if (referralCode) {
       response.referralCode = { referralCode, isValid: false };
-      const user = await findUserByReferralCode(referralCode);
-      if (user) {
-        // If it is my own referralCode, return not valid
-        const me = req.user;
-        if (!me) throw new UnauthenticatedError();
-        if (user.id !== me.id) response.referralCode.isValid = true;
+      if (
+        isReferralCode(referralCode) && // Check that it is a valid referralCode
+        !isReferralCodeMine(referralCode, req) // and isn't my own
+      ) {
+        // Look for a user with the given referralCode
+        const referredUser = await findUserByReferralCode(referralCode);
+        if (referredUser) response.referralCode.isValid = true;
       }
-
       if (response.success) response.success = response.referralCode.isValid;
     }
 

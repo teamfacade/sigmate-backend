@@ -80,6 +80,7 @@ export const findUserByAccessToken = async (accessToken: string) => {
         UserAuth,
         UserProfile,
         { model: AdminUser, as: 'adminUser' },
+        { model: User, as: 'referredBy' },
       ],
     });
 

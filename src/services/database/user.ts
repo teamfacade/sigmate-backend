@@ -1,4 +1,5 @@
 import { Credentials } from 'google-auth-library';
+import { Transaction } from 'sequelize/types';
 import db from '../../models';
 import User, { UserCreationDTO, UserDTO } from '../../models/User';
 import UserAuth, { UserAuthDTO } from '../../models/UserAuth';
@@ -8,10 +9,12 @@ import UserProfile, {
   UserProfileCreationDTO,
 } from '../../models/UserProfile';
 import ApiError from '../../utils/errors/ApiError';
+import BadRequestError from '../../utils/errors/BadRequestError';
 import ConflictError from '../../utils/errors/ConflictError';
 import SequelizeError from '../../utils/errors/SequelizeError';
 import UnauthenticatedError from '../../utils/errors/UnauthenticatedError';
 import { GoogleProfile } from '../auth/google';
+import { generateNonce } from '../auth/metamask';
 import { createAccessToken, createRefreshToken } from '../auth/token';
 import { generateReferralCode } from '../user/referral';
 
@@ -37,11 +40,23 @@ export const findUserByUserName = async (userName: string) => {
   }
 };
 
-export const findUserByReferralCode = async (referralCode: string) => {
+export const findUserByReferralCode = async (
+  referralCode: string,
+  transaction: Transaction | undefined = undefined
+) => {
   try {
     return await User.findOne({
       where: { referralCode },
+      transaction,
     });
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+export const findUserByMetamaskWallet = async (metamaskWallet: string) => {
+  try {
+    return await User.findOne({ where: { metamaskWallet } });
   } catch (error) {
     throw new SequelizeError(error as Error);
   }
@@ -79,6 +94,10 @@ export const createUser = async (
   userProfileDTO: UserProfileCreationAttributes
 ) => {
   const referralCode = await generateUniqueReferralCode();
+  if (!userAuthDTO.metamaskNonce) {
+    userAuthDTO.metamaskNonce = generateNonce();
+  }
+
   try {
     const newbieUserGroup = await UserGroup.findOne({
       where: { groupName: 'newbie' },
@@ -95,32 +114,33 @@ export const createUser = async (
         { transaction }
       );
 
+      // Generate Sigmate tokens if necessary
+      if (userAuthDTO.sigmateAccessToken === undefined) {
+        userAuthDTO.sigmateAccessToken = createAccessToken(
+          user.id,
+          newbieUserGroup.id,
+          false
+        );
+      }
+
+      if (userAuthDTO.sigmateRefreshToken === undefined) {
+        userAuthDTO.sigmateRefreshToken = createRefreshToken(
+          user.id,
+          newbieUserGroup.id,
+          false
+        );
+      }
+
+      // Create necessary associations
       await Promise.all([
-        user.$create<UserProfile>(
-          'primaryProfile',
-          { ...userProfileDTO },
-          { transaction }
-        ),
-        user.$create<UserAuth>(
-          'userAuth',
-          {
-            ...userAuthDTO,
-            sigmateAccessToken: createAccessToken(
-              user.id,
-              newbieUserGroup.id,
-              false
-            ),
-            sigmateRefreshToken: createRefreshToken(
-              user.id,
-              newbieUserGroup.id,
-              false
-            ),
-          },
-          { transaction }
-        ),
+        user.$create<UserProfile>('primaryProfile', userProfileDTO, {
+          transaction,
+        }),
+        user.$create<UserAuth>('userAuth', userAuthDTO, { transaction }),
         user.$set('group', newbieUserGroup, { transaction }),
       ]);
 
+      // Query the user again with all the needed associations
       const newUser = await User.findOne({
         where: { id: user.id },
         include: [UserGroup, UserProfile, UserAuth],
@@ -164,6 +184,15 @@ export const createUserGoogle = async (
   return await createUser(userDTO, userAuthDTO, userProfileDTO);
 };
 
+export const createUserMetamask = async (metamaskWallet: string) => {
+  const userDTO: UserCreationDTO = { metamaskWallet };
+  const userAuthDTO: UserAuthDTO = {
+    sigmateAccessToken: '',
+    sigmateRefreshToken: '',
+  };
+  return await createUser(userDTO, userAuthDTO, {});
+};
+
 export const updateUser = async (user: User, userDTO: UserDTO) => {
   try {
     // If username has been changed, record that time
@@ -176,7 +205,24 @@ export const updateUser = async (user: User, userDTO: UserDTO) => {
       userDTO.emailVerified = false;
     }
 
-    return await user.update(userDTO);
+    return await db.sequelize.transaction(async (transaction) => {
+      // If referral code is received, do some checks
+      if (userDTO.referredByCode) {
+        if (user.referredBy) {
+          // Cannot change referredBy once entered
+          throw new BadRequestError();
+        } else {
+          const referredByUser = await findUserByReferralCode(
+            userDTO.referredByCode,
+            transaction
+          );
+          if (!referredByUser) throw new BadRequestError(); // User not found
+          await user.$set('referredBy', referredByUser, { transaction });
+        }
+        delete userDTO.referredByCode;
+      }
+      return await user.update(userDTO, { transaction });
+    });
   } catch (error) {
     throw new SequelizeError(error as Error);
   }
@@ -217,6 +263,21 @@ export const deleteUser = async (user: User | null | undefined) => {
       await Promise.all(deletePromises);
       await user.destroy({ transaction });
     });
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+export const getMetaMaskNonce = async (user: User) => {
+  try {
+    const userAuth = user.userAuth || (await user.$get('userAuth'));
+    if (!userAuth) throw new ConflictError();
+    let nonce = userAuth.metamaskNonce;
+    if (!nonce) {
+      nonce = generateNonce();
+      await userAuth.update({ metamaskNonce: nonce });
+    }
+    return nonce;
   } catch (error) {
     throw new SequelizeError(error as Error);
   }

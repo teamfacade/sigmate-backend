@@ -2,11 +2,12 @@ import {
   body,
   CustomSanitizer,
   CustomValidator,
-  param,
   query,
 } from 'express-validator';
 import User, { availableThemes, USERNAME_MAX_LENGTH } from '../../models/User';
 import isURL from 'validator/lib/isURL';
+import { findUserByReferralCode } from '../../services/database/user';
+import UnauthenticatedError from '../../utils/errors/UnauthenticatedError';
 
 const isUserNameAvailable: CustomValidator = async (value: string, { req }) => {
   if (req.user && req.user.userName === value) {
@@ -80,19 +81,39 @@ export const checkUserNameChangeInterval: CustomValidator = (
   throw new Error('ERR_USERNAME_CHANGE_INTERVAL');
 };
 
-const isReferralCode: CustomValidator = (value: string) => {
-  if (!value) throw new Error('REQUIRED');
-  if (value.length !== 16) throw new Error('NOT_REFERRAL_CODE');
-  if (value.slice(0, 3) !== 'sg-') throw new Error('NOT_REFERRAL_CODE');
-  if (value[9] !== '-') throw new Error('NOT_REFERRAL_CODE');
+export const isReferralCode = (value: string) => {
+  if (!value) return false;
+  if (value.length !== 16 || value.slice(0, 3) !== 'sg-' || value[9] !== '-')
+    return false;
   return true;
 };
 
-const isReferralCodeMine: CustomValidator = (value, { req }) => {
-  if (req.isUnauthenticated() || !req.user) throw new Error('ERR_UNAUTHORIZED');
-  const myReferralCode = req.user.referralCode;
-  if (value === myReferralCode) throw new Error('ERR_CANNOT_REFER_SELF');
-  return true;
+export const isReferralCodeMine = (value: string, req: any) => {
+  if (req.isUnauthenticated() || !req.user) throw new UnauthenticatedError();
+  return value === req.user.referralCode;
+};
+
+const isReferralCodeValid: CustomValidator = (value, { req }) => {
+  return new Promise((resolve, reject) => {
+    // Check value
+    if (!isReferralCode(value)) reject('NOT_REFERRAL_CODE');
+
+    // Check if it is my own code
+    if (isReferralCodeMine(value, req))
+      if (req.user.referredBy) {
+        // Check if I am already referred by someone
+        reject('ALREADY_REFERRED');
+      }
+
+    // Check if user with given referral code exists
+    findUserByReferralCode(value)
+      .then((user) => {
+        user ? resolve(true) : reject('REFERRED_USER_NOT_FOUND');
+      })
+      .catch(() => {
+        reject('ERR_DB_REFERRAL');
+      });
+  });
 };
 
 const dateWithinRange: CustomSanitizer = (value: string) => {
@@ -145,9 +166,7 @@ export const validateUserCheck = [
     .escape()
     .trim()
     .stripLow()
-    .isLength({ min: 16, max: 16 })
-    .withMessage('LENGTH')
-    .bail(),
+    .isLength({ max: 16 }),
 ];
 
 export const validateUserPatch = [
@@ -274,7 +293,7 @@ export const validateUserPatch = [
     .customSanitizer(dateWithinRange)
     .toDate(),
   body('referralCode').optional().isEmpty().withMessage('UNKNOWN'),
-  body('referredBy').optional().isEmpty().withMessage('UNKNOWN'),
+  body('referredBy').optional().trim().stripLow().custom(isReferralCodeValid),
 ];
 
 export const validatePostReferralCode = body('renew')
@@ -287,25 +306,3 @@ export const validatePostReferralCode = body('renew')
   .equals('true')
   .withMessage('NOT_TRUE')
   .toBoolean();
-
-export const validateCheckReferralCode = param('referralCode')
-  .notEmpty()
-  .withMessage('REQUIRED')
-  .bail()
-  .trim()
-  .stripLow()
-  .escape()
-  .custom(isReferralCode)
-  .bail()
-  .custom(isReferralCodeMine);
-
-export const validateUpdateReferralCode = body('referralCode')
-  .notEmpty()
-  .withMessage('REQUIRED')
-  .bail()
-  .trim()
-  .stripLow()
-  .escape()
-  .custom(isReferralCode)
-  .bail()
-  .custom(isReferralCodeMine);

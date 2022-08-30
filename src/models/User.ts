@@ -54,7 +54,7 @@ export interface UserAttributes {
   id: UserIdType;
   userName?: string;
   userNameUpdatedAt: Date;
-  email: string;
+  email?: string;
   emailVerified: boolean;
   group: UserGroup;
   primaryProfile: UserProfile;
@@ -80,8 +80,8 @@ export interface UserAttributes {
   agreeTos?: Date;
   agreePrivacy?: Date;
   agreeLegal?: Date;
-  referralCode: string;
-  referredBy?: User;
+  referralCode: string; // my referral code
+  referredBy?: User; // someone else's referral code
   referredUsers?: User[];
   userAuth?: UserAuth;
   adminUser?: AdminUser;
@@ -159,8 +159,11 @@ export type UserCreationAttributes = Optional<
   | 'cookiesTargeting'
 >;
 
-export type UserDTO = Require<Partial<UserAttributes>, 'id'>;
-export type UserCreationDTO = Require<Omit<UserDTO, 'id'>, 'email'>;
+// export type UserDTO = Require<Partial<UserAttributes>, 'id'>;
+export interface UserDTO extends Require<Partial<UserAttributes>, 'id'> {
+  referredByCode?: UserAttributes['referralCode'];
+}
+export type UserCreationDTO = Omit<UserDTO, 'id'>;
 
 export const availableThemes = ['light', 'dark', 'auto'];
 
@@ -185,9 +188,8 @@ export default class User extends Model<
   userNameUpdatedAt!: UserAttributes['userNameUpdatedAt'];
 
   @Unique('email')
-  @AllowNull(false)
   @Column(DataType.STRING(191))
-  email!: UserAttributes['email'];
+  email: UserAttributes['email'];
 
   @AllowNull(false)
   @Default(false)
@@ -210,6 +212,7 @@ export default class User extends Model<
   @Column(DataType.BOOLEAN)
   isAdmin!: UserAttributes['isAdmin'];
 
+  @Unique('metamaskWallet')
   @Column(DataType.STRING(64))
   metamaskWallet: UserAttributes['metamaskWallet'];
 
@@ -294,10 +297,10 @@ export default class User extends Model<
   @Column(DataType.STRING(16))
   referralCode!: UserAttributes['referralCode'];
 
-  @HasMany(() => User, 'referredById')
+  @HasMany(() => User, { as: 'referredUsers', foreignKey: 'referredById' })
   referredUsers: UserAttributes['referredUsers'];
 
-  @BelongsTo(() => User, 'referredById')
+  @BelongsTo(() => User, { as: 'referredBy', foreignKey: 'referredById' })
   referredBy: UserAttributes['referredBy'];
 
   @HasOne(() => UserAuth, 'userId')

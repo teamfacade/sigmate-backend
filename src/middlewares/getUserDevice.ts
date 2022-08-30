@@ -16,9 +16,7 @@ const getUserDevice = async (
   try {
     // Get client's remote IP address
     const ip = req.header('x-forwarded-for') || req.socket.remoteAddress;
-    console.log(ip);
     if (!ip) {
-      console.log('ERR_NO_IP'); // TODO remove at production
       throw new ApiError('ERR_NO_IP');
     }
     const userDeviceDTO: Partial<UserDeviceAttributes> = {};
