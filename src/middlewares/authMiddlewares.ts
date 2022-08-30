@@ -90,6 +90,6 @@ export const isRefreshTokenValid = async (
     req.user = user;
     next(); // refresh token valid
   } else {
-    next(new ForbiddenError()); // refresh token invalid
+    next(new UnauthenticatedError()); // refresh token invalid
   }
 };

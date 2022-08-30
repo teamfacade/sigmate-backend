@@ -7,6 +7,7 @@ import {
   HasMany,
   Model,
   Table,
+  Unique,
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
 import Document from './Document';
@@ -28,13 +29,28 @@ export interface CategoryAttributes {
   template?: Document; // fk. if set, enforce this template to all documents
   thumbnail?: Image; // img src url
   createdByDevice: UserDevice; // fk
-  createdBy?: User; // fk
+  createdBy: User; // fk
   documents?: Document[];
   documentAudits?: DocumentAudit[];
   forumPosts?: ForumPost[];
 }
 
-export type CategoryCreationAttributes = Optional<CategoryAttributes, 'id'>;
+export type CategoryCreationAttributes = Optional<
+  CategoryAttributes,
+  'id' | 'createdByDevice' | 'createdBy'
+>;
+
+export type CategoryDeleteDTO = {
+  id?: CategoryAttributes['id'];
+  name?: CategoryAttributes['name'];
+};
+
+export interface CategoryResponse {
+  id: CategoryAttributes['id'];
+  name: CategoryAttributes['name'];
+  description?: CategoryAttributes['description'];
+  parent?: CategoryAttributes['parent'];
+}
 
 @Table({
   tableName: 'document_categories',
@@ -50,11 +66,12 @@ export default class Category extends Model<
   CategoryCreationAttributes
 > {
   @AllowNull(false)
+  @Unique('name')
   @Column(DataType.STRING(191))
   name!: CategoryAttributes['name'];
 
   // displayed in category list in the forum
-  @Column(DataType.STRING(191))
+  @Column(DataType.STRING(255))
   description: CategoryAttributes['description'];
 
   @BelongsTo(() => Category, 'parentId')
@@ -70,7 +87,7 @@ export default class Category extends Model<
   createdByDevice!: CategoryAttributes['createdByDevice'];
 
   @BelongsTo(() => User, 'createdById')
-  createdBy: CategoryAttributes['createdBy'];
+  createdBy!: CategoryAttributes['createdBy'];
 
   @BelongsToMany(() => Document, () => DocumentCategory)
   documents: CategoryAttributes['documents'];
