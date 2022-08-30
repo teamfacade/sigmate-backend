@@ -218,7 +218,7 @@ export const checkUserController = async (
       if (response.success) response.success = response.referralCode.isValid;
     }
 
-    res.status(response.success ? 200 : 409).json(response);
+    res.status(response.success ? 200 : 400).json(response);
   } catch (error) {
     next(error);
   }
