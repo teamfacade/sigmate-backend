@@ -18,15 +18,14 @@ export const validateRenewAccessToken = body('refreshToken')
   .isLength({ max: 512 })
   .withMessage('INVALID');
 
-export const validateGetUserByMetaMaskWallet = query('metamasKWallet')
+export const validateGetUserByMetaMaskWallet = query('metamaskWallet')
   .trim()
   .stripLow()
   .notEmpty()
   .withMessage('REQUIRED')
   .bail()
   .isEthereumAddress()
-  .withMessage('INVALID_ETH_ADDR')
-  .bail();
+  .withMessage('INVALID_ETH_ADDR');
 
 export const validateMetaMaskAuth = [
   body('metamaskWallet')
@@ -36,7 +35,6 @@ export const validateMetaMaskAuth = [
     .withMessage('REQUIRED')
     .bail()
     .isEthereumAddress()
-    .withMessage('INVALID_ETH_ADDR')
-    .bail(),
+    .withMessage('INVALID_ETH_ADDR'),
   body('signature').trim().stripLow().notEmpty().withMessage('REQUIRED').bail(),
 ];

@@ -8,7 +8,14 @@ import {
   findUserByMetamaskWallet,
   getMetaMaskNonce,
 } from '../database/user';
-import ethUtil from 'ethereumjs-util';
+import {
+  toBuffer,
+  hashPersonalMessage,
+  fromRpcSig,
+  ecrecover,
+  publicToAddress,
+  bufferToHex,
+} from 'ethereumjs-util';
 import UnauthenticatedError from '../../utils/errors/UnauthenticatedError';
 import { AuthResponse, sigmateLogin } from '.';
 import { userToJSON } from '../user';
@@ -62,17 +69,17 @@ export const metamaskAuthController = async (
 
     // Elliptic curve signature verification of the signature
     const msg = getSignMessage(nonce);
-    const msgBuffer = ethUtil.toBuffer(msg);
-    const msgHash = ethUtil.hashPersonalMessage(msgBuffer);
-    const signatureParams = ethUtil.fromRpcSig(signature);
-    const publicKey = ethUtil.ecrecover(
+    const msgBuffer = toBuffer(msg);
+    const msgHash = hashPersonalMessage(msgBuffer);
+    const signatureParams = fromRpcSig(signature);
+    const publicKey = ecrecover(
       msgHash,
       signatureParams.v,
       signatureParams.r,
       signatureParams.s
     );
-    const addressBuffer = ethUtil.publicToAddress(publicKey);
-    const address = ethUtil.bufferToHex(addressBuffer);
+    const addressBuffer = publicToAddress(publicKey);
+    const address = bufferToHex(addressBuffer);
 
     // Check if the public addresses match
     if (address.toLowerCase() === metamaskWallet.toLowerCase()) {

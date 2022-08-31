@@ -5,6 +5,7 @@ import {
 } from '../../../middlewares/authMiddlewares';
 import handleBadRequest from '../../../middlewares/handleBadRequest';
 import {
+  validateGetUserByMetaMaskWallet,
   validateGoogleAuthCode,
   validateMetaMaskAuth,
   validateRenewAccessToken,
@@ -28,7 +29,12 @@ authRouter.post(
   handleGoogleOauth
 );
 
-authRouter.get('/metamask', getUserByMetamaskWalletController);
+authRouter.get(
+  '/metamask',
+  validateGetUserByMetaMaskWallet,
+  handleBadRequest,
+  getUserByMetamaskWalletController
+);
 
 authRouter.post(
   '/metamask/verify',
