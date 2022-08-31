@@ -35,7 +35,7 @@ export const getUserByMetamaskWalletController = async (
       user = await createUserMetamask(metamaskWallet);
     }
     // Get the user's Metamask nonce from the DB
-    const nonce = getMetaMaskNonce(user);
+    const nonce = await getMetaMaskNonce(user);
 
     res.status(200).json({ success: true, metamaskWallet, nonce });
   } catch (error) {
