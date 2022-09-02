@@ -36,5 +36,5 @@ export const validateMetaMaskAuth = [
     .bail()
     .isEthereumAddress()
     .withMessage('INVALID_ETH_ADDR'),
-  body('signature').trim().stripLow().notEmpty().withMessage('REQUIRED').bail(),
+  body('signature').trim().stripLow().notEmpty().withMessage('REQUIRED'),
 ];

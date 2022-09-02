@@ -6,8 +6,10 @@ import User, { UserAttributes } from '../../models/User';
 import UserAuth, { UserAuthDTO } from '../../models/UserAuth';
 import UserGroup from '../../models/UserGroup';
 import UserProfile from '../../models/UserProfile';
+import ConflictError from '../../utils/errors/ConflictError';
 import SequelizeError from '../../utils/errors/SequelizeError';
 import UnauthenticatedError from '../../utils/errors/UnauthenticatedError';
+import { generateNonce } from '../auth/metamask';
 import {
   createAccessToken,
   createRefreshToken,
@@ -267,6 +269,19 @@ export const voidRefreshToken = async (user: User | null | undefined) => {
     const userAuth = user.userAuth || (await user.$get('userAuth'));
     if (!userAuth) throw new UnauthenticatedError();
     await userAuth.update({ sigmateAccessToken: '', sigmateRefreshToken: '' });
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+export const renewMetaMaskNonce = async (user: User | null | undefined) => {
+  try {
+    if (!user) throw new UnauthenticatedError();
+    const userAuth = user.userAuth || (await user.$get('userAuth'));
+    if (!userAuth) throw new ConflictError();
+    const nonce = generateNonce();
+    await userAuth.update({ metamaskNonce: nonce });
+    return nonce;
   } catch (error) {
     throw new SequelizeError(error as Error);
   }

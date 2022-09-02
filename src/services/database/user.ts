@@ -168,6 +168,7 @@ export const createUserGoogle = async (
     googleAccount: googleProfile.email,
     googleAccountId: googleProfile.id,
     locale: googleProfile.locale,
+    lastLoginAt: new Date(),
   };
 
   const userAuthDTO: UserAuthDTO = {};

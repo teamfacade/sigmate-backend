@@ -243,8 +243,6 @@ export default class User extends Model<
   @Column(DataType.BOOLEAN)
   isDiscordAccountPublic!: UserAttributes['isDiscordAccountPublic'];
 
-  @Default(DataType.NOW)
-  @AllowNull(false)
   @Column(DataType.DATE)
   lastLoginAt!: UserAttributes['lastLoginAt'];
 

@@ -19,14 +19,32 @@ import {
 import UnauthenticatedError from '../../utils/errors/UnauthenticatedError';
 import { AuthResponse, sigmateLogin } from '.';
 import { userToJSON } from '../user';
+import { renewMetaMaskNonce } from '../database/auth';
 
 export const generateNonce = () => {
   return crypto.randomInt(10000000, 999999999);
 };
 
-export const getSignMessage = (nonce: string | number): string => {
+const getSignMessage = (nonce: string | number): string => {
   if (typeof nonce === 'number') nonce = nonce.toString();
   return 'I am signing my one-time nonce: ' + nonce;
+};
+
+const verifySignature = (
+  publicAddress: string,
+  nonce: string | number,
+  signature: string
+) => {
+  // Elliptic curve signature verification of the signature
+  // Derive address from signature
+  const msg = getSignMessage(nonce);
+  const msgHash = hashPersonalMessage(toBuffer(Buffer.from(msg, 'utf-8')));
+  const { v, r, s } = fromRpcSig(signature);
+  const publicKey = ecrecover(msgHash, v, r, s);
+  const derivedPublicAddress = bufferToHex(publicToAddress(publicKey));
+
+  // Compare it with given publicAddress
+  return publicAddress.toLowerCase() === derivedPublicAddress.toLowerCase();
 };
 
 export const getUserByMetamaskWalletController = async (
@@ -59,31 +77,30 @@ export const metamaskAuthController = async (
     // Look for user with the given Metamask public address
     // and obtain Metamask nonce from database
     const { metamaskWallet, signature } = req.body;
-    if (!metamaskWallet) throw new BadRequestError();
+    if (!metamaskWallet) {
+      throw new BadRequestError();
+    }
     const user = await findUserByMetamaskWallet(metamaskWallet);
     if (!user) throw new NotFoundError(); // User not found
+    const isNewUser = Boolean(!user.lastLoginAt);
     const userAuth = await user.$get('userAuth');
     if (!userAuth) throw new ConflictError(); // Something is wrong
     const nonce = userAuth.metamaskNonce;
-    if (!nonce) throw new BadRequestError(); // Generate nonce first
+    if (!nonce) {
+      throw new BadRequestError();
+    } // Generate nonce first
 
     // Elliptic curve signature verification of the signature
-    const msg = getSignMessage(nonce);
-    const msgBuffer = toBuffer(msg);
-    const msgHash = hashPersonalMessage(msgBuffer);
-    const signatureParams = fromRpcSig(signature);
-    const publicKey = ecrecover(
-      msgHash,
-      signatureParams.v,
-      signatureParams.r,
-      signatureParams.s
+    const isSignatureVerified = verifySignature(
+      metamaskWallet,
+      nonce,
+      signature
     );
-    const addressBuffer = publicToAddress(publicKey);
-    const address = bufferToHex(addressBuffer);
 
-    // Check if the public addresses match
-    if (address.toLowerCase() === metamaskWallet.toLowerCase()) {
-      // If they do, the signature is valid
+    // Generate new nonce (and invalidate the old one)
+    await renewMetaMaskNonce(user);
+
+    if (isSignatureVerified) {
       const newTokens = await sigmateLogin(user);
       const response: AuthResponse = {
         success: true,
@@ -93,10 +110,8 @@ export const metamaskAuthController = async (
         refreshToken:
           newTokens.sigmateRefreshToken || userAuth.sigmateRefreshToken,
       };
-
-      res.status(200).json(response);
+      res.status(isNewUser ? 201 : 200).json(response);
     } else {
-      // If they don't, the signature is invalid
       throw new UnauthenticatedError();
     }
   } catch (error) {
