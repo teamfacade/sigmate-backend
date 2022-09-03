@@ -1,16 +1,20 @@
 import {
   Column,
   Model,
-  Sequelize,
   Table,
   DataType,
+  BelongsTo,
+  AllowNull,
+  Default,
 } from 'sequelize-typescript';
-import { DatabaseObject } from '.';
-import { userIdDataType, UserIdType } from './User';
+import User, { UserIdType } from './User';
+import UserDevice from './UserDevice';
 
-export interface AdminUserModelAttributes {
-  userId: UserIdType;
-  appointedBy: string;
+export interface AdminUserAttributes {
+  id: UserIdType;
+  user: User;
+  appointedBy: User;
+  appointedByDevice: UserDevice;
   appointedAt: Date;
   canAdminContent: boolean;
   canAdminUsers: boolean;
@@ -19,97 +23,57 @@ export interface AdminUserModelAttributes {
   canAppointAdmins: boolean;
 }
 
-export type AdminUserCreationAttributes = AdminUserModelAttributes;
+export type AdminUserCreationAttributes = AdminUserAttributes;
 
-@Table
+@Table({
+  tableName: 'admin_users',
+  modelName: 'AdminUser',
+  timestamps: true,
+  underscored: true,
+  charset: 'utf8mb4',
+  collate: 'utf8mb4_general_ci',
+})
 export default class AdminUser extends Model<
-  AdminUserModelAttributes,
+  AdminUserAttributes,
   AdminUserCreationAttributes
 > {
-  @Column
-  public readonly userId!: string;
-  @Column
-  public appointedBy!: string;
-  @Column
-  public appointedAt!: Date;
-  @Column
-  public canAdminContent!: boolean;
-  @Column
-  public canAdminUsers!: boolean;
-  @Column
-  public canAdminEvents!: boolean;
-  @Column
-  public canAdminAds!: boolean;
-  @Column
-  public canAppointAdmins!: boolean;
+  @BelongsTo(() => User, { as: 'adminUser', foreignKey: 'userId' })
+  user!: AdminUserAttributes['user'];
+
+  @BelongsTo(() => User, {
+    as: 'appointedAdminUsers',
+    foreignKey: 'appointedById',
+  })
+  appointedBy!: AdminUserAttributes['appointedBy'];
+
+  @BelongsTo(() => UserDevice, 'appointedByDeviceId')
+  appointedByDevice!: AdminUserAttributes['appointedByDevice'];
+
+  @Column(DataType.DATE)
+  appointedAt!: AdminUserAttributes['appointedAt'];
+
+  @Default(false)
+  @AllowNull(false)
+  @Column(DataType.BOOLEAN)
+  canAdminContent!: AdminUserAttributes['canAdminContent'];
+
+  @Default(false)
+  @AllowNull(false)
+  @Column(DataType.BOOLEAN)
+  canAdminUsers!: AdminUserAttributes['canAdminUsers'];
+
+  @Default(false)
+  @AllowNull(false)
+  @Column(DataType.BOOLEAN)
+  canAdminEvents!: AdminUserAttributes['canAdminEvents'];
+
+  @Default(false)
+  @AllowNull(false)
+  @Column(DataType.BOOLEAN)
+  canAdminAds!: AdminUserAttributes['canAdminAds'];
+
+  @Default(false)
+  @AllowNull(false)
+  @Column(DataType.BOOLEAN)
+  canAppointAdmins!: AdminUserAttributes['canAppointAdmins'];
 }
-
-export const initAdminUser = (sequelize: Sequelize) => {
-  AdminUser.init(
-    {
-      userId: {
-        type: userIdDataType,
-        primaryKey: true,
-      },
-      appointedBy: {
-        type: userIdDataType,
-        allowNull: false,
-      },
-      appointedAt: {
-        type: DataType.DATE,
-        allowNull: false,
-        defaultValue: DataType.NOW,
-      },
-      canAdminContent: {
-        type: DataType.BOOLEAN,
-        allowNull: false,
-        defaultValue: false,
-      },
-      canAdminUsers: {
-        type: DataType.BOOLEAN,
-        allowNull: false,
-        defaultValue: false,
-      },
-      canAdminEvents: {
-        type: DataType.BOOLEAN,
-        allowNull: false,
-        defaultValue: false,
-      },
-      canAdminAds: {
-        type: DataType.BOOLEAN,
-        allowNull: false,
-        defaultValue: false,
-      },
-      canAppointAdmins: {
-        type: DataType.BOOLEAN,
-        allowNull: false,
-        defaultValue: false,
-      },
-    },
-    {
-      sequelize,
-      tableName: 'admin_users',
-      modelName: 'AdminUser',
-      timestamps: true,
-      underscored: true,
-      charset: 'utf8mb4',
-      collate: 'utf8mb4_general_ci',
-    }
-  );
-};
-
-export const associateAdminUser = (db: DatabaseObject) => {
-  // One admin user - one user
-  db.AdminUser.belongsTo(db.User, {
-    foreignKey: 'userId',
-    onUpdate: 'CASCADE',
-    onDelete: 'CASCADE',
-  });
-
-  // Many admin users can be appointed by one user
-  db.AdminUser.belongsTo(db.User, {
-    foreignKey: 'appointedBy',
-    onUpdate: 'CASCADE',
-    onDelete: 'CASCADE',
-  });
-};

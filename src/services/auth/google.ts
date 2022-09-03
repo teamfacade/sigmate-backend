@@ -1,10 +1,16 @@
+import { NextFunction, Request, Response } from 'express';
 import { google, people_v1 } from 'googleapis';
 import ApiError from '../../utils/errors/ApiError';
+import NotFoundError from '../../utils/errors/NotFoundError';
+import { findUserByGoogleId } from '../database/auth';
+import { createUserGoogle } from '../database/user';
+import { AuthResponse, sigmateLogin } from '.';
+import { userToJSON } from '../user';
 
 export const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET,
-  'http://localhost:3000/oauth/google/callback'
+  'http://localhost:3000/auth'
 );
 
 const scope = [
@@ -122,4 +128,64 @@ export const getGoogleProfile = async () => {
   };
 
   return googleProfile;
+};
+
+export const redirectGoogleOauth = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  if (!authorizationUrl) {
+    return next(new ApiError('ERR_GOOGLE_OAUTH_AU'));
+  }
+  res.redirect(authorizationUrl);
+};
+
+export const handleGoogleOauth = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    // Call Google APIs
+    const { code } = req.body;
+    const googleTokens = await getGoogleTokens(code);
+    const googleProfile = await getGoogleProfile();
+
+    if (!googleProfile.id) {
+      throw new NotFoundError('ERR_GOOGLE_OAUTH');
+    }
+
+    // Check if user already exists
+    const user = await findUserByGoogleId(googleProfile.id);
+
+    let status = 200;
+    const response: AuthResponse = { success: true } as AuthResponse;
+    if (user) {
+      // returning user (login)
+      const newTokens = await sigmateLogin(user);
+
+      // Make sure to return the renewed tokens
+      response.accessToken =
+        newTokens.sigmateAccessToken || user.userAuth?.sigmateAccessToken;
+      response.refreshToken =
+        newTokens.sigmateRefreshToken || user.userAuth?.sigmateRefreshToken;
+
+      // Send user information back to the user
+      response.user = userToJSON(user);
+    } else {
+      // new user (sign up)
+      const user = await createUserGoogle(googleTokens, googleProfile);
+      response.accessToken = user.userAuth?.sigmateAccessToken;
+      response.refreshToken = user.userAuth?.sigmateRefreshToken;
+
+      // Send user information back to the user
+      response.user = userToJSON(user);
+      status = 201;
+    }
+
+    res.status(status).json(response);
+  } catch (error) {
+    return next(error);
+  }
 };

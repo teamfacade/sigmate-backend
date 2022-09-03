@@ -2,38 +2,72 @@ import { Optional } from 'sequelize/types';
 import Require from '../types/Require';
 import {
   Model,
-  Sequelize,
   DataType,
   Table,
   Column,
-  ForeignKey,
   BelongsTo,
+  AllowNull,
+  Unique,
+  Default,
+  HasOne,
+  HasMany,
+  BelongsToMany,
 } from 'sequelize-typescript';
-import { groupIdDataType, GroupIdType } from './UserGroup';
-import { DatabaseObject } from '.';
+import UserGroup from './UserGroup';
 import UserProfile from './UserProfile';
+import UserAuth from './UserAuth';
+import AdminUser from './AdminUser';
+import Block from './Block';
+import BlockAudit from './BlockAudit';
+import BlockVerification from './BlockVerification';
+import Category from './Category';
+import Collection from './Collection';
+import CollectionDocumentTable from './CollectionDocumentTable';
+import CollectionType from './CollectionType';
+import CollectionUtility from './CollectionUtility';
+import Document from './Document';
+import DocumentAudit from './DocumentAudit';
+import ForumComment from './ForumComment';
+import ForumCommentVote from './ForumCommentVote';
+import ForumPost from './ForumPost';
+import ForumPostView from './ForumPostView';
+import ForumPostVote from './ForumPostVote';
+import ForumReport from './ForumReport';
+import ForumTag from './ForumTag';
+import Image from './Image';
+import MintingSchedule from './MintingSchedule';
+import Nft from './Nft';
+import Opinion from './Opinion';
+import OpinionVerification from './OpinionVerification';
+import Url from './Url';
+import UrlVerification from './UrlVerification';
+import UserAttendance from './UserAttendance';
+import UserSavedMintingSchedule from './UserSavedMintingSchedule';
+import UserDevice from './UserDevice';
+import UserOwnedDevice from './UserOwnedDevice';
 
 export type UserIdType = number;
 export const userIdDataType = DataType.INTEGER;
 export const USERNAME_MAX_LENGTH = 16;
 
-export interface UserModelAttributes {
-  userId: UserIdType;
+export interface UserAttributes {
+  id: UserIdType;
   userName?: string;
   userNameUpdatedAt: Date;
-  email: string;
+  email?: string;
   emailVerified: boolean;
-  group: GroupIdType;
-  primaryProfileId?: number;
+  group: UserGroup;
+  primaryProfile: UserProfile;
   isTester: boolean;
   isAdmin: boolean;
   metamaskWallet?: string;
+  isMetamaskWalletPublic: boolean;
   googleAccount?: string;
   googleAccountId?: string;
   twitterHandle?: string;
-  twitterVerified?: boolean;
+  isTwitterHandlePublic: boolean;
   discordAccount?: string;
-  discordVerified?: boolean;
+  isDiscordAccountPublic: boolean;
   lastLoginAt?: Date;
   locale?: string;
   theme?: string;
@@ -46,18 +80,75 @@ export interface UserModelAttributes {
   agreeTos?: Date;
   agreePrivacy?: Date;
   agreeLegal?: Date;
-  referralCode?: string;
-  referredBy?: UserIdType;
-  userAuth?: any;
+  referralCode: string; // my referral code
+  referredBy?: User; // someone else's referral code
+  referredUsers?: User[];
+  userAuth?: UserAuth;
+  adminUser?: AdminUser;
+  devices?: UserDevice[];
+
+  appointedAdminUsers?: AdminUser[];
+  createdBlocks?: Block[];
+  updatedBlocks?: Block[];
+  deletedBlocks?: Block[];
+  createdBlockAudits?: BlockAudit[];
+  approvedBlockAudits?: BlockAudit[];
+  revertedBlockAudits?: BlockAudit[];
+  createdBlockVerifications?: BlockVerification[];
+  deletedBlockVerifications?: BlockVerification[];
+  createdCategories?: Category[];
+  createdCollections?: Collection[];
+  updatedCollections?: Collection[];
+  createdCollectionDocumentTables?: CollectionDocumentTable[];
+  updatedCollectionDocumentTables?: CollectionDocumentTable[];
+  createdCollectionTypes?: CollectionType[];
+  updatedCollectionTypes?: CollectionType[];
+  createdCollectionUtilities?: CollectionUtility[];
+  updatedCollectionUtilities?: CollectionUtility[];
+  createdDocuments?: Document[];
+  updatedDocuments?: Document[];
+  deletedDocuments?: Document[];
+  createdDocumentAudits?: DocumentAudit[];
+  approvedDocumentAudits?: DocumentAudit[];
+  revertedDocumentAudits?: DocumentAudit[];
+  createdForumComments?: ForumComment[];
+  deletedForumComments?: ForumComment[];
+  createdForumCommentVotes?: ForumCommentVote[];
+  deletedForumCommentVotes?: ForumCommentVote[];
+  createdForumPosts?: ForumPost[];
+  updatedForumPosts?: ForumPost[];
+  deletedForumPosts?: ForumPost[];
+  forumPostViews?: ForumPostView[];
+  createdForumPostVotes?: ForumPostVote[];
+  deletedForumPostVotes?: ForumPostVote[];
+  createdForumReports?: ForumReport[];
+  feedbackForumReports?: ForumReport[];
+  deletedForumReports?: ForumReport[];
+  createdForumTags?: ForumTag[];
+  createdImages?: Image[];
+  createdMintingSchedules?: MintingSchedule[];
+  updatedMintingSchedules?: MintingSchedule[];
+  savedMintingSchedules?: MintingSchedule[];
+  createdNfts?: Nft[];
+  createdOpinions?: Opinion[];
+  createdOpinionVerifications?: OpinionVerification[];
+  deletedOpinionVerifications?: OpinionVerification[];
+  createdUrls?: Url[];
+  createdUrlVerifications?: UrlVerification[];
+  deletedUrlVerifications?: UrlVerification[];
+  userAttendanceRecords?: UserAttendance[];
 }
 
 export type UserCreationAttributes = Optional<
-  UserModelAttributes,
-  | 'userId'
+  UserAttributes,
+  | 'id'
   | 'userNameUpdatedAt'
   | 'emailVerified'
+  | 'isMetamaskWalletPublic'
+  | 'isTwitterHandlePublic'
+  | 'isDiscordAccountPublic'
   | 'group'
-  | 'primaryProfileId'
+  | 'primaryProfile'
   | 'isTester'
   | 'isAdmin'
   | 'emailEssential'
@@ -68,269 +159,307 @@ export type UserCreationAttributes = Optional<
   | 'cookiesTargeting'
 >;
 
-export type UserDTO = Require<Partial<UserModelAttributes>, 'userId'>;
-export type UserCreationDTO = Require<Omit<UserDTO, 'userId'>, 'email'>;
-
-const defaultPreferences = {
-  emailEssential: true,
-  emailMarketing: false,
-  cookiesEssential: true,
-  cookiesAnalytics: false,
-  cookiesFunctional: false,
-  cookiesTargeting: false,
-  agreeTos: null,
-  agreePrivacy: null,
-  agreeLegal: null,
-};
+// export type UserDTO = Require<Partial<UserAttributes>, 'id'>;
+export interface UserDTO extends Require<Partial<UserAttributes>, 'id'> {
+  referredByCode?: UserAttributes['referralCode'];
+}
+export type UserCreationDTO = Omit<UserDTO, 'id'>;
 
 export const availableThemes = ['light', 'dark', 'auto'];
 
-@Table
+@Table({
+  tableName: 'users',
+  modelName: 'User',
+  underscored: true,
+  paranoid: true,
+  timestamps: true,
+  charset: 'utf8mb4',
+  collate: 'utf8mb4_general_ci',
+})
 export default class User extends Model<
-  UserModelAttributes,
+  UserAttributes,
   UserCreationAttributes
 > {
-  @Column
-  public readonly userId!: UserIdType; // primary key
-  @Column
-  public googleAccountId!: string;
-  @Column
-  public userName!: string;
-  @Column
-  public userNameUpdatedAt!: Date;
-  @Column
-  public email!: string;
-  @Column
-  public emailVerified!: boolean;
-  @Column
-  public group!: string;
-  @Column
-  public isTester!: boolean;
-  @Column
-  public isAdmin!: boolean;
-  @Column
-  public metamaskWallet!: string;
-  @Column
-  public lastLoginAt!: Date;
-  @Column
-  public locale!: string;
-  @Column
-  public theme!: string;
-  @Column
-  public emailEssential!: boolean;
-  @Column
-  public emailMarketing!: boolean;
-  @Column
-  public cookiesEssential!: boolean;
-  @Column
-  public cookiesAnalytics!: boolean;
-  @Column
-  public cookiesFunctional!: boolean;
-  @Column
-  public cookiesTargeting!: boolean;
-  @Column
-  public agreeTos!: Date;
-  @Column
-  public agreePrivacy!: Date;
-  @Column
-  public agreeLegal!: Date;
-  @Column
-  public referralCode!: string;
-  @Column
-  public referredBy!: UserIdType;
+  @Unique('userName')
+  @Column(DataType.STRING(16 + 15))
+  userName!: UserAttributes['userName'];
 
-  @ForeignKey(() => UserProfile)
-  @Column
-  public primaryProfileId!: number;
+  @Column(DataType.DATE)
+  userNameUpdatedAt!: UserAttributes['userNameUpdatedAt'];
 
-  @BelongsTo(() => UserProfile, 'primaryProfileId')
-  public primaryProfile!: UserProfile;
+  @Unique('email')
+  @Column(DataType.STRING(191))
+  email: UserAttributes['email'];
+
+  @AllowNull(false)
+  @Default(false)
+  @Column(DataType.BOOLEAN)
+  emailVerified!: UserAttributes['emailVerified'];
+
+  @BelongsTo(() => UserGroup, 'groupId')
+  group!: UserAttributes['group'];
+
+  @HasOne(() => UserProfile, 'userId')
+  primaryProfile!: UserAttributes['primaryProfile'];
+
+  @AllowNull(false)
+  @Default(false)
+  @Column(DataType.BOOLEAN)
+  isTester!: UserAttributes['isTester'];
+
+  @AllowNull(false)
+  @Default(false)
+  @Column(DataType.BOOLEAN)
+  isAdmin!: UserAttributes['isAdmin'];
+
+  @Unique('metamaskWallet')
+  @Column(DataType.STRING(64))
+  metamaskWallet: UserAttributes['metamaskWallet'];
+
+  @Default(false)
+  @AllowNull(false)
+  @Column(DataType.BOOLEAN)
+  isMetamaskWalletPublic!: UserAttributes['isMetamaskWalletPublic'];
+
+  @Column(DataType.STRING(191))
+  googleAccount: UserAttributes['googleAccount'];
+
+  @Column(DataType.STRING(22 + 15))
+  googleAccountId: UserAttributes['googleAccountId'];
+
+  @Column(DataType.STRING(16))
+  twitterHandle: UserAttributes['twitterHandle'];
+
+  @Default(false)
+  @AllowNull(false)
+  @Column(DataType.BOOLEAN)
+  isTwitterHandlePublic!: UserAttributes['isTwitterHandlePublic'];
+
+  @Column(DataType.STRING(64))
+  discordAccount: UserAttributes['discordAccount'];
+
+  @Default(false)
+  @AllowNull(false)
+  @Column(DataType.BOOLEAN)
+  isDiscordAccountPublic!: UserAttributes['isDiscordAccountPublic'];
+
+  @Column(DataType.DATE)
+  lastLoginAt!: UserAttributes['lastLoginAt'];
+
+  @Column(DataType.STRING(5))
+  locale: UserAttributes['locale'];
+
+  @Column(DataType.STRING(5))
+  theme: UserAttributes['theme'];
+
+  @Default(false)
+  @AllowNull(false)
+  @Column(DataType.BOOLEAN)
+  emailEssential!: UserAttributes['emailEssential'];
+
+  @Default(false)
+  @AllowNull(false)
+  @Column(DataType.BOOLEAN)
+  emailMarketing!: UserAttributes['emailMarketing'];
+
+  @Default(false)
+  @AllowNull(false)
+  @Column(DataType.BOOLEAN)
+  cookiesEssential!: UserAttributes['cookiesEssential'];
+
+  @Default(false)
+  @AllowNull(false)
+  @Column(DataType.BOOLEAN)
+  cookiesAnalytics!: UserAttributes['cookiesAnalytics'];
+
+  @Default(false)
+  @AllowNull(false)
+  @Column(DataType.BOOLEAN)
+  cookiesFunctional!: UserAttributes['cookiesFunctional'];
+
+  @Default(false)
+  @AllowNull(false)
+  @Column(DataType.BOOLEAN)
+  cookiesTargeting!: UserAttributes['cookiesTargeting'];
+
+  @Column(DataType.DATE)
+  agreeTos: UserAttributes['agreeTos'];
+
+  @Column(DataType.DATE)
+  agreePrivacy: UserAttributes['agreePrivacy'];
+
+  @Column(DataType.DATE)
+  agreeLegal: UserAttributes['agreeLegal'];
+
+  @AllowNull(false)
+  @Column(DataType.STRING(16))
+  referralCode!: UserAttributes['referralCode'];
+
+  @HasMany(() => User, { as: 'referredUsers', foreignKey: 'referredById' })
+  referredUsers: UserAttributes['referredUsers'];
+
+  @BelongsTo(() => User, { as: 'referredBy', foreignKey: 'referredById' })
+  referredBy: UserAttributes['referredBy'];
+
+  @HasOne(() => UserAuth, 'userId')
+  userAuth!: UserAttributes['userAuth'];
+
+  @HasOne(() => AdminUser, { as: 'adminUser', foreignKey: 'userId' })
+  adminUser: UserAttributes['adminUser'];
+
+  @BelongsToMany(() => UserDevice, () => UserOwnedDevice)
+  devices: UserAttributes['devices'];
+
+  @HasMany(() => AdminUser, {
+    as: 'appointedAdminUsers',
+    foreignKey: 'appointedById',
+  })
+  appointedAdminUsers: UserAttributes['appointedAdminUsers'];
+
+  @HasMany(() => Block, 'createdById')
+  createdBlocks: UserAttributes['createdBlocks'];
+
+  @HasMany(() => Block, 'updatedById')
+  updatedBlocks: UserAttributes['updatedBlocks'];
+
+  @HasMany(() => Block, 'deletedById')
+  deletedBlocks: UserAttributes['deletedBlocks'];
+
+  @HasMany(() => BlockAudit, 'createdById')
+  createdBlockAudits: UserAttributes['createdBlockAudits'];
+
+  @HasMany(() => BlockAudit, 'approvedById')
+  approvedBlockAudits: UserAttributes['approvedBlockAudits'];
+
+  @HasMany(() => BlockAudit, 'revertedById')
+  revertedBlockAudits: UserAttributes['revertedBlockAudits'];
+
+  @HasMany(() => BlockVerification, 'createdById')
+  createdBlockVerifications: UserAttributes['createdBlockVerifications'];
+
+  @HasMany(() => BlockVerification, 'deletedById')
+  deletedBlockVerifications: UserAttributes['deletedBlockVerifications'];
+
+  @HasMany(() => Category, 'createdById')
+  createdCategories: UserAttributes['createdCategories'];
+
+  @HasMany(() => Collection, 'createdById')
+  createdCollections: UserAttributes['createdCollections'];
+
+  @HasMany(() => Collection, 'updatedById')
+  updatedCollections: UserAttributes['updatedCollections'];
+
+  @HasMany(() => CollectionDocumentTable, 'createdByDeviceId')
+  createdCollectionDocumentTables: UserAttributes['createdCollectionDocumentTables'];
+
+  @HasMany(() => CollectionDocumentTable, 'updatedByDeviceId')
+  updatedCollectionDocumentTable: UserAttributes['updatedCollectionDocumentTables'];
+
+  @HasMany(() => CollectionType, 'createdById')
+  createdCollectionTypes: UserAttributes['createdCollectionTypes'];
+
+  @HasMany(() => CollectionType, 'updatedById')
+  updatedCollectionTypes: UserAttributes['updatedCollectionTypes'];
+
+  @HasMany(() => CollectionUtility, 'createdById')
+  createdCollectionUtilities: UserAttributes['createdCollectionUtilities'];
+
+  @HasMany(() => CollectionUtility, 'updatedById')
+  updatedCollectionUtilities: UserAttributes['updatedCollectionUtilities'];
+
+  @HasMany(() => Document, 'createdById')
+  createdDocuments: UserAttributes['createdDocuments'];
+
+  @HasMany(() => Document, 'updatedById')
+  updatedDocuments: UserAttributes['updatedDocuments'];
+
+  @HasMany(() => Document, 'deletedById')
+  deletedDocuments: UserAttributes['deletedDocuments'];
+
+  @HasMany(() => DocumentAudit, 'createdById')
+  createdDocumentAudits: UserAttributes['createdDocumentAudits'];
+
+  @HasMany(() => DocumentAudit, 'approvedById')
+  approvedDocumentAudits: UserAttributes['approvedDocumentAudits'];
+
+  @HasMany(() => DocumentAudit, 'revertedById')
+  revertedDocumentAudits: UserAttributes['revertedDocumentAudits'];
+
+  @HasMany(() => ForumComment, 'createdById')
+  createdForumComments: UserAttributes['createdForumComments'];
+
+  @HasMany(() => ForumComment, 'deletedById')
+  deletedForumComments: UserAttributes['deletedForumComments'];
+
+  @HasMany(() => ForumCommentVote, 'createdById')
+  createdForumCommentVotes: UserAttributes['createdForumCommentVotes'];
+
+  @HasMany(() => ForumCommentVote, 'deletedByid')
+  deletedForumCommentVotes: UserAttributes['deletedForumCommentVotes'];
+
+  @HasMany(() => ForumPost, 'createdById')
+  createdForumPosts: UserAttributes['createdForumPosts'];
+
+  @HasMany(() => ForumPost, 'updatedById')
+  updatedForumPosts: UserAttributes['updatedForumPosts'];
+
+  @HasMany(() => ForumPost, 'deletedById')
+  deletedForumPosts: UserAttributes['deletedForumPosts'];
+
+  @HasMany(() => ForumPostView, 'viewedById')
+  forumPostViews: UserAttributes['forumPostViews'];
+
+  @HasMany(() => ForumPostVote, 'createdById')
+  createdForumPostVotes: UserAttributes['createdForumPostVotes'];
+
+  @HasMany(() => ForumPostVote, 'deletedById')
+  deletedForumPostVotes: UserAttributes['deletedForumPostVotes'];
+
+  @HasMany(() => ForumReport, 'createdById')
+  createdForumReports: UserAttributes['createdForumReports'];
+
+  @HasMany(() => ForumReport, 'feedbackById')
+  feedbackForumReports: UserAttributes['feedbackForumReports'];
+
+  @HasMany(() => ForumReport, 'deletedById')
+  deletedForumReports: UserAttributes['deletedForumReports'];
+
+  @HasMany(() => ForumTag, 'createdById')
+  createdForumTags: UserAttributes['createdForumTags'];
+
+  @HasMany(() => Image, 'createdById')
+  createdImages: UserAttributes['createdImages'];
+
+  @HasMany(() => MintingSchedule, 'createdById')
+  createdMintingSchedules: UserAttributes['createdMintingSchedules'];
+
+  @HasMany(() => MintingSchedule, 'updatedById')
+  updatedMintingSchedules: UserAttributes['updatedMintingSchedules'];
+
+  @BelongsToMany(() => MintingSchedule, () => UserSavedMintingSchedule)
+  savedMintingSchedules: UserAttributes['savedMintingSchedules'];
+
+  @HasMany(() => Nft, 'createdById')
+  createdNfts: UserAttributes['createdNfts'];
+
+  @HasMany(() => Opinion, 'createdById')
+  createdOpinions: UserAttributes['createdOpinions'];
+
+  @HasMany(() => OpinionVerification, 'createdById')
+  createdOpinionVerifications: UserAttributes['createdOpinionVerifications'];
+
+  @HasMany(() => OpinionVerification, 'deletedById')
+  deletedOpinionVerifications: UserAttributes['deletedOpinionVerifications'];
+
+  @HasMany(() => Url, 'createdById')
+  createdUrls: UserAttributes['createdUrls'];
+
+  @HasMany(() => UrlVerification, 'createdById')
+  createdUrlVerifications: UserAttributes['createdUrlVerifications'];
+
+  @HasMany(() => UrlVerification, 'deletedById')
+  deletedUrlVerifications: UserAttributes['deletedUrlVerifications'];
+
+  @HasMany(() => UserAttendance, 'createdById')
+  userAttendanceRecords: UserAttributes['userAttendanceRecords'];
 }
-
-export function initUser(sequelize: Sequelize) {
-  User.init(
-    {
-      userId: {
-        type: userIdDataType,
-        primaryKey: true,
-        autoIncrement: true,
-      },
-      userName: {
-        type: DataType.STRING(16 + 15), // 15: for soft deletion edits
-        unique: 'user_name',
-      },
-      userNameUpdatedAt: {
-        type: DataType.DATE,
-      },
-      email: {
-        type: DataType.STRING(191), // 15: for soft deletion edits
-        unique: 'email',
-      },
-      emailVerified: {
-        type: DataType.BOOLEAN,
-        defaultValue: false,
-      },
-      group: {
-        type: groupIdDataType,
-        allowNull: false,
-        defaultValue: 'newbie',
-      },
-      primaryProfileId: {
-        type: DataType.INTEGER,
-      },
-      isTester: {
-        type: DataType.BOOLEAN,
-        allowNull: false,
-        defaultValue: false,
-      },
-      isAdmin: {
-        type: DataType.BOOLEAN,
-        allowNull: false,
-        defaultValue: false,
-      },
-      metamaskWallet: {
-        type: DataType.STRING(64),
-      },
-      googleAccount: {
-        type: DataType.STRING(191),
-      },
-      googleAccountId: {
-        type: DataType.STRING(22 + 15), // 15: for soft deletion edits
-        unique: 'google_account_id',
-      },
-      twitterHandle: {
-        type: DataType.STRING(16),
-      },
-      twitterVerified: {
-        type: DataType.BOOLEAN,
-        allowNull: false,
-        defaultValue: false,
-      },
-      discordAccount: {
-        type: DataType.STRING(64),
-      },
-      discordVerified: {
-        type: DataType.BOOLEAN,
-        allowNull: false,
-        defaultValue: false,
-      },
-      lastLoginAt: {
-        type: DataType.DATE,
-        defaultValue: DataType.NOW,
-      },
-      locale: {
-        type: DataType.STRING(5),
-      },
-      theme: {
-        type: DataType.STRING(5),
-      },
-      emailEssential: {
-        type: DataType.BOOLEAN,
-        allowNull: false,
-        defaultValue: defaultPreferences.emailEssential,
-      },
-      emailMarketing: {
-        type: DataType.BOOLEAN,
-        allowNull: false,
-        defaultValue: defaultPreferences.emailMarketing,
-      },
-      cookiesEssential: {
-        type: DataType.BOOLEAN,
-        allowNull: false,
-        defaultValue: defaultPreferences.cookiesEssential,
-      },
-      cookiesAnalytics: {
-        type: DataType.BOOLEAN,
-        allowNull: false,
-        defaultValue: defaultPreferences.cookiesAnalytics,
-      },
-      cookiesFunctional: {
-        type: DataType.BOOLEAN,
-        allowNull: false,
-        defaultValue: defaultPreferences.cookiesFunctional,
-      },
-      cookiesTargeting: {
-        type: DataType.BOOLEAN,
-        allowNull: false,
-        defaultValue: defaultPreferences.cookiesTargeting,
-      },
-      agreeTos: {
-        type: DataType.DATE,
-      },
-      agreePrivacy: {
-        type: DataType.DATE,
-      },
-      agreeLegal: {
-        type: DataType.DATE,
-      },
-      referralCode: {
-        type: DataType.STRING(16),
-        allowNull: true,
-        unique: 'referral_code',
-      },
-      referredBy: {
-        type: userIdDataType,
-        allowNull: true,
-      },
-    },
-    {
-      sequelize,
-      tableName: 'users',
-      modelName: 'User',
-      timestamps: true,
-      underscored: true,
-      paranoid: true,
-      charset: 'utf8mb4',
-      collate: 'utf8mb4_general_ci',
-      engine: 'InnoDB',
-    }
-  );
-}
-
-export const associateUser = (db: DatabaseObject) => {
-  // Many users can be in one user group
-  db.User.belongsTo(db.UserGroup, {
-    foreignKey: 'group',
-    onUpdate: 'CASCADE',
-    onDelete: 'RESTRICT',
-  });
-
-  // One user can be one admin user
-  db.User.hasOne(db.AdminUser, {
-    foreignKey: 'userId',
-  });
-
-  // One user can appoint many admin users
-  db.User.hasMany(db.AdminUser, {
-    foreignKey: 'appointedBy',
-  });
-
-  // One user has one user auth information set
-  db.User.hasOne(db.UserAuth, {
-    foreignKey: 'userId',
-  });
-
-  // One user can have many profiles
-  db.User.hasMany(db.UserProfile, {
-    foreignKey: 'userId',
-  });
-
-  // One user can have one default profile
-  db.User.belongsTo(db.UserProfile, {
-    foreignKey: 'primaryProfileId',
-    onUpdate: 'CASCADE',
-    onDelete: 'RESTRICT',
-    as: 'primaryProfile',
-  });
-
-  // One user can be referred by one user
-  db.User.hasOne(db.User, {
-    foreignKey: 'referredBy',
-  });
-
-  db.User.belongsTo(db.User, {
-    foreignKey: 'referredBy',
-    onUpdate: 'CASCADE',
-    onDelete: 'NO ACTION',
-  });
-};

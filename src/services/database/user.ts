@@ -1,95 +1,64 @@
 import { Credentials } from 'google-auth-library';
-import { BaseError } from 'sequelize';
+import { Transaction } from 'sequelize/types';
 import db from '../../models';
-import User, {
-  UserCreationDTO,
-  UserDTO,
-  UserIdType,
-  UserModelAttributes,
-} from '../../models/User';
+import User, { UserCreationDTO, UserDTO } from '../../models/User';
 import UserAuth, { UserAuthDTO } from '../../models/UserAuth';
-import UserProfile, { UserProfileDTO } from '../../models/UserProfile';
-import getErrorFromSequelizeError from '../../utils/getErrorFromSequelizeError';
-import { GoogleProfile } from '../auth/google';
-import { createUserAuth } from './auth';
+import UserGroup from '../../models/UserGroup';
+import UserProfile, {
+  UserProfileCreationAttributes,
+  UserProfileCreationDTO,
+} from '../../models/UserProfile';
 import ApiError from '../../utils/errors/ApiError';
-import NotFoundError from '../../utils/errors/NotFoundError';
-import AdminUser from '../../models/AdminUser';
 import BadRequestError from '../../utils/errors/BadRequestError';
+import ConflictError from '../../utils/errors/ConflictError';
+import SequelizeError from '../../utils/errors/SequelizeError';
+import UnauthenticatedError from '../../utils/errors/UnauthenticatedError';
+import { GoogleProfile } from '../auth/google';
+import { generateNonce } from '../auth/metamask';
+import { createAccessToken, createRefreshToken } from '../auth/token';
 import { generateReferralCode } from '../user/referral';
 
-const NEW_USER_USERGROUP = 'unauthenticated';
-
-/**
- * Find a user by id
- * @param userId Id of user
- * @returns User
- * @throws NotFoundError if user is not found
- */
-export const findUserById = async (userId: UserIdType) => {
+export const findUserById = async (userId: number) => {
   try {
-    const user = await User.findByPk(userId, {
-      include: { model: UserProfile, as: 'primaryProfile' },
+    return await User.findOne({
+      where: { id: userId },
+      include: [UserGroup, UserProfile],
     });
-    if (!user) throw new NotFoundError();
-    return user;
   } catch (error) {
-    if (error instanceof BaseError) throw getErrorFromSequelizeError(error);
-    throw error;
+    throw new SequelizeError(error as Error);
   }
 };
 
-/**
- * Find a user with Google ID
- * @param googleAccountId Google ID
- * @param includeSoftDeleted Include soft-deleted user records in the query result
- * @returns User. null if not found
- * @throws ApiError from Sequelize BaseError
- */
-export const findUserByGoogleId = async (
-  googleAccountId: UserModelAttributes['googleAccountId'],
-  includeSoftDeleted = false
+export const findUserByUserName = async (userName: string) => {
+  try {
+    return await User.findOne({
+      where: { userName },
+      include: [UserGroup, UserProfile],
+    });
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+export const findUserByReferralCode = async (
+  referralCode: string,
+  transaction: Transaction | undefined = undefined
 ) => {
   try {
     return await User.findOne({
-      where: { googleAccountId },
-      include: { model: UserProfile, as: 'primaryProfile' },
-      paranoid: !includeSoftDeleted,
-    });
-  } catch (error) {
-    throw getErrorFromSequelizeError(error as BaseError);
-  }
-};
-
-export const findUserByReferralCode = async (referralCode: string) => {
-  try {
-    return await User.findOne({
       where: { referralCode },
-      include: { model: UserProfile, as: 'primaryProfile' },
+      transaction,
     });
   } catch (error) {
-    if (error instanceof BaseError) throw getErrorFromSequelizeError(error);
-    throw error;
+    throw new SequelizeError(error as Error);
   }
 };
 
-/**
- * Update the last loggged in time of the User record
- * @param userId Id of the user
- * @returns Number of affected row from the DB (1 on success)
- */
-export const updateLastLoggedIn = async (userId: UserIdType) => {
+export const findUserByMetamaskWallet = async (metamaskWallet: string) => {
   try {
-    return await db.sequelize.transaction(async (transaction) => {
-      const [affectedCount] = await User.update(
-        { lastLoginAt: new Date() },
-        { where: { userId }, transaction }
-      );
-      if (affectedCount !== 1) throw new NotFoundError();
-      return affectedCount;
-    });
+    return await User.findOne({ where: { metamaskWallet } });
   } catch (error) {
-    throw getErrorFromSequelizeError(error as BaseError);
+    throw new SequelizeError(error as Error);
   }
 };
 
@@ -99,11 +68,12 @@ export const updateLastLoggedIn = async (userId: UserIdType) => {
  * @returns true if the given referral code is already in use, false otherwise
  */
 const isReferralCodeTaken = async (code: string) => {
-  const user = await User.findOne({ where: { referralCode: code } });
-  if (user) {
-    return true;
+  try {
+    const user = await User.findOne({ where: { referralCode: code } });
+    return user ? true : false;
+  } catch (error) {
+    throw new SequelizeError(error as Error);
   }
-  return false;
 };
 
 /**
@@ -118,103 +88,76 @@ const generateUniqueReferralCode = async () => {
   return referralCode;
 };
 
-/**
- * Generate a new referral code for the User and update the DB
- * @param userId Id of a User
- * @returns New referral code
- * @throws Sequelize.BaseError on DB error
- */
-export const renewReferralCode = async (userId: UserIdType) => {
-  try {
-    const referralCode = await generateUniqueReferralCode();
-
-    await db.sequelize.transaction(async (transaction) => {
-      const [affectedCount] = await User.update(
-        { referralCode },
-        { where: { userId }, transaction }
-      );
-      if (affectedCount === 0) throw new NotFoundError();
-    });
-
-    return referralCode;
-  } catch (error) {
-    if (error instanceof BaseError) throw getErrorFromSequelizeError(error);
-    throw error;
-  }
-};
-
-/**
- * Creates a new user
- * @param userDTO Properties for the User model
- * @param userAuthDTO Properties for the UserAuth model
- * @param userProfileDTO Properties for the UserProfile model
- * @returns Created user
- */
 export const createUser = async (
   userDTO: UserCreationDTO,
   userAuthDTO: UserAuthDTO,
-  userProfileDTO: UserProfileDTO
+  userProfileDTO: UserProfileCreationAttributes
 ) => {
   const referralCode = await generateUniqueReferralCode();
+  if (!userAuthDTO.metamaskNonce) {
+    userAuthDTO.metamaskNonce = generateNonce();
+  }
 
   try {
+    const newbieUserGroup = await UserGroup.findOne({
+      where: { groupName: 'newbie' },
+    });
+
+    if (!newbieUserGroup) throw new ApiError('ERR_USER_CREATE_USERGROUP_DB');
+
     const createdUser = await db.sequelize.transaction(async (transaction) => {
       const user = await User.create(
         {
           ...userDTO,
-          // Give same privileges as an unauthenticated user for now, and then
-          // give newbie privileges when email is verified and username is set
-          // (which is not done here)
-          group: NEW_USER_USERGROUP,
           referralCode,
         },
         { transaction }
       );
 
-      const userId = user.userId;
+      // Generate Sigmate tokens if necessary
+      if (userAuthDTO.sigmateAccessToken === undefined) {
+        userAuthDTO.sigmateAccessToken = createAccessToken(
+          user.id,
+          newbieUserGroup.id,
+          false
+        );
+      }
 
-      const profile = await UserProfile.create(
-        {
-          userId,
-          isPrimary: true,
-          ...userProfileDTO,
-        },
-        { transaction }
-      );
+      if (userAuthDTO.sigmateRefreshToken === undefined) {
+        userAuthDTO.sigmateRefreshToken = createRefreshToken(
+          user.id,
+          newbieUserGroup.id,
+          false
+        );
+      }
 
-      await User.update(
-        { primaryProfileId: profile.profileId },
-        { where: { userId }, transaction }
-      );
+      // Create necessary associations
+      await Promise.all([
+        user.$create<UserProfile>('primaryProfile', userProfileDTO, {
+          transaction,
+        }),
+        user.$create<UserAuth>('userAuth', userAuthDTO, { transaction }),
+        user.$set('group', newbieUserGroup, { transaction }),
+      ]);
 
-      const auth = await createUserAuth({
-        userId,
-        ...userAuthDTO,
-      });
-      if (!auth) throw new ApiError('ERR_DB');
-
-      return await User.findOne({
-        where: { userId },
-        include: { model: UserProfile, as: 'primaryProfile' },
+      // Query the user again with all the needed associations
+      const newUser = await User.findOne({
+        where: { id: user.id },
+        include: [UserGroup, UserProfile, UserAuth],
         transaction,
       });
+
+      return newUser;
     });
+
     if (!createdUser) throw new ApiError('ERR_DB');
 
     return createdUser;
   } catch (error) {
-    console.error(error);
-    if (error instanceof BaseError) throw getErrorFromSequelizeError(error);
-    throw error;
+    throw new SequelizeError(error as Error);
   }
 };
 
-/**
- * Creates a new user from a Google profile
- * @param googleTokens Google Credentials object containing Google tokens
- * @param googleProfile Google Profile object from function getGoogleProfile
- * @returns User
- */
 export const createUserGoogle = async (
   googleTokens: Credentials,
   googleProfile: GoogleProfile
@@ -225,6 +168,7 @@ export const createUserGoogle = async (
     googleAccount: googleProfile.email,
     googleAccountId: googleProfile.id,
     locale: googleProfile.locale,
+    lastLoginAt: new Date(),
   };
 
   const userAuthDTO: UserAuthDTO = {};
@@ -233,93 +177,109 @@ export const createUserGoogle = async (
   if (googleTokens.refresh_token)
     userAuthDTO.googleRefreshToken = googleTokens.refresh_token;
 
-  const userProfileDTO: UserProfileDTO = {
+  const userProfileDTO: UserProfileCreationDTO = {
     displayName: googleProfile.displayName,
-    picture: googleProfile.coverPhoto,
+    profileImageUrl: googleProfile.coverPhoto,
   };
 
   return await createUser(userDTO, userAuthDTO, userProfileDTO);
 };
 
-/**
- * Update the one user entry with the given data.
- * Transaction fails when more than one user is updated.
- * @param userDTO Properties for User (userId required)
- * @returns Number of affected rows in the DB
- */
-export const updateUser = async (userDTO: UserDTO) => {
-  if (userDTO.userId === undefined) throw new BadRequestError();
+export const createUserMetamask = async (metamaskWallet: string) => {
+  const userDTO: UserCreationDTO = { metamaskWallet };
+  const userAuthDTO: UserAuthDTO = {
+    sigmateAccessToken: '',
+    sigmateRefreshToken: '',
+  };
+  return await createUser(userDTO, userAuthDTO, {});
+};
 
-  // If a user is trying to update a username, record the time it was updated
-  if (userDTO.userName) {
-    userDTO.userNameUpdatedAt = new Date();
-  }
-
+export const updateUser = async (user: User, userDTO: UserDTO) => {
   try {
-    const affectedCount = await db.sequelize.transaction(
-      async (transaction) => {
-        const [affectedCount] = await User.update(
-          { ...userDTO },
-          { where: { userId: userDTO.userId }, transaction }
-        );
+    // If username has been changed, record that time
+    if (userDTO.userName) {
+      userDTO.userNameUpdatedAt = new Date();
+    }
 
-        if (affectedCount === 0) throw new NotFoundError();
-        return affectedCount;
+    // If email has been changed, mark as unverified
+    if (userDTO.email) {
+      userDTO.emailVerified = false;
+    }
+
+    return await db.sequelize.transaction(async (transaction) => {
+      // If referral code is received, do some checks
+      if (userDTO.referredByCode) {
+        if (user.referredBy) {
+          // Cannot change referredBy once entered
+          throw new BadRequestError();
+        } else {
+          const referredByUser = await findUserByReferralCode(
+            userDTO.referredByCode,
+            transaction
+          );
+          if (!referredByUser) throw new BadRequestError(); // User not found
+          await user.$set('referredBy', referredByUser, { transaction });
+        }
+        delete userDTO.referredByCode;
       }
-    );
-    return affectedCount;
+      return await user.update(userDTO, { transaction });
+    });
   } catch (error) {
-    if (error instanceof BaseError) throw getErrorFromSequelizeError(error);
-    throw error;
+    throw new SequelizeError(error as Error);
   }
 };
 
-/**
- * Delete(soft) the user with the given user Id
- * Sequelize keeps the user record in the database but updates the deletedAt field value, to mark as "deleted".
- * @param userId Id of the user
- * @returns Number of affected rows in the DB (1 if successful)
- */
-export const deleteUser = async (userId: UserIdType) => {
+export const deleteUser = async (user: User | null | undefined) => {
   try {
-    return await db.sequelize.transaction(async (transaction) => {
-      const user = await User.findByPk(userId, { transaction });
+    if (!user) throw new UnauthenticatedError();
+    const d = new Date().getTime();
 
-      if (user) {
-        // Deal with all unique columns before soft deleting
-        const d = new Date().getTime();
+    const userName = user.userName ? `${user.userName}-d${d}` : undefined;
+    const email = user.email ? `${user.email || ''}-d${d}` : undefined;
+    const googleAccountId = user.googleAccountId
+      ? `${user.googleAccountId || ''}-d${d}`
+      : undefined;
 
-        const userName = `${user.userName}-d${d}`;
-        const email = `${user.email || ''}-d${d}`;
-        const googleAccountId = `${user.googleAccountId || ''}-d${d}`;
+    const userAuth = user.userAuth || (await user.$get('userAuth'));
+    if (!userAuth) throw new ConflictError();
 
-        await user.update(
-          {
-            userName,
-            email,
-            googleAccountId,
-          },
+    const primaryProfile =
+      user.primaryProfile || (await user.$get('primaryProfile'));
+    if (!primaryProfile) throw new ConflictError();
+
+    const adminUser = user.adminUser || (await user.$get('adminUser'));
+
+    await db.sequelize.transaction(async (transaction) => {
+      const deletePromises: Promise<any>[] = [
+        user.update(
+          { userName, email, googleAccountId, isAdmin: false },
           { transaction }
-        );
+        ),
+        userAuth.destroy({ transaction }),
+        primaryProfile.destroy({ transaction }),
+      ];
 
-        // Delete associated entries in other tables
-        await AdminUser.destroy({
-          where: { userId: user.userId },
-          transaction,
-        });
-        await UserAuth.destroy({ where: { userId: user.userId }, transaction });
-        await UserProfile.destroy({
-          where: { userId: user.userId },
-          transaction,
-        });
+      if (adminUser) deletePromises.push(adminUser.destroy({ transaction }));
 
-        await user.destroy({ transaction });
-      } else {
-        throw new NotFoundError();
-      }
+      await Promise.all(deletePromises);
+      await user.destroy({ transaction });
     });
   } catch (error) {
-    if (error instanceof BaseError) throw getErrorFromSequelizeError(error);
-    throw error;
+    throw new SequelizeError(error as Error);
+  }
+};
+
+export const getMetaMaskNonce = async (user: User) => {
+  try {
+    const userAuth = user.userAuth || (await user.$get('userAuth'));
+    if (!userAuth) throw new ConflictError();
+    let nonce = userAuth.metamaskNonce;
+    if (!nonce) {
+      nonce = generateNonce();
+      await userAuth.update({ metamaskNonce: nonce });
+    }
+    return nonce;
+  } catch (error) {
+    throw new SequelizeError(error as Error);
   }
 };

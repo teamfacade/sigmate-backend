@@ -1,8 +1,8 @@
 import express from 'express';
-import redirectGoogleOauth from '../../controllers/oauth/google';
+import { redirectGoogleOauth } from '../../services/auth/google';
 
-const googleOauthRouter = express.Router();
+const googleRouter = express.Router();
 
-googleOauthRouter.get('/', redirectGoogleOauth);
+googleRouter.get('/', redirectGoogleOauth);
 
-export default googleOauthRouter;
+export default googleRouter;

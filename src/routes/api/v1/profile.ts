@@ -1,66 +1,46 @@
 import express from 'express';
 import {
-  createMyProfileController,
-  deleteMyProfileController,
-  getMyProfileController,
-  getProfileController,
-  updateMyProfileController,
-} from '../../../controllers/api/v1/profile';
-import { passportJwtAuth } from '../../../middlewares/authMiddlewares';
-import BadRequestHandler from '../../../middlewares/BadRequestHandler';
-import methodNotAllowed from '../../../middlewares/methodNotAllowed';
-import pickModelProperties from '../../../middlewares/pickModelProperties';
+  isAuthenticated,
+  passportJwtAuth,
+} from '../../../middlewares/authMiddlewares';
+import getUserDevice from '../../../middlewares/getUserDevice';
+import handleBadRequest from '../../../middlewares/handleBadRequest';
 import {
-  validateGetProfile,
-  validateProfileDeleteBody,
-  validateProfileDeleteParams,
+  validateGetProfileByProfileId,
+  validateGetProfileByUserName,
   validateProfilePatch,
-  validateProfilePost,
 } from '../../../middlewares/validators/profile';
-import UserProfile from '../../../models/UserProfile';
+import {
+  getMyProfileController,
+  getProfileByProfileIdController,
+  getProfileByUserNameController,
+  updateMyPrimaryProfileController,
+} from '../../../services/profile';
 
 const profileRouter = express.Router();
 
-profileRouter
-  .route('/:profileId')
-  .get(validateGetProfile, BadRequestHandler, getProfileController)
-  .post(methodNotAllowed)
-  .patch(
-    passportJwtAuth,
-    pickModelProperties(UserProfile),
-    validateProfilePatch,
-    BadRequestHandler,
-    updateMyProfileController
-  )
-  .delete(
-    passportJwtAuth,
-    validateProfileDeleteParams,
-    BadRequestHandler,
-    deleteMyProfileController
-  );
+profileRouter.get(
+  '/p/:profileId',
+  validateGetProfileByProfileId,
+  handleBadRequest,
+  getProfileByProfileIdController
+);
+profileRouter.get(
+  '/u/:userName',
+  validateGetProfileByUserName,
+  handleBadRequest,
+  getProfileByUserNameController
+);
 
 profileRouter
   .route('/')
-  .get(passportJwtAuth, getMyProfileController)
-  .post(
-    passportJwtAuth,
-    pickModelProperties(UserProfile),
-    validateProfilePost,
-    BadRequestHandler,
-    createMyProfileController
-  )
+  .get(getUserDevice, passportJwtAuth, isAuthenticated, getMyProfileController)
   .patch(
     passportJwtAuth,
-    pickModelProperties(UserProfile),
+    isAuthenticated,
     validateProfilePatch,
-    BadRequestHandler,
-    updateMyProfileController
-  )
-  .delete(
-    passportJwtAuth,
-    validateProfileDeleteBody,
-    BadRequestHandler,
-    deleteMyProfileController
+    handleBadRequest,
+    updateMyPrimaryProfileController
   );
 
 export default profileRouter;

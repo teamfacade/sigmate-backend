@@ -50,7 +50,7 @@ export const isMyselfParams = (
 ) => {
   if (req.isAuthenticated()) {
     const userId = req.params.userId ? parseInt(req.params.userId) : undefined;
-    if (userId === req.user.userId) {
+    if (userId === req.user?.id) {
       next();
     } else {
       next(new ForbiddenError());
@@ -67,7 +67,7 @@ export const isMyselfBody = (
 ) => {
   const { userId } = req.body;
   if (req.isAuthenticated()) {
-    if (userId == req.user.userId) {
+    if (userId === req.user?.id) {
       next();
     } else {
       next(new ForbiddenError());
@@ -90,6 +90,6 @@ export const isRefreshTokenValid = async (
     req.user = user;
     next(); // refresh token valid
   } else {
-    next(new ForbiddenError()); // refresh token invalid
+    next(new UnauthenticatedError()); // refresh token invalid
   }
 };

@@ -1,4 +1,4 @@
-import { body } from 'express-validator';
+import { body, query } from 'express-validator';
 
 export const validateGoogleAuthCode = body('code')
   .trim()
@@ -7,11 +7,7 @@ export const validateGoogleAuthCode = body('code')
   .withMessage('ERR_OAUTH_GOOGLE')
   .bail()
   .isLength({ max: 128 })
-  .withMessage('ERR_OAUTH_GOOGLE')
-  .isString()
-  .bail()
-  .withMessage('ERR_OAUTH_GOOGLE')
-  .bail();
+  .withMessage('ERR_OAUTH_GOOGLE');
 
 export const validateRenewAccessToken = body('refreshToken')
   .trim()
@@ -21,3 +17,24 @@ export const validateRenewAccessToken = body('refreshToken')
   .bail()
   .isLength({ max: 512 })
   .withMessage('INVALID');
+
+export const validateGetUserByMetaMaskWallet = query('metamaskWallet')
+  .trim()
+  .stripLow()
+  .notEmpty()
+  .withMessage('REQUIRED')
+  .bail()
+  .isEthereumAddress()
+  .withMessage('INVALID_ETH_ADDR');
+
+export const validateMetaMaskAuth = [
+  body('metamaskWallet')
+    .trim()
+    .stripLow()
+    .notEmpty()
+    .withMessage('REQUIRED')
+    .bail()
+    .isEthereumAddress()
+    .withMessage('INVALID_ETH_ADDR'),
+  body('signature').trim().stripLow().notEmpty().withMessage('REQUIRED'),
+];

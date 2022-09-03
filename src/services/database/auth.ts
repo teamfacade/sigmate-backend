@@ -1,15 +1,18 @@
-import { Credentials } from 'google-auth-library';
-import { BaseError } from 'sequelize';
 import jwt from 'jsonwebtoken';
-import User, { UserIdType } from '../../models/User';
-import UserAuth, {
-  UserAuthCreationDTO,
-  UserAuthDTO,
-} from '../../models/UserAuth';
-import NotFoundError from '../../utils/errors/NotFoundError';
-import getErrorFromSequelizeError from '../../utils/getErrorFromSequelizeError';
-import db from '../../models';
+import { Transaction } from 'sequelize';
+import { BaseError } from 'sequelize';
+import AdminUser from '../../models/AdminUser';
+import User, { UserAttributes } from '../../models/User';
+import UserAuth, { UserAuthDTO } from '../../models/UserAuth';
+import UserGroup from '../../models/UserGroup';
+import UserProfile from '../../models/UserProfile';
+import ConflictError from '../../utils/errors/ConflictError';
+import SequelizeError from '../../utils/errors/SequelizeError';
+import UnauthenticatedError from '../../utils/errors/UnauthenticatedError';
+import { generateNonce } from '../auth/metamask';
 import {
+  createAccessToken,
+  createRefreshToken,
   getECPublicKey,
   JWT_ALG,
   JWT_ISS,
@@ -17,78 +20,21 @@ import {
   JWT_TYP_REFRESH,
   SigmateJwtPayload,
 } from '../auth/token';
-import UserGroup from '../../models/UserGroup';
 
-/**
- * Create an empty UserAuth entry in the user_auths table
- * @param userAuthDTO Properties for the UserAuth model
- * @returns Created UserAuth
- */
-export const createUserAuth = async (userAuthDTO: UserAuthCreationDTO) => {
-  try {
-    return await db.sequelize.transaction(async (transaction) => {
-      return await UserAuth.create({ ...userAuthDTO }, { transaction });
-    });
-  } catch (error) {
-    throw getErrorFromSequelizeError(error as BaseError);
-  }
-};
-
-/**
- * Look for a UserAuth entry with the given user ID.
- * @param userId ID of the user
- * @returns UserAuth
- */
-export const findUserAuthById = async (userId: UserIdType) => {
-  try {
-    return await UserAuth.findByPk(userId);
-  } catch (error) {
-    throw getErrorFromSequelizeError(error as BaseError);
-  }
-};
-
-/**
- * Update the DB with new Google tokens
- * @param userId Id of the user
- * @param googleTokens Object containing Google's access and/or refresh token
- * @throws NotFoundError if User is not found in the DB, or ApiError (from Sequelize BaseError)
- */
-export const updateGoogleTokens = async (
-  userId: UserIdType,
-  googleTokens: Credentials
+export const findUserByGoogleId = async (
+  googleAccountId: UserAttributes['googleAccountId']
 ) => {
-  const updateValues: {
-    googleAccessToken?: string;
-    googleRefreshToken?: string;
-  } = {
-    googleAccessToken: googleTokens.access_token || '',
-    googleRefreshToken: googleTokens.refresh_token || '',
-  };
-
-  if (!updateValues.googleAccessToken) delete updateValues.googleAccessToken;
-
-  if (!updateValues.googleRefreshToken) delete updateValues.googleRefreshToken;
-
   try {
-    const [affectedCount] = await UserAuth.update(updateValues, {
-      where: { userId },
+    return await User.findOne({
+      where: { googleAccountId },
+      include: [UserGroup, UserProfile, UserAuth],
     });
-    if (affectedCount === 0) throw new NotFoundError('ERR_OAUTH_GOOGLE');
   } catch (error) {
-    if (error instanceof BaseError) throw getErrorFromSequelizeError(error);
-    throw error;
+    throw new SequelizeError(error as Error);
   }
 };
 
-/**
- * Look for a user with a given Sigmate access token
- * @param accessToken Sigmate access token
- * @returns User if token is valid and matches. Returns null otherwise.
- * @throws DatabaseError
- */
-export const findUserByAccessToken = async (
-  accessToken: string | null
-): Promise<User | null> => {
+export const findUserByAccessToken = async (accessToken: string) => {
   // No need to bother if accessToken is falsy
   if (!accessToken) return null;
 
@@ -97,7 +43,7 @@ export const findUserByAccessToken = async (
     tok?: string;
     group?: string;
     userId?: string;
-    isAdmin?: boolean;
+    isAdmin?: string;
   } = {};
 
   try {
@@ -111,7 +57,7 @@ export const findUserByAccessToken = async (
     tokenData.userId = decodedToken.sub;
     tokenData.isAdmin = decodedToken.isAdmin;
   } catch (tokenError) {
-    // Token is invalid
+    // Invalid token
     return null;
   }
 
@@ -123,58 +69,45 @@ export const findUserByAccessToken = async (
   }
 
   if (tok !== JWT_TYP_ACCESS) {
-    // wrong type
+    // wrong type of token
     return null;
   }
 
-  // Compare with DB
-  const dbData: {
-    sigmateAccessToken: string;
-    user: User | null;
-  } = { sigmateAccessToken: '', user: null };
+  // Compare token with DB
   try {
     const user = await User.findOne({
-      where: {
-        userId: tokenData.userId,
-        group: tokenData.group,
-        isAdmin: tokenData.isAdmin,
-      },
-      include: UserGroup,
+      where: { id: userId, isAdmin },
+      include: [
+        UserGroup,
+        UserAuth,
+        UserProfile,
+        { model: AdminUser, as: 'adminUser' },
+        { model: User, as: 'referredBy' },
+      ],
     });
+
+    // User not found
     if (!user) {
-      return null; // User not found
+      return null;
     }
-    dbData.user = user;
-    const auth = await UserAuth.findOne({ where: { userId } });
-    if (!auth) {
-      return null; // UserAuth not found
-    }
-    if (auth.sigmateAccessToken) {
-      dbData.sigmateAccessToken = auth.sigmateAccessToken;
-    } else {
-      return null; // No access token
-    }
-  } catch (dbError) {
-    throw getErrorFromSequelizeError(dbError as BaseError);
-  }
 
-  const { sigmateAccessToken, user } = dbData;
-  if (sigmateAccessToken === accessToken) {
+    // Wrong group name
+    if (user?.group.id !== group) {
+      return null;
+    }
+
+    // Wrong access token
+    if (user.userAuth?.sigmateAccessToken !== accessToken) {
+      return null;
+    }
+
     return user;
+  } catch (error) {
+    throw new SequelizeError(error as BaseError);
   }
-
-  return null; // Tokens do not match
 };
 
-/**
- * Look for a user with a given Sigmate refresh token
- * @param refreshToken Sigmate refresh token
- * @returns User if token is valid and matches. Returns null otherwise.
- * @throws DatabaseError
- */
-export const findUserByRefreshToken = async (
-  refreshToken: string | null
-): Promise<User | null> => {
+export const findUserByRefreshToken = async (refreshToken: string) => {
   // No need to bother if accessToken is falsy
   if (!refreshToken) return null;
 
@@ -183,7 +116,7 @@ export const findUserByRefreshToken = async (
     tok?: string;
     group?: string;
     userId?: string;
-    isAdmin?: boolean;
+    isAdmin?: string;
   } = {};
 
   try {
@@ -197,7 +130,7 @@ export const findUserByRefreshToken = async (
     tokenData.userId = decodedToken.sub;
     tokenData.isAdmin = decodedToken.isAdmin;
   } catch (tokenError) {
-    // Token is invalid
+    // Invalid token
     return null;
   }
 
@@ -209,66 +142,147 @@ export const findUserByRefreshToken = async (
   }
 
   if (tok !== JWT_TYP_REFRESH) {
-    // wrong type
+    // wrong type of token
     return null;
   }
 
-  // Compare with DB
-  const dbData: {
-    sigmateRefreshToken: string;
-    user: User | null;
-  } = { sigmateRefreshToken: '', user: null };
+  // Compare token with DB
   try {
     const user = await User.findOne({
-      where: {
-        userId: tokenData.userId,
-        group: tokenData.group,
-        isAdmin: tokenData.isAdmin,
-      },
-      include: UserGroup,
+      where: { id: userId, isAdmin },
+      include: [UserGroup, UserAuth],
     });
-    if (!user) return null; // User not found
-    dbData.user = user;
-    const auth = await UserAuth.findOne({ where: { userId } });
-    if (!auth) return null; // UserAuth not found
-    if (auth.sigmateRefreshToken) {
-      dbData.sigmateRefreshToken = auth.sigmateRefreshToken;
-    } else {
-      return null; // No refresh token
-    }
-  } catch (dbError) {
-    throw getErrorFromSequelizeError(dbError as BaseError);
-  }
 
-  const { sigmateRefreshToken, user } = dbData;
-  if (sigmateRefreshToken === refreshToken) {
+    // User not found
+    if (!user) return null;
+
+    // Wrong group name
+    if (user.group?.id !== group) return null;
+
+    // Wrong or expired access token
+    if (user.userAuth?.sigmateRefreshToken !== refreshToken) return null;
+
     return user;
+  } catch (error) {
+    throw new SequelizeError(error as BaseError);
   }
-
-  return null; // Tokens do not match
 };
 
-/**
- * Update a UserAuth entry with given values
- * @param userId Id of user
- * @param userAuthDTO Properties of UserAuth
- * @returns Number of affected rows in DB (1 if successful)
- */
-export const updateUserAuth = async (
-  userId: UserIdType,
-  userAuthDTO: UserAuthDTO
+export const renewTokens = async (
+  user: User | null | undefined,
+  options: {
+    accessToken: boolean;
+    refreshToken: boolean;
+    transaction?: Transaction;
+  } = {
+    accessToken: true,
+    refreshToken: false,
+  }
 ) => {
+  // Check if user object is valid
+  if (!user) throw new UnauthenticatedError();
+  const userId = user.id;
+  let userAuth: UserAuth | null = user.userAuth || null;
+  if (!userAuth) {
+    userAuth = await user.$get('userAuth');
+  }
+  let userGroup: UserGroup | null = user.group;
+  if (!userGroup) {
+    userGroup = await user.$get('group');
+  }
+  const isAdmin = user.isAdmin || false;
+  if (!userId || !userAuth || !userGroup) throw new UnauthenticatedError();
+
+  // Check options
+  const {
+    accessToken: shouldRenewAccessToken = false,
+    refreshToken: shouldRenewRefreshToken = false,
+    transaction,
+  } = options;
+  const userAuthDTO: UserAuthDTO = {};
+  if (!shouldRenewAccessToken && !shouldRenewRefreshToken) return userAuthDTO;
+
+  // Generate fresh tokens
+  if (shouldRenewAccessToken) {
+    userAuthDTO.sigmateAccessToken = createAccessToken(
+      userId,
+      userGroup.id,
+      isAdmin
+    );
+  }
+
+  if (shouldRenewRefreshToken) {
+    userAuthDTO.sigmateRefreshToken = createRefreshToken(
+      userId,
+      userGroup.id,
+      isAdmin
+    );
+  }
+
+  // Update the database
   try {
-    return await db.sequelize.transaction(async (transaction) => {
-      const [affectedCount] = await UserAuth.update(
-        { ...userAuthDTO },
-        { where: { userId }, transaction }
-      );
-      if (affectedCount !== 1) throw new NotFoundError();
-      affectedCount;
-    });
+    await userAuth.update(userAuthDTO, { transaction });
   } catch (error) {
-    if (error instanceof BaseError) throw getErrorFromSequelizeError(error);
-    throw error;
+    throw new SequelizeError(error as Error);
+  }
+
+  return userAuthDTO;
+};
+
+export const renewAccessToken = async (
+  user: User | null | undefined,
+  transaction: Transaction | undefined = undefined
+) => {
+  const { sigmateAccessToken } = await renewTokens(user, {
+    accessToken: true,
+    refreshToken: false,
+    transaction,
+  });
+  return sigmateAccessToken;
+};
+
+export const renewRefreshToken = async (
+  user: User | null | undefined,
+  transaction: Transaction | undefined = undefined
+) => {
+  return await renewTokens(user, {
+    accessToken: true,
+    refreshToken: true,
+    transaction,
+  });
+};
+
+export const voidAccessToken = async (user: User | null | undefined) => {
+  try {
+    if (!user) throw new UnauthenticatedError();
+    const userAuth = user.userAuth || (await user.$get('userAuth'));
+    if (!userAuth) throw new UnauthenticatedError();
+    await userAuth.update({ sigmateAccessToken: '' });
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+export const voidRefreshToken = async (user: User | null | undefined) => {
+  try {
+    if (!user) throw new UnauthenticatedError();
+    const userAuth = user.userAuth || (await user.$get('userAuth'));
+    if (!userAuth) throw new UnauthenticatedError();
+    await userAuth.update({ sigmateAccessToken: '', sigmateRefreshToken: '' });
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+export const renewMetaMaskNonce = async (user: User | null | undefined) => {
+  try {
+    if (!user) throw new UnauthenticatedError();
+    const userAuth = user.userAuth || (await user.$get('userAuth'));
+    if (!userAuth) throw new ConflictError();
+    const nonce = generateNonce();
+    await userAuth.update({ metamaskNonce: nonce });
+    return nonce;
+  } catch (error) {
+    throw new SequelizeError(error as Error);
   }
 };

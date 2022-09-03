@@ -1,7 +1,13 @@
-import { body, CustomValidator, param } from 'express-validator';
+import {
+  body,
+  CustomSanitizer,
+  CustomValidator,
+  query,
+} from 'express-validator';
 import User, { availableThemes, USERNAME_MAX_LENGTH } from '../../models/User';
-import { inMySQLIntRange } from './utils';
 import isURL from 'validator/lib/isURL';
+import { findUserByReferralCode } from '../../services/database/user';
+import UnauthenticatedError from '../../utils/errors/UnauthenticatedError';
 
 const isUserNameAvailable: CustomValidator = async (value: string, { req }) => {
   if (req.user && req.user.userName === value) {
@@ -75,19 +81,47 @@ export const checkUserNameChangeInterval: CustomValidator = (
   throw new Error('ERR_USERNAME_CHANGE_INTERVAL');
 };
 
-const isReferralCode: CustomValidator = (value: string) => {
-  if (!value) throw new Error('REQUIRED');
-  if (value.length !== 16) throw new Error('NOT_REFERRAL_CODE');
-  if (value.slice(0, 3) !== 'sg-') throw new Error('NOT_REFERRAL_CODE');
-  if (value[9] !== '-') throw new Error('NOT_REFERRAL_CODE');
+export const isReferralCode = (value: string) => {
+  if (!value) return false;
+  if (value.length !== 16 || value.slice(0, 3) !== 'sg-' || value[9] !== '-')
+    return false;
   return true;
 };
 
-const isReferralCodeMine: CustomValidator = (value, { req }) => {
-  if (req.isUnauthenticated() || !req.user) throw new Error('ERR_UNAUTHORIZED');
-  const myReferralCode = req.user.referralCode;
-  if (value === myReferralCode) throw new Error('ERR_CANNOT_REFER_SELF');
-  return true;
+export const isReferralCodeMine = (value: string, req: any) => {
+  if (req.isUnauthenticated() || !req.user) throw new UnauthenticatedError();
+  return value === req.user.referralCode;
+};
+
+const isReferralCodeValid: CustomValidator = (value, { req }) => {
+  return new Promise((resolve, reject) => {
+    // Check value
+    if (!isReferralCode(value)) reject('NOT_REFERRAL_CODE');
+
+    // Check if it is my own code
+    if (isReferralCodeMine(value, req))
+      if (req.user.referredBy) {
+        // Check if I am already referred by someone
+        reject('ALREADY_REFERRED');
+      }
+
+    // Check if user with given referral code exists
+    findUserByReferralCode(value)
+      .then((user) => {
+        user ? resolve(true) : reject('REFERRED_USER_NOT_FOUND');
+      })
+      .catch(() => {
+        reject('ERR_DB_REFERRAL');
+      });
+  });
+};
+
+const dateWithinRange: CustomSanitizer = (value: string) => {
+  const user = new Date(value);
+  const now = new Date();
+
+  if (Math.abs(user.getTime() - now.getTime()) > 60 * 1000) return now.toJSON();
+  return value;
 };
 
 export const validateUserName = body('userName')
@@ -109,21 +143,31 @@ export const validateUserName = body('userName')
   .withMessage('DUPLICATE')
   .bail();
 
-export const validateUserNameCheck = body('userName')
-  .notEmpty()
-  .withMessage('REQUIRED')
-  .escape()
-  .trim()
-  .stripLow()
-  .isLength({ min: 3 })
-  .withMessage('TOO_SHORT')
-  .bail()
-  .isLength({ max: USERNAME_MAX_LENGTH })
-  .withMessage('TOO_LONG')
-  .bail()
-  .custom(isUserNameAvailable)
-  .bail()
-  .custom(followsUserNamePolicy);
+export const validateUserCheck = [
+  query('userName')
+    .optional()
+    .notEmpty()
+    .withMessage('REQUIRED')
+    .escape()
+    .trim()
+    .stripLow()
+    .isLength({ min: 3 })
+    .withMessage('TOO_SHORT')
+    .bail()
+    .isLength({ max: USERNAME_MAX_LENGTH })
+    .withMessage('TOO_LONG')
+    .bail()
+    .custom(followsUserNamePolicy),
+  query('referralCode')
+    .optional()
+    .notEmpty()
+    .withMessage('EMPTY')
+    .bail()
+    .escape()
+    .trim()
+    .stripLow()
+    .isLength({ max: 16 }),
+];
 
 export const validateUserPatch = [
   body('userId').optional().isEmpty().withMessage('UNKNOWN'),
@@ -140,12 +184,7 @@ export const validateUserPatch = [
     .withMessage('TOO_LONG'),
   body('emailVerified').optional().isEmpty().withMessage('UNKNOWN'),
   body('group').isEmpty().withMessage('UNKNOWN'),
-  body('primaryProfileId')
-    .optional()
-    .isInt()
-    .custom(inMySQLIntRange())
-    .withMessage('NOT_INT')
-    .toInt(),
+  body('primaryProfile').optional().isEmpty().withMessage('UNKNOWN'),
   body('isTester')
     .optional()
     .isBoolean()
@@ -153,12 +192,28 @@ export const validateUserPatch = [
     .toBoolean(),
   body('isAdmin').optional().isEmpty().withMessage('UNKNOWN'),
   body('metamaskWallet').optional().isEmpty().withMessage('UNKNOWN'),
+  body('isMetamaskWalletPublic')
+    .optional()
+    .isBoolean()
+    .withMessage('NOT_BOOLEAN')
+    .bail()
+    .toBoolean(),
   body('googleAccount').optional().isEmpty().withMessage('UNKNOWN'),
   body('googleAccountId').optional().isEmpty().withMessage('UNKNOWN'),
   body('twitterHandle').optional().isEmpty().withMessage('UNKNOWN'),
-  body('twitterVerified').optional().isEmpty().withMessage('UNKNOWN'),
+  body('isTwitterHandlePublic')
+    .optional()
+    .isBoolean()
+    .withMessage('NOT_BOOLEAN')
+    .bail()
+    .toBoolean(),
   body('discordAccount').optional().isEmpty().withMessage('UNKNOWN'),
-  body('discordVerified').optional().isEmpty().withMessage('UNKNOWN'),
+  body('isDiscordAccountPublic')
+    .optional()
+    .isBoolean()
+    .withMessage('NOT_BOOLEAN')
+    .bail()
+    .toBoolean(),
   body('lastLoginAt').optional().isEmpty().withMessage('UNKNOWN'),
   body('locale')
     .optional()
@@ -221,21 +276,24 @@ export const validateUserPatch = [
     .isISO8601()
     .withMessage('NOT_DATE')
     .bail()
+    .customSanitizer(dateWithinRange)
     .toDate(),
   body('agreePrivacy')
     .optional()
     .isISO8601()
     .withMessage('NOT_DATE')
     .bail()
+    .customSanitizer(dateWithinRange)
     .toDate(),
   body('agreeLegal')
     .optional()
     .isISO8601()
     .withMessage('NOT_DATE')
     .bail()
+    .customSanitizer(dateWithinRange)
     .toDate(),
   body('referralCode').optional().isEmpty().withMessage('UNKNOWN'),
-  body('referredBy').optional().isEmpty().withMessage('UNKNOWN'),
+  body('referredBy').optional().trim().stripLow().custom(isReferralCodeValid),
 ];
 
 export const validatePostReferralCode = body('renew')
@@ -248,25 +306,3 @@ export const validatePostReferralCode = body('renew')
   .equals('true')
   .withMessage('NOT_TRUE')
   .toBoolean();
-
-export const validateCheckReferralCode = param('referralCode')
-  .notEmpty()
-  .withMessage('REQUIRED')
-  .bail()
-  .trim()
-  .stripLow()
-  .escape()
-  .custom(isReferralCode)
-  .bail()
-  .custom(isReferralCodeMine);
-
-export const validateUpdateReferralCode = body('referralCode')
-  .notEmpty()
-  .withMessage('REQUIRED')
-  .bail()
-  .trim()
-  .stripLow()
-  .escape()
-  .custom(isReferralCode)
-  .bail()
-  .custom(isReferralCodeMine);

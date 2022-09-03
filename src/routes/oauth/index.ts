@@ -1,8 +1,8 @@
 import express from 'express';
-import googleOauthRouter from './google';
+import googleRouter from './google';
 
 const oauthRouter = express.Router();
 
-oauthRouter.use('/google', googleOauthRouter);
+oauthRouter.use('/google', googleRouter);
 
 export default oauthRouter;

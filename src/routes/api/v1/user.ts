@@ -1,25 +1,19 @@
 import express from 'express';
 import {
-  checkReferralController,
-  checkUserNameController,
-  deleteUserController,
-  getReferralCodeController,
-  getUserController,
-  patchUserController,
-  postReferralCodeController,
-  updateReferralController,
-} from '../../../controllers/api/v1/user';
-import { passportJwtAuth } from '../../../middlewares/authMiddlewares';
-import pickModelProperties from '../../../middlewares/pickModelProperties';
-import User from '../../../models/User';
+  isAuthenticated,
+  passportJwtAuth,
+} from '../../../middlewares/authMiddlewares';
+import handleBadRequest from '../../../middlewares/handleBadRequest';
 import {
-  validateCheckReferralCode,
-  validatePostReferralCode,
-  validateUpdateReferralCode,
-  validateUserNameCheck,
+  validateUserCheck,
   validateUserPatch,
 } from '../../../middlewares/validators/user';
-import BadRequestHandler from '../../../middlewares/BadRequestHandler';
+import {
+  checkUserController,
+  deleteUserController,
+  getUserController,
+  patchUserController,
+} from '../../../services/user';
 
 const userRouter = express.Router();
 
@@ -27,43 +21,21 @@ userRouter.use(passportJwtAuth);
 
 userRouter
   .route('/')
-  .get(getUserController)
+  .get(isAuthenticated, getUserController)
   .patch(
-    pickModelProperties(User),
+    isAuthenticated,
     validateUserPatch,
-    BadRequestHandler,
+    handleBadRequest,
     patchUserController
   )
-  .delete(deleteUserController);
-
-userRouter.post(
-  '/username/check',
-  validateUserNameCheck,
-  BadRequestHandler,
-  checkUserNameController
-);
+  .delete(isAuthenticated, deleteUserController);
 
 userRouter.get(
-  '/referral/check/:referralCode',
-  validateCheckReferralCode,
-  BadRequestHandler,
-  checkReferralController
+  '/check',
+  isAuthenticated,
+  validateUserCheck,
+  handleBadRequest,
+  checkUserController
 );
-
-userRouter.post(
-  '/referral/update',
-  validateUpdateReferralCode,
-  BadRequestHandler,
-  updateReferralController
-);
-
-userRouter
-  .route('/referral/code')
-  .get(getReferralCodeController)
-  .post(
-    validatePostReferralCode,
-    BadRequestHandler,
-    postReferralCodeController
-  );
 
 export default userRouter;

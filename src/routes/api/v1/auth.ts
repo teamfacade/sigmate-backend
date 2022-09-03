@@ -1,45 +1,60 @@
 import express from 'express';
 import {
-  authGoogleController,
-  logoutAllController,
-  logoutController,
-  renewAccessTokenController,
-  renewRefreshTokenController,
-} from '../../../controllers/api/v1/auth';
-import {
+  isAuthenticated,
   isRefreshTokenValid,
-  passportJwtAuth,
 } from '../../../middlewares/authMiddlewares';
-import BadRequestHandler from '../../../middlewares/BadRequestHandler';
+import handleBadRequest from '../../../middlewares/handleBadRequest';
 import {
+  validateGetUserByMetaMaskWallet,
   validateGoogleAuthCode,
+  validateMetaMaskAuth,
   validateRenewAccessToken,
 } from '../../../middlewares/validators/auth';
+import { handleGoogleOauth } from '../../../services/auth/google';
+import {
+  renewAccessTokenController,
+  renewRefreshTokenController,
+} from '../../../services/auth';
+import {
+  getUserByMetamaskWalletController,
+  metamaskAuthController,
+} from '../../../services/auth/metamask';
 
 const authRouter = express.Router();
 
 authRouter.post(
   '/google',
   validateGoogleAuthCode,
-  BadRequestHandler,
-  authGoogleController
+  handleBadRequest,
+  handleGoogleOauth
+);
+
+authRouter.get(
+  '/metamask',
+  validateGetUserByMetaMaskWallet,
+  handleBadRequest,
+  getUserByMetamaskWalletController
+);
+
+authRouter.post(
+  '/metamask/verify',
+  validateMetaMaskAuth,
+  handleBadRequest,
+  metamaskAuthController
 );
 
 authRouter.post(
   '/token/renew/access',
   validateRenewAccessToken,
-  BadRequestHandler,
+  handleBadRequest,
   isRefreshTokenValid,
   renewAccessTokenController
 );
 
-authRouter.get(
+authRouter.post(
   '/token/renew/refresh',
-  passportJwtAuth,
+  isAuthenticated,
   renewRefreshTokenController
 );
-
-authRouter.get('/logout', passportJwtAuth, logoutController);
-authRouter.get('/logout/all', passportJwtAuth, logoutAllController);
 
 export default authRouter;
