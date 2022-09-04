@@ -1,14 +1,19 @@
 import {
   AllowNull,
   BelongsTo,
+  BelongsToMany,
   Column,
   DataType,
   HasMany,
   HasOne,
   Model,
   Table,
+  Unique,
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
+import BcToken from './BcToken';
+import CollectionDeployer from './CollectionDeployer';
+import CollectionPaymentToken from './CollectionPaymentToken';
 import CollectionType from './CollectionType';
 import CollectionUtility from './CollectionUtility';
 import Document from './Document';
@@ -19,19 +24,18 @@ import UserDevice from './UserDevice';
 
 export interface CollectionAttributes {
   id: number;
-  contractAddress: string;
-  deployerAddress: string;
+  contractAddress?: string;
+  collectionDeployers?: CollectionDeployer[];
   slug: string;
   name: string; // display name
   description?: string;
-  tokenName: string;
-  tokenType: string; // ERC721
-  tokenSymbol: string;
+  paymentTokens?: BcToken[];
+  contractSchema: string; // ERC721
   email?: string;
   blogUrl?: string;
   redditUrl?: string;
   facebookUrl?: string;
-  twitterUrl?: string;
+  twitterHandle?: string;
   discordUrl?: string;
   websiteUrl?: string;
   telegramUrl?: string;
@@ -47,11 +51,12 @@ export interface CollectionAttributes {
   createdByDevice?: UserDevice;
   updatedBy?: User;
   updatedByDevice?: UserDevice;
-  mintingSchedules: MintingSchedule[];
+  mintingSchedules?: MintingSchedule[];
   type: CollectionType;
   utility: CollectionUtility;
   marketplace: string;
   nfts: Nft[];
+  openseaUpdatedAt?: Date;
 }
 
 export type CollectionCreationAttributes = Optional<CollectionAttributes, 'id'>;
@@ -69,14 +74,13 @@ export default class Collection extends Model<
   CollectionAttributes,
   CollectionCreationAttributes
 > {
-  @AllowNull(false)
   @Column(DataType.STRING(50))
-  contractAddress!: CollectionAttributes['contractAddress'];
+  contractAddress: CollectionAttributes['contractAddress'];
 
-  @AllowNull(false)
-  @Column(DataType.STRING(50))
-  deployerAddress!: CollectionAttributes['deployerAddress'];
+  @HasMany(() => CollectionDeployer, 'collectionId')
+  collectionDeployers: CollectionAttributes['collectionDeployers'];
 
+  @Unique('slug')
   @AllowNull(false)
   @Column(DataType.STRING(191))
   slug!: CollectionAttributes['slug'];
@@ -88,17 +92,12 @@ export default class Collection extends Model<
   @Column(DataType.TEXT)
   description: CollectionAttributes['description'];
 
-  @AllowNull(false)
-  @Column(DataType.STRING(191))
-  tokenName!: CollectionAttributes['tokenName'];
+  @BelongsToMany(() => BcToken, () => CollectionPaymentToken)
+  paymentTokens: CollectionAttributes['paymentTokens'];
 
   @AllowNull(false)
-  @Column(DataType.STRING(191))
-  tokenType!: CollectionAttributes['tokenType'];
-
-  @AllowNull(false)
-  @Column(DataType.STRING(191))
-  tokenSymbol!: CollectionAttributes['tokenSymbol'];
+  @Column(DataType.STRING(10))
+  contractSchema!: CollectionAttributes['contractSchema'];
 
   @Column(DataType.STRING(191))
   email: CollectionAttributes['email'];
@@ -113,7 +112,7 @@ export default class Collection extends Model<
   facebookUrl: CollectionAttributes['facebookUrl'];
 
   @Column(DataType.STRING(1024))
-  twitterUrl: CollectionAttributes['twitterUrl'];
+  twitterHandle: CollectionAttributes['twitterHandle'];
 
   @Column(DataType.STRING(1024))
   discordUrl: CollectionAttributes['discordUrl'];
@@ -161,7 +160,7 @@ export default class Collection extends Model<
   updatedByDevice: CollectionAttributes['updatedByDevice'];
 
   @HasMany(() => MintingSchedule, 'collectionId')
-  mintingSchedules!: CollectionAttributes['mintingSchedules'];
+  mintingSchedules: CollectionAttributes['mintingSchedules'];
 
   @BelongsTo(() => CollectionType, 'collectionTypeId')
   type!: CollectionAttributes['type'];
@@ -175,4 +174,7 @@ export default class Collection extends Model<
 
   @HasMany(() => Nft, 'collectionId')
   nfts!: CollectionAttributes['nfts'];
+
+  @Column(DataType.DATE)
+  openseaUpdatedAt: CollectionAttributes['openseaUpdatedAt'];
 }
