@@ -3,7 +3,7 @@ import {
   isReferralCode,
   isReferralCodeMine,
 } from '../../middlewares/validators/user';
-import User, { UserDTO } from '../../models/User';
+import User, { UserDTO, UserResponse } from '../../models/User';
 import UnauthenticatedError from '../../utils/errors/UnauthenticatedError';
 import {
   deleteUser,
@@ -45,7 +45,7 @@ export const userToJSON = (user: User) => {
     adminUser,
   } = user.toJSON();
 
-  const userJSON = {
+  const userJSON: UserResponse = {
     id,
     userName,
     userNameUpdatedAt,

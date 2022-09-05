@@ -158,12 +158,45 @@ export type UserCreationAttributes = Optional<
   | 'cookiesFunctional'
   | 'cookiesTargeting'
 >;
-
-// export type UserDTO = Require<Partial<UserAttributes>, 'id'>;
 export interface UserDTO extends Require<Partial<UserAttributes>, 'id'> {
   referredByCode?: UserAttributes['referralCode'];
 }
 export type UserCreationDTO = Omit<UserDTO, 'id'>;
+
+export interface UserResponse
+  extends Pick<
+    UserAttributes,
+    | 'id'
+    | 'userName'
+    | 'userNameUpdatedAt'
+    | 'email'
+    | 'metamaskWallet'
+    | 'isMetamaskWalletPublic'
+    | 'googleAccount'
+    | 'twitterHandle'
+    | 'isTwitterHandlePublic'
+    | 'discordAccount'
+    | 'isDiscordAccountPublic'
+    | 'isTester'
+    | 'isAdmin'
+    | 'locale'
+    | 'theme'
+    | 'emailEssential'
+    | 'emailMarketing'
+    | 'cookiesEssential'
+    | 'cookiesAnalytics'
+    | 'cookiesFunctional'
+    | 'cookiesTargeting'
+    | 'agreeTos'
+    | 'agreePrivacy'
+    | 'agreeLegal'
+    | 'referralCode'
+    | 'group'
+    | 'primaryProfile'
+    | 'adminUser'
+  > {
+  referredBy: UserAttributes['referralCode'] | null;
+}
 
 export const availableThemes = ['light', 'dark', 'auto'];
 
