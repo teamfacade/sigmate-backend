@@ -10,6 +10,9 @@ import ForumPost, {
   ForumPostDTO,
 } from '../../models/ForumPost';
 import ForumPostView from '../../models/ForumPostView';
+import ForumPostVote, {
+  ForumPostVoteAttributes,
+} from '../../models/ForumPostVote';
 import ForumTag, { ForumTagAttributes } from '../../models/ForumTag';
 import User from '../../models/User';
 import UserDevice from '../../models/UserDevice';
@@ -114,53 +117,24 @@ export const getForumPostsByCategory = async (
   }
 };
 
-export const setForumPostCategoryNames = async (
+export const setForumPostCategoryIds = async (
   forumPost: ForumPost,
-  categoryNames: CategoryAttributes['name'][],
+  categoryIds: CategoryAttributes['id'][],
   transaction: Transaction | undefined = undefined
 ) => {
-  if (!forumPost || !categoryNames) throw new ConflictError();
+  if (!forumPost || !categoryIds) throw new ConflictError();
   try {
-    const createdBy =
-      forumPost.createdBy || (await forumPost.$get('createdBy'));
-    const createdByDevice =
-      forumPost.createdByDevice || (await forumPost.$get('createdByDevice'));
-
-    // TODO Prevent category creation if not admin
-
-    // Create category if not exists
-    const findOrCreateCategoryPromises = categoryNames.map((name) =>
-      Category.findOrCreate({
-        where: { name },
-        include: [User, UserDevice],
-        transaction,
-      })
+    const categories = await Promise.all(
+      categoryIds.map((id) => Category.findByPk(id, { transaction }))
     );
 
-    // For newly created categories, set the 'createdBy' as myself
-    const findOrCreateCategoryResults = await Promise.all(
-      findOrCreateCategoryPromises
-    );
-    const setCreatedByPromises: Promise<unknown>[] = [];
-    findOrCreateCategoryResults.forEach(([category, created]) => {
-      if (created) {
-        setCreatedByPromises.push(
-          category.$set('createdBy', createdBy, { transaction })
-        );
-        setCreatedByPromises.push(
-          category.$set('createdByDevice', createdByDevice, { transaction })
-        );
-      }
+    if (categories.indexOf(null) > 0) {
+      throw new ConflictError('ERR_FORUMPOST_CATEGORY_SET_NOT_EXISTS');
+    }
+
+    await forumPost.$set('categories', categories as Category[], {
+      transaction,
     });
-
-    // Set the categories on the ForumPost
-    const categories = findOrCreateCategoryResults.map(
-      ([category]) => category
-    );
-    await Promise.all([
-      ...setCreatedByPromises,
-      forumPost.$set('categories', categories, { transaction }),
-    ]);
   } catch (error) {
     throw new SequelizeError(error as Error);
   }
@@ -227,7 +201,7 @@ export const createForumPost = async (
         fp.$set('createdByDevice', createdByDevice, { transaction }),
       ]);
       await Promise.all([
-        setForumPostCategoryNames(fp, categories, transaction),
+        setForumPostCategoryIds(fp, categories, transaction),
         setForumPostTagNames(fp, tags, transaction),
       ]);
       return await ForumPost.findByPk(fp.id, {
@@ -320,7 +294,7 @@ export const updateForumPost = async (
       // Update categories
       if (forumPostDTO.categories) {
         ps.push(
-          setForumPostCategoryNames(fp, forumPostDTO.categories, transaction)
+          setForumPostCategoryIds(fp, forumPostDTO.categories, transaction)
         );
       }
 
@@ -359,6 +333,74 @@ export const deleteForumPost = async (
         fp.$set('deletedByDevice', deletedByDevice, { transaction }),
       ]);
       return await fp.destroy({ transaction });
+    });
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+export const getMyForumPostVote = async (
+  forumPost: ForumPost,
+  myself: User,
+  transaction: Transaction | undefined = undefined
+) => {
+  try {
+    if (!forumPost) throw new NotFoundError();
+    const votes = await forumPost.$get('votes', {
+      include: [
+        {
+          model: User,
+          as: 'createdBy',
+          where: { id: myself.id },
+        },
+      ],
+      limit: 1,
+      order: [['createdAt', 'DESC']],
+      transaction,
+    });
+    if (votes.length === 0) return null;
+    return votes[0];
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+export const voteForumPost = async (
+  forumPostId: ForumPostAttributes['id'],
+  like: ForumPostVoteAttributes['like'],
+  createdBy: User,
+  createdByDevice: UserDevice
+) => {
+  try {
+    return await db.sequelize.transaction(async (transaction) => {
+      // Find the forum post
+      const fp = await ForumPost.findByPk(forumPostId, { transaction });
+      if (!fp) throw new NotFoundError();
+      const ps: Promise<unknown>[] = [];
+
+      // Have I voted before?
+      const myVote = await getMyForumPostVote(fp, createdBy, transaction);
+      if (myVote) {
+        // If I am attempting to vote the same opinion again, stop. No need.
+        if (myVote.like === like) return myVote;
+        // Delete old vote
+        ps.push(myVote.destroy({ transaction }));
+      }
+      // Create new vote
+      const myNewVote = await fp.$create<ForumPostVote>(
+        'votes',
+        { like },
+        { transaction }
+      );
+      ps.push(myNewVote.$set('post', fp));
+
+      // Record who voted
+      ps.push(myNewVote.$set('createdBy', createdBy));
+      ps.push(myNewVote.$set('createdByDevice', createdByDevice));
+
+      await Promise.all(ps);
+
+      return myNewVote;
     });
   } catch (error) {
     throw new SequelizeError(error as Error);

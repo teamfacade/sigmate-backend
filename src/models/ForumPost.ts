@@ -49,7 +49,7 @@ export type ForumPostCreationAttributes = Optional<
 
 export interface ForumPostCreateRequestBody
   extends Pick<ForumPostAttributes, 'title' | 'content'> {
-  categories: CategoryAttributes['name'][];
+  categories: CategoryAttributes['id'][];
   tags: ForumTagAttributes['name'][];
 }
 

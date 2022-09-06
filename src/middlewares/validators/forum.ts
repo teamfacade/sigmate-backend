@@ -123,8 +123,6 @@ export const validateUpdateForumPost = [
     .isArray()
     .withMessage('NOT_ARRAY')
     .bail()
-    .custom(isArrayItemsLength({ min: 1, max: 191 }))
-    .withMessage('LENGTH')
     .toArray(),
   body('tags')
     .optional()
@@ -154,13 +152,7 @@ export const validateCreateForumPost = [
     .bail()
     .isLength({ min: 1, max: 16383 })
     .withMessage('LENGTH'),
-  body('categories')
-    .isArray()
-    .withMessage('NOT_ARRAY')
-    .bail()
-    .custom(isArrayItemsLength({ min: 1, max: 191 }))
-    .withMessage('LENGTH')
-    .toArray(),
+  body('categories').isArray().withMessage('NOT_ARRAY').bail().toArray(),
   body('tags')
     .isArray()
     .withMessage('NOT_ARRAY')
@@ -181,3 +173,25 @@ export const validateDeleteForumPost = param('postId')
   .withMessage('NOT_INT')
   .bail()
   .toInt();
+
+export const validateVoteForumPost = [
+  param('postId')
+    .trim()
+    .escape()
+    .stripLow()
+    .notEmpty()
+    .withMessage('REQUIRED')
+    .bail()
+    .isInt()
+    .withMessage('NOT_INT')
+    .bail()
+    .toInt(),
+  body('like')
+    .trim()
+    .escape()
+    .stripLow()
+    .isBoolean()
+    .withMessage('NOT_BOOLEAN')
+    .bail()
+    .toBoolean(),
+];
