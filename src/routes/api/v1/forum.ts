@@ -2,6 +2,7 @@ import express from 'express';
 import {
   isAuthenticated,
   passportJwtAuth,
+  passportJwtAuthOptional,
 } from '../../../middlewares/authMiddlewares';
 import handleBadRequest from '../../../middlewares/handleBadRequest';
 import handlePagination from '../../../middlewares/handlePagination';
@@ -14,6 +15,7 @@ import {
   validateGetForumPostsByCategory,
   validateUpdateCategory,
   validateUpdateForumPost,
+  validateVoteForumPost,
 } from '../../../middlewares/validators/forum';
 import {
   createCategoryController,
@@ -25,6 +27,7 @@ import {
   getForumPostsByCategoryController,
   updateCategoryController,
   updateForumPostController,
+  voteForumPostController,
 } from '../../../services/forum';
 
 const forumRouter = express.Router();
@@ -66,7 +69,12 @@ forumRouter
 
 forumRouter
   .route('/p/:postId')
-  .get(validateGetForumPostById, handleBadRequest, getForumPostByIdController)
+  .get(
+    passportJwtAuthOptional,
+    validateGetForumPostById,
+    handleBadRequest,
+    getForumPostByIdController
+  )
   .patch(
     passportJwtAuth,
     isAuthenticated,
@@ -89,6 +97,16 @@ forumRouter
     validateGetForumPostsByCategory,
     handleBadRequest,
     getForumPostsByCategoryController
+  );
+
+forumRouter
+  .route('/vote/p/:postId')
+  .post(
+    passportJwtAuth,
+    isAuthenticated,
+    validateVoteForumPost,
+    handleBadRequest,
+    voteForumPostController
   );
 
 export default forumRouter;

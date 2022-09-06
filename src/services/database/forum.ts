@@ -384,19 +384,19 @@ export const voteForumPost = async (
         // If I am attempting to vote the same opinion again, stop. No need.
         if (myVote.like === like) return myVote;
         // Delete old vote
+        ps.push(myVote.$set('deletedBy', createdBy));
+        ps.push(myVote.$set('deletedByDevice', createdByDevice));
         ps.push(myVote.destroy({ transaction }));
       }
       // Create new vote
-      const myNewVote = await fp.$create<ForumPostVote>(
-        'votes',
-        { like },
-        { transaction }
-      );
-      ps.push(myNewVote.$set('post', fp));
+      const myNewVote = await ForumPostVote.create({ like }, { transaction });
+      ps.push(myNewVote.$set('post', fp, { transaction }));
 
       // Record who voted
-      ps.push(myNewVote.$set('createdBy', createdBy));
-      ps.push(myNewVote.$set('createdByDevice', createdByDevice));
+      ps.push(myNewVote.$set('createdBy', createdBy, { transaction }));
+      ps.push(
+        myNewVote.$set('createdByDevice', createdByDevice, { transaction })
+      );
 
       await Promise.all(ps);
 

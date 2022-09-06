@@ -15,7 +15,7 @@ import ForumPostCategory from './ForumPostCategory';
 import ForumPostImage from './ForumPostImage';
 import ForumPostTag from './ForumPostTag';
 import ForumPostView from './ForumPostView';
-import ForumPostVote from './ForumPostVote';
+import ForumPostVote, { ForumPostVoteResponse } from './ForumPostVote';
 import ForumReport from './ForumReport';
 import ForumTag, { ForumTagAttributes } from './ForumTag';
 import Image from './Image';
@@ -77,7 +77,7 @@ export interface ForumPostResponse
   viewCount?: number;
   voteCount?: number;
   commentCount?: number;
-  myVote?: ForumPostVote | null;
+  myVote?: ForumPostVoteResponse | null;
   createdBy: UserPublicResponse;
   updatedBy: UserPublicResponse;
 }

@@ -26,12 +26,17 @@ import {
   getForumPostById,
   getForumPostsByCategory,
   getForumPostVoteCount,
+  getMyForumPostVote,
   updateForumPost,
+  voteForumPost,
 } from '../database/forum';
 import { pick } from 'lodash';
 import NotFoundError from '../../utils/errors/NotFoundError';
 import { userPublicInfoToJSON } from '../user';
 import User from '../../models/User';
+import ForumPostVote, {
+  ForumPostVoteResponse,
+} from '../../models/ForumPostVote';
 
 export const categoryToJSON = (category: Category, all = false) => {
   const categoryJSON = category.toJSON();
@@ -76,21 +81,27 @@ const forumPostToJSON = async (
   forumResponse.voteCount = voteCount;
   forumResponse.commentCount = commentCount;
   if (myself) {
-    const [myVote] = await forumPost.$get('votes', {
-      include: {
-        model: User,
-        as: 'createdBy',
-        where: { id: myself.id },
-      },
-      limit: 1,
-      order: [['createdAt', 'DESC']],
-    });
-    forumResponse.myVote = myVote;
+    const myVote = await getMyForumPostVote(forumPost, myself);
+    forumResponse.myVote = myVote ? await forumPostVoteToJSON(myVote) : null;
+  } else {
+    forumResponse.myVote = null;
   }
   forumResponse.createdBy = await userPublicInfoToJSON(createdBy);
   updatedBy &&
     (forumResponse.updatedBy = await userPublicInfoToJSON(updatedBy));
   return forumResponse;
+};
+
+const forumPostVoteToJSON = async (v: ForumPostVote) => {
+  const vj = v.toJSON();
+  const createdBy = v.createdBy || (await v.$get('createdBy'));
+  const vr: ForumPostVoteResponse = {
+    id: vj.id,
+    like: vj.like,
+    createdAt: vj.createdAt,
+    createdBy: await userPublicInfoToJSON(createdBy as User),
+  };
+  return vr;
 };
 
 export const getCategoriesController = async (
@@ -231,9 +242,10 @@ export const getForumPostByIdController = async (
       req.device
     );
     if (!forumPost) throw new NotFoundError();
-    res
-      .status(200)
-      .json({ success: true, forumPost: await forumPostToJSON(forumPost) });
+    res.status(200).json({
+      success: true,
+      forumPost: await forumPostToJSON(forumPost, req.user),
+    });
   } catch (error) {
     next(error);
   }
@@ -258,9 +270,10 @@ export const createForumPostController = async (
       createdBy,
       createdByDevice,
     });
-    res
-      .status(201)
-      .json({ success: true, forumPost: await forumPostToJSON(forumPost) });
+    res.status(201).json({
+      success: true,
+      forumPost: await forumPostToJSON(forumPost, createdBy),
+    });
   } catch (error) {
     next(error);
   }
@@ -292,9 +305,10 @@ export const updateForumPostController = async (
       updatedBy,
       updatedByDevice
     );
-    res
-      .status(200)
-      .json({ success: true, forumPost: await forumPostToJSON(forumPost) });
+    res.status(200).json({
+      success: true,
+      forumPost: await forumPostToJSON(forumPost, updatedBy),
+    });
   } catch (error) {
     next(error);
   }
@@ -312,6 +326,27 @@ export const deleteForumPostByIdController = async (
     if (!deletedBy || !deletedByDevice) throw new UnauthenticatedError();
     await deleteForumPost(id, deletedBy, deletedByDevice);
     res.status(204).send();
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const voteForumPostController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const id = req.params.postId as unknown as number;
+    const like = req.body.like as unknown as boolean;
+    const createdBy = req.user;
+    const createdByDevice = req.device;
+    if (!createdBy || !createdByDevice) throw new UnauthenticatedError();
+
+    const v = await voteForumPost(id, like, createdBy, createdByDevice);
+    res
+      .status(200)
+      .json({ success: true, forumPostVote: await forumPostVoteToJSON(v) });
   } catch (error) {
     next(error);
   }
