@@ -18,7 +18,10 @@ export const passportJwtAuthOptional = (
     (err, user, info) => {
       if (err) next(err);
       // Just proceed on auth fail
-      if (!user) next();
+      if (user) {
+        req.user = user;
+      }
+      next();
     }
   )(req, res, next);
 };
