@@ -351,3 +351,22 @@ export const voteForumPostController = async (
     next(error);
   }
 };
+
+export const getMyForumPostVoteController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const id = req.params.postId as unknown as number;
+    const user = req.user;
+    if (!user) throw new UnauthenticatedError();
+    const fp = await ForumPost.findByPk(id);
+    if (!fp) throw new NotFoundError();
+    const v = await getMyForumPostVote(fp, user);
+    const vr = v ? await forumPostVoteToJSON(v) : null;
+    res.status(200).json({ success: true, myVote: vr });
+  } catch (error) {
+    next(error);
+  }
+};

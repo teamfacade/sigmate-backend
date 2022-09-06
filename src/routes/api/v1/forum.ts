@@ -13,6 +13,7 @@ import {
   validateDeleteForumPost,
   validateGetForumPostById,
   validateGetForumPostsByCategory,
+  validateGetMyForumPostVote,
   validateUpdateCategory,
   validateUpdateForumPost,
   validateVoteForumPost,
@@ -25,6 +26,7 @@ import {
   getCategoriesController,
   getForumPostByIdController,
   getForumPostsByCategoryController,
+  getMyForumPostVoteController,
   updateCategoryController,
   updateForumPostController,
   voteForumPostController,
@@ -100,7 +102,13 @@ forumRouter
   );
 
 forumRouter
-  .route('/vote/p/:postId')
+  .route('/p/:postId/vote')
+  .get(
+    passportJwtAuth,
+    isAuthenticated,
+    validateGetMyForumPostVote,
+    getMyForumPostVoteController
+  )
   .post(
     passportJwtAuth,
     isAuthenticated,

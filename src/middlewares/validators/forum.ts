@@ -195,3 +195,15 @@ export const validateVoteForumPost = [
     .bail()
     .toBoolean(),
 ];
+
+export const validateGetMyForumPostVote = param('postId')
+  .trim()
+  .escape()
+  .stripLow()
+  .notEmpty()
+  .withMessage('REQUIRED')
+  .bail()
+  .isInt()
+  .withMessage('NOT_INT')
+  .bail()
+  .toInt();

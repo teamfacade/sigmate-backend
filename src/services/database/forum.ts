@@ -384,8 +384,10 @@ export const voteForumPost = async (
         // If I am attempting to vote the same opinion again, stop. No need.
         if (myVote.like === like) return myVote;
         // Delete old vote
-        ps.push(myVote.$set('deletedBy', createdBy));
-        ps.push(myVote.$set('deletedByDevice', createdByDevice));
+        ps.push(myVote.$set('deletedBy', createdBy, { transaction }));
+        ps.push(
+          myVote.$set('deletedByDevice', createdByDevice, { transaction })
+        );
         ps.push(myVote.destroy({ transaction }));
       }
       // Create new vote
