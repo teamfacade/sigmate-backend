@@ -92,8 +92,16 @@ export const getForumPostsByCategory = async (
       limit: paginationOptions.limit,
       offset: paginationOptions.offset,
       include: [
-        Category,
-        ForumTag,
+        {
+          model: Category,
+          attributes: ['id', 'name', 'description', 'parentId'],
+          through: { attributes: [] },
+        },
+        {
+          model: ForumTag,
+          attributes: ['id', 'name', 'isBanned'],
+          through: { attributes: [] },
+        },
         { model: User, as: 'createdBy' },
         { model: UserDevice, as: 'createdByDevice' },
         { model: ForumComment, limit: 10 },

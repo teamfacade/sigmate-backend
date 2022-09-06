@@ -67,6 +67,7 @@ forumRouter
 forumRouter
   .route('/c/:categoryId/p')
   .get(
+    handlePagination,
     validateGetForumPostsByCategory,
     handleBadRequest,
     getForumPostsByCategoryController

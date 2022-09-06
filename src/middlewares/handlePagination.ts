@@ -11,7 +11,7 @@ export interface PaginationOptions {
 const validatePagination = [
   query('limit')
     .optional()
-    .isInt({ min: 10, max: 100 })
+    .isInt({ min: 1, max: 100 })
     .withMessage('NOT_INT')
     .bail()
     .toInt(),
