@@ -2,6 +2,12 @@ import { NextFunction, Request, Response } from 'express';
 import { query } from 'express-validator';
 import handleBadRequest from './handleBadRequest';
 
+export interface PaginationOptions {
+  limit: number;
+  page: number;
+  offset: number;
+}
+
 const validatePagination = [
   query('limit')
     .optional()

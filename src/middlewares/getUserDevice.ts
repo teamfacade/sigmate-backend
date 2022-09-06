@@ -1,12 +1,12 @@
 import { NextFunction, Request, Response } from 'express';
 import isIP from 'validator/lib/isIP';
-import ApiError from '../utils/errors/ApiError';
+import { Address4, Address6 } from 'ip-address';
 import { UserDeviceAttributes } from '../models/UserDevice';
-import { ipToInt } from '../utils/ipAddress';
 import {
   findOrCreateUserAgent,
   findOrCreateUserDevice,
 } from '../services/database/device';
+import ApiError from '../utils/errors/ApiError';
 
 const getUserDevice = async (
   req: Request,
@@ -14,16 +14,36 @@ const getUserDevice = async (
   next: NextFunction
 ) => {
   try {
-    // Get client's remote IP address
-    const ip = req.header('x-forwarded-for') || req.socket.remoteAddress;
-    if (!ip) {
-      throw new ApiError('ERR_NO_IP');
-    }
+    // Get IP address from request
+    const clientIp = req.clientIp;
     const userDeviceDTO: Partial<UserDeviceAttributes> = {};
-    if (isIP(ip, 4)) {
-      userDeviceDTO.ipv4 = ipToInt(ip);
-    } else if (isIP(ip, 6)) {
-      userDeviceDTO.ipv6 = ip;
+    if (!clientIp) throw new ApiError('ERR_IP_UNDEFINED');
+
+    // Initialize Address instances
+    let addr4: Address4 | undefined = undefined;
+    let addr6: Address6 | undefined = undefined;
+    try {
+      if (isIP(clientIp, 4)) {
+        addr4 = new Address4(clientIp);
+        // address = new Address4(clientIp);
+        // ipv4 = address.addressMinusSuffix || address.address;
+      } else if (isIP(clientIp, 6)) {
+        addr6 = new Address6(clientIp);
+        if (addr6.v4) addr4 = addr6.address4;
+      } else {
+        throw new ApiError('ERR_IP_UNINIT');
+      }
+    } catch (error) {
+      console.error(error); // TODO remove in production
+      throw new ApiError('ERR_IP_PARSE');
+    }
+
+    // Set the DTO with obtained addresses
+    if (addr4) {
+      userDeviceDTO.ipv4 = addr4.addressMinusSuffix || addr4.address;
+    }
+    if (addr6) {
+      userDeviceDTO.ipv6 = addr6.addressMinusSuffix || addr6.address;
     }
 
     // Get User-Agent header

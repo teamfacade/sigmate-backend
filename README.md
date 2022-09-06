@@ -35,6 +35,7 @@ cd sigmate-security
 cd jwt-secret
 ./gen-jwt-secret.sh
 
+# Replace $SIGMATE_BACKEND_PATH with the actual path to the sigmate-backend repo
 # Move the keys to the correct location
 mkdir $SIGMATE_BACKEND_PATH/keys
 mv *.pem $SIGMATE_BACKEND_PATH/keys/

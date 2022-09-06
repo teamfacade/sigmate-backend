@@ -1,9 +1,15 @@
 import { NextFunction, Request, Response } from 'express';
+import _ from 'lodash';
 import {
   isReferralCode,
   isReferralCodeMine,
 } from '../../middlewares/validators/user';
-import User, { UserDTO, UserResponse } from '../../models/User';
+import User, {
+  UserDTO,
+  UserPublicResponse,
+  UserResponse,
+} from '../../models/User';
+import { UserProfileAttributes } from '../../models/UserProfile';
 import UnauthenticatedError from '../../utils/errors/UnauthenticatedError';
 import {
   deleteUser,
@@ -80,6 +86,32 @@ export const userToJSON = (user: User) => {
   if (!adminUser) delete userJSON.adminUser;
 
   return userJSON;
+};
+
+export const userPublicInfoToJSON = async (
+  user: User
+): Promise<UserPublicResponse> => {
+  const p = user.primaryProfile || (await user.$get('primaryProfile'));
+  const primaryProfile = _.pick(p, [
+    'id',
+    'displayName',
+    'bio',
+    'profileImageUrl',
+    'profileImage',
+  ]) as Omit<UserProfileAttributes, 'user'>;
+  const response: UserPublicResponse = {
+    id: user.id,
+    userName: user.userName,
+    metamaskWallet: user.isMetamaskWalletPublic
+      ? user.metamaskWallet
+      : undefined,
+    twitterHandle: user.isTwitterHandlePublic ? user.twitterHandle : undefined,
+    discordAccount: user.isDiscordAccountPublic
+      ? user.discordAccount
+      : undefined,
+    primaryProfile,
+  };
+  return response;
 };
 
 export const getUserController = async (

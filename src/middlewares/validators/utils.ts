@@ -1,4 +1,5 @@
 import { CustomSanitizer, CustomValidator } from 'express-validator';
+import { MinMaxOptions } from 'express-validator/src/options';
 import isEmail from 'validator/lib/isEmail';
 import normalizeEmail from 'validator/lib/normalizeEmail';
 
@@ -57,4 +58,15 @@ export const inMySQLIntRange = (
   const min = signed ? -2147483648 : 0;
   const max = signed ? 2147483647 : 4294967295;
   return inRange({ min, max });
+};
+
+export const isArrayItemsLength = (options: MinMaxOptions): CustomValidator => {
+  const { min, max } = options;
+  return (value) => {
+    for (let i = 0; i < value.length; i++) {
+      if (min !== undefined && value[i].length < min) return false;
+      if (max !== undefined && value[i].length > max) return false;
+    }
+    return true;
+  };
 };

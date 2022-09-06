@@ -1,4 +1,5 @@
-import { body } from 'express-validator';
+import { body, param } from 'express-validator';
+import { isArrayItemsLength } from './utils';
 
 export const validateCreateCategory = [
   body('name')
@@ -63,4 +64,62 @@ export const validateDeleteCategory = [
     .bail()
     .isLength({ min: 1, max: 191 })
     .withMessage('LENGTH'),
+];
+
+export const validateGetForumPostsByCategory = [
+  param('categoryId')
+    .trim()
+    .stripLow()
+    .notEmpty()
+    .withMessage('REQUIRED')
+    .bail()
+    .isInt()
+    .withMessage('NOT_INT')
+    .bail()
+    .toInt(),
+];
+
+export const validateGetForumPostById = param('postId')
+  .trim()
+  .escape()
+  .stripLow()
+  .notEmpty()
+  .withMessage('REQUIRED')
+  .bail()
+  .isInt()
+  .withMessage('NOT_INT')
+  .bail()
+  .toInt();
+
+export const validateCreateForumPost = [
+  body('title')
+    .trim()
+    .stripLow()
+    .notEmpty()
+    .withMessage('REQUIRED')
+    .bail()
+    .isLength({ min: 1, max: 191 })
+    .withMessage('LENGTH')
+    .bail(),
+  body('content')
+    .trim()
+    .stripLow()
+    .notEmpty()
+    .withMessage('REQUIRED')
+    .bail()
+    .isLength({ min: 1, max: 16383 }),
+  body('categories')
+    .isArray()
+    .withMessage('NOT_ARRAY')
+    .bail()
+    .custom(isArrayItemsLength({ min: 1, max: 191 }))
+    .withMessage('LENGTH')
+    .toArray(),
+  body('tags')
+    .isArray()
+    .withMessage('NOT_ARRAY')
+    .bail()
+    .custom(isArrayItemsLength({ min: 1, max: 191 }))
+    .withMessage('LENGTH')
+    .toArray(),
 ];

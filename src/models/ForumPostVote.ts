@@ -44,15 +44,21 @@ export default class ForumPostVote extends Model<
   @Column(DataType.BOOLEAN)
   like!: ForumPostVoteAttributes['like']; // true: upvote (+1), false: downvote (-1)
 
-  @BelongsTo(() => User, 'createdById')
+  @BelongsTo(() => User, { as: 'createdBy', foreignKey: 'createdById' })
   createdBy!: ForumPostVoteAttributes['createdBy'];
 
-  @BelongsTo(() => UserDevice, 'createdByDeviceId')
+  @BelongsTo(() => UserDevice, {
+    as: 'createdByDevice',
+    foreignKey: 'createdByDeviceId',
+  })
   createdByDevice!: ForumPostVoteAttributes['createdByDevice'];
 
-  @BelongsTo(() => User, 'deletedById')
+  @BelongsTo(() => User, { as: 'deletedBy', foreignKey: 'deletedById' })
   deletedBy: ForumPostVoteAttributes['deletedBy'];
 
-  @BelongsTo(() => UserDevice, 'deletedByDeviceId')
+  @BelongsTo(() => UserDevice, {
+    as: 'deletedByDevice',
+    foreignKey: 'deletedByDeviceId',
+  })
   deletedByDevice: ForumPostVoteAttributes['deletedByDevice'];
 }

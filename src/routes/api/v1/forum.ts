@@ -7,20 +7,26 @@ import handleBadRequest from '../../../middlewares/handleBadRequest';
 import handlePagination from '../../../middlewares/handlePagination';
 import {
   validateCreateCategory,
+  validateCreateForumPost,
   validateDeleteCategory,
+  validateGetForumPostById,
+  validateGetForumPostsByCategory,
   validateUpdateCategory,
 } from '../../../middlewares/validators/forum';
 import {
   createCategoryController,
+  createForumPostController,
   deleteCategoryController,
   getCategoriesController,
+  getForumPostByIdController,
+  getForumPostsByCategoryController,
   updateCategoryController,
 } from '../../../services/forum';
 
 const forumRouter = express.Router();
 
 forumRouter
-  .route('/category')
+  .route('/c')
   .get(handlePagination, getCategoriesController)
   .post(
     passportJwtAuth,
@@ -42,6 +48,28 @@ forumRouter
     validateDeleteCategory,
     handleBadRequest,
     deleteCategoryController
+  );
+
+forumRouter
+  .route('/p')
+  .post(
+    passportJwtAuth,
+    isAuthenticated,
+    validateCreateForumPost,
+    handleBadRequest,
+    createForumPostController
+  );
+
+forumRouter
+  .route('/p/:postId')
+  .get(validateGetForumPostById, handleBadRequest, getForumPostByIdController);
+
+forumRouter
+  .route('/c/:categoryId/p')
+  .get(
+    validateGetForumPostsByCategory,
+    handleBadRequest,
+    getForumPostsByCategoryController
   );
 
 export default forumRouter;

@@ -14,7 +14,7 @@ import {
   BelongsToMany,
 } from 'sequelize-typescript';
 import UserGroup from './UserGroup';
-import UserProfile from './UserProfile';
+import UserProfile, { UserProfileAttributes } from './UserProfile';
 import UserAuth from './UserAuth';
 import AdminUser from './AdminUser';
 import Block from './Block';
@@ -196,6 +196,15 @@ export interface UserResponse
     | 'adminUser'
   > {
   referredBy: UserAttributes['referralCode'] | null;
+}
+
+// User information if requested by another user (only public information)
+export interface UserPublicResponse
+  extends Pick<
+    UserResponse,
+    'id' | 'userName' | 'metamaskWallet' | 'twitterHandle' | 'discordAccount'
+  > {
+  primaryProfile: Omit<UserProfileAttributes, 'user'>;
 }
 
 export const availableThemes = ['light', 'dark', 'auto'];

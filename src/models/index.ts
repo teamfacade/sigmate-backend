@@ -1,12 +1,15 @@
 import { Sequelize } from 'sequelize-typescript';
 import databaseConfig from '../config/database';
 import AdminUser from './AdminUser';
+import BcToken from './BcToken';
 import Block from './Block';
 import BlockAudit from './BlockAudit';
 import BlockVerification from './BlockVerification';
 import Category from './Category';
 import Collection from './Collection';
+import CollectionDeployer from './CollectionDeployer';
 import CollectionDocumentTable from './CollectionDocumentTable';
+import CollectionPaymentToken from './CollectionPaymentToken';
 import CollectionType from './CollectionType';
 import CollectionUtility from './CollectionUtility';
 import Document from './Document';
@@ -68,12 +71,15 @@ const initDatabase = () => {
   const sequelize = initSequelize();
   sequelize.addModels([
     AdminUser,
+    BcToken,
     Block,
     BlockAudit,
     BlockVerification,
     Category,
     Collection,
+    CollectionDeployer,
     CollectionDocumentTable,
+    CollectionPaymentToken,
     CollectionType,
     CollectionUtility,
     Document,

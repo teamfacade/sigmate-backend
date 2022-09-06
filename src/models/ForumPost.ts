@@ -9,7 +9,7 @@ import {
   Table,
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
-import Category from './Category';
+import Category, { CategoryAttributes } from './Category';
 import ForumComment from './ForumComment';
 import ForumPostCategory from './ForumPostCategory';
 import ForumPostImage from './ForumPostImage';
@@ -17,9 +17,9 @@ import ForumPostTag from './ForumPostTag';
 import ForumPostView from './ForumPostView';
 import ForumPostVote from './ForumPostVote';
 import ForumReport from './ForumReport';
-import ForumTag from './ForumTag';
+import ForumTag, { ForumTagAttributes } from './ForumTag';
 import Image from './Image';
-import User from './User';
+import User, { UserPublicResponse } from './User';
 import UserDevice from './UserDevice';
 
 export interface ForumPostAttributes {
@@ -36,13 +36,45 @@ export interface ForumPostAttributes {
   votes?: ForumPostVote[];
   comments?: ForumComment[];
   reports?: ForumReport[];
-  categories: Category[];
+  categories?: Category[];
   tags?: ForumTag[];
   images?: Image[];
   contentUpdatedAt?: Date;
 }
 
-export type ForumPostCreationAttributes = Optional<ForumPostAttributes, 'id'>;
+export type ForumPostCreationAttributes = Optional<
+  ForumPostAttributes,
+  'id' | 'createdBy' | 'createdByDevice' | 'categories'
+>;
+
+export interface ForumPostCreateRequestBody
+  extends Pick<ForumPostAttributes, 'title' | 'content'> {
+  categories: CategoryAttributes['name'][];
+  tags: ForumTagAttributes['name'][];
+}
+
+export type ForumPostCreationDTO = ForumPostCreateRequestBody &
+  Pick<ForumPostAttributes, 'createdBy' | 'createdByDevice'>;
+
+export interface ForumPostResponse
+  extends Pick<
+    ForumPostAttributes,
+    | 'id'
+    | 'title'
+    | 'content'
+    | 'views'
+    | 'votes'
+    | 'comments'
+    | 'categories'
+    | 'tags'
+    | 'contentUpdatedAt'
+  > {
+  viewCount?: number;
+  voteCount?: number;
+  commentCount?: number;
+  myVote?: ForumPostVote | null;
+  createdBy: UserPublicResponse;
+}
 
 @Table({
   tableName: 'forum_posts',
@@ -53,7 +85,10 @@ export type ForumPostCreationAttributes = Optional<ForumPostAttributes, 'id'>;
   charset: 'utf8mb4',
   collate: 'utf8mb4_general_ci',
 })
-export default class ForumPost extends Model<ForumPostAttributes> {
+export default class ForumPost extends Model<
+  ForumPostAttributes,
+  ForumPostCreationAttributes
+> {
   @AllowNull(false)
   @Column(DataType.STRING(191))
   title!: ForumPostAttributes['title'];
@@ -62,22 +97,31 @@ export default class ForumPost extends Model<ForumPostAttributes> {
   @Column(DataType.TEXT)
   content!: ForumPostAttributes['content'];
 
-  @BelongsTo(() => User, 'createdById')
+  @BelongsTo(() => User, { as: 'createdBy', foreignKey: 'createdById' })
   createdBy!: ForumPostAttributes['createdBy'];
 
-  @BelongsTo(() => UserDevice, 'createdByDeviceId')
+  @BelongsTo(() => UserDevice, {
+    as: 'createdByDevice',
+    foreignKey: 'createdByDeviceId',
+  })
   createdByDevice!: ForumPostAttributes['createdByDevice'];
 
-  @BelongsTo(() => User, 'updatedById')
+  @BelongsTo(() => User, { as: 'updatedBy', foreignKey: 'updatedById' })
   updatedBy: ForumPostAttributes['updatedBy'];
 
-  @BelongsTo(() => UserDevice, 'updatedByDeviceId')
+  @BelongsTo(() => UserDevice, {
+    as: 'updatedByDevice',
+    foreignKey: 'updatedByDeviceId',
+  })
   updatedByDevice: ForumPostAttributes['updatedByDevice'];
 
-  @BelongsTo(() => User, 'deletedById')
+  @BelongsTo(() => User, { as: 'deletedBy', foreignKey: 'deletedById' })
   deletedBy: ForumPostAttributes['deletedBy'];
 
-  @BelongsTo(() => UserDevice, 'deletedByDeviceId')
+  @BelongsTo(() => UserDevice, {
+    as: 'deletedByDevice',
+    foreignKey: 'deletedByDeviceId',
+  })
   deletedByDevice: ForumPostAttributes['deletedByDevice'];
 
   @HasMany(() => ForumPostView, 'forumPostId')
@@ -93,7 +137,7 @@ export default class ForumPost extends Model<ForumPostAttributes> {
   reports: ForumPostAttributes['reports'];
 
   @BelongsToMany(() => Category, () => ForumPostCategory)
-  categories!: ForumPostAttributes['categories'];
+  categories: ForumPostAttributes['categories'];
 
   @BelongsToMany(() => ForumTag, () => ForumPostTag)
   tags: ForumPostAttributes['tags'];
