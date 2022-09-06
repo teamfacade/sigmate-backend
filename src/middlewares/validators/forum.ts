@@ -207,3 +207,15 @@ export const validateGetMyForumPostVote = param('postId')
   .withMessage('NOT_INT')
   .bail()
   .toInt();
+
+export const validateDeleteMyForumPostVote = param('postId')
+  .trim()
+  .escape()
+  .stripLow()
+  .notEmpty()
+  .withMessage('REQUIRED')
+  .bail()
+  .isInt()
+  .withMessage('NOT_INT')
+  .bail()
+  .toInt();

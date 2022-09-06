@@ -23,6 +23,7 @@ import {
 import {
   createForumPost,
   deleteForumPost,
+  deleteForumPostVote,
   getForumPostById,
   getForumPostsByCategory,
   getForumPostVoteCount,
@@ -37,6 +38,7 @@ import User from '../../models/User';
 import ForumPostVote, {
   ForumPostVoteResponse,
 } from '../../models/ForumPostVote';
+import ConflictError from '../../utils/errors/ConflictError';
 
 export const categoryToJSON = (category: Category, all = false) => {
   const categoryJSON = category.toJSON();
@@ -366,6 +368,27 @@ export const getMyForumPostVoteController = async (
     const v = await getMyForumPostVote(fp, user);
     const vr = v ? await forumPostVoteToJSON(v) : null;
     res.status(200).json({ success: true, myVote: vr });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteMyForumPostVoteController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const id = req.params.postId as unknown as number;
+    const user = req.user;
+    const device = req.device;
+    if (!user || !device) throw new UnauthenticatedError();
+    const fp = await ForumPost.findByPk(id);
+    if (!fp) throw new NotFoundError();
+    const v = await getMyForumPostVote(fp, user);
+    if (!v) throw new ConflictError();
+    await deleteForumPostVote(v, user, device);
+    res.status(200).send({ success: true });
   } catch (error) {
     next(error);
   }

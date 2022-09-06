@@ -365,6 +365,34 @@ export const getMyForumPostVote = async (
   }
 };
 
+export const deleteForumPostVote = async (
+  v: ForumPostVote,
+  deletedBy: User,
+  deletedByDevice: UserDevice,
+  transaction: Transaction | undefined = undefined
+) => {
+  try {
+    let managedTx = true;
+    if (!transaction) {
+      transaction = await db.sequelize.transaction();
+      managedTx = false;
+    }
+    try {
+      await Promise.all([
+        v.$set('deletedBy', deletedBy, { transaction }),
+        v.$set('deletedByDevice', deletedByDevice, { transaction }),
+        v.destroy({ transaction }),
+      ]);
+      if (!managedTx) transaction.commit();
+    } catch (error) {
+      if (!managedTx) transaction.rollback();
+      throw error;
+    }
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
 export const voteForumPost = async (
   forumPostId: ForumPostAttributes['id'],
   like: ForumPostVoteAttributes['like'],

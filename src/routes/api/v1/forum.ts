@@ -11,6 +11,7 @@ import {
   validateCreateForumPost,
   validateDeleteCategory,
   validateDeleteForumPost,
+  validateDeleteMyForumPostVote,
   validateGetForumPostById,
   validateGetForumPostsByCategory,
   validateGetMyForumPostVote,
@@ -23,6 +24,7 @@ import {
   createForumPostController,
   deleteCategoryController,
   deleteForumPostByIdController,
+  deleteMyForumPostVoteController,
   getCategoriesController,
   getForumPostByIdController,
   getForumPostsByCategoryController,
@@ -115,6 +117,13 @@ forumRouter
     validateVoteForumPost,
     handleBadRequest,
     voteForumPostController
+  )
+  .delete(
+    passportJwtAuth,
+    isAuthenticated,
+    validateDeleteMyForumPostVote,
+    handleBadRequest,
+    deleteMyForumPostVoteController
   );
 
 export default forumRouter;
