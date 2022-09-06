@@ -43,7 +43,21 @@ export const getForumPostById = async (
   }
   try {
     return await db.sequelize.transaction(async (transaction) => {
-      const forumPost = await ForumPost.findByPk(forumPostId, { transaction });
+      const forumPost = await ForumPost.findByPk(forumPostId, {
+        include: [
+          {
+            model: Category,
+            attributes: ['id', 'name', 'description', 'parentId'],
+            through: { attributes: [] },
+          },
+          {
+            model: ForumTag,
+            attributes: ['id', 'name', 'isBanned'],
+            through: { attributes: [] },
+          },
+        ],
+        transaction,
+      });
       if (forumPost && increaseViewCount) {
         const forumPostView = await ForumPostView.create({}, { transaction });
         const ps: Promise<unknown>[] = [];
