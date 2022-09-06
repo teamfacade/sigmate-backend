@@ -79,6 +79,7 @@ export interface ForumPostResponse
   commentCount?: number;
   myVote?: ForumPostVote | null;
   createdBy: UserPublicResponse;
+  updatedBy: UserPublicResponse;
 }
 
 @Table({

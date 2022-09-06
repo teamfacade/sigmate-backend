@@ -344,3 +344,23 @@ export const updateForumPost = async (
     throw new SequelizeError(error as Error);
   }
 };
+
+export const deleteForumPost = async (
+  forumPostId: number,
+  deletedBy: User,
+  deletedByDevice: UserDevice
+) => {
+  try {
+    return await db.sequelize.transaction(async (transaction) => {
+      const fp = await ForumPost.findByPk(forumPostId, { transaction });
+      if (!fp) throw new NotFoundError();
+      await Promise.all([
+        fp.$set('deletedBy', deletedBy, { transaction }),
+        fp.$set('deletedByDevice', deletedByDevice, { transaction }),
+      ]);
+      return await fp.destroy({ transaction });
+    });
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};

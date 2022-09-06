@@ -103,6 +103,37 @@ export const validateUpdateForumPost = [
     .withMessage('NOT_INT')
     .bail()
     .toInt(),
+  body('title')
+    .optional()
+    .trim()
+    .stripLow()
+    .bail()
+    .isLength({ min: 1, max: 191 })
+    .withMessage('LENGTH')
+    .bail(),
+  body('content')
+    .optional()
+    .trim()
+    .stripLow()
+    .bail()
+    .isLength({ min: 1, max: 16383 })
+    .withMessage('LENGTH'),
+  body('categories')
+    .optional()
+    .isArray()
+    .withMessage('NOT_ARRAY')
+    .bail()
+    .custom(isArrayItemsLength({ min: 1, max: 191 }))
+    .withMessage('LENGTH')
+    .toArray(),
+  body('tags')
+    .optional()
+    .isArray()
+    .withMessage('NOT_ARRAY')
+    .bail()
+    .custom(isArrayItemsLength({ min: 1, max: 191 }))
+    .withMessage('LENGTH')
+    .toArray(),
 ];
 
 export const validateCreateForumPost = [
@@ -121,7 +152,8 @@ export const validateCreateForumPost = [
     .notEmpty()
     .withMessage('REQUIRED')
     .bail()
-    .isLength({ min: 1, max: 16383 }),
+    .isLength({ min: 1, max: 16383 })
+    .withMessage('LENGTH'),
   body('categories')
     .isArray()
     .withMessage('NOT_ARRAY')
@@ -137,3 +169,15 @@ export const validateCreateForumPost = [
     .withMessage('LENGTH')
     .toArray(),
 ];
+
+export const validateDeleteForumPost = param('postId')
+  .trim()
+  .escape()
+  .stripLow()
+  .notEmpty()
+  .withMessage('REQUIRED')
+  .bail()
+  .isInt()
+  .withMessage('NOT_INT')
+  .bail()
+  .toInt();

@@ -9,14 +9,17 @@ import {
   validateCreateCategory,
   validateCreateForumPost,
   validateDeleteCategory,
+  validateDeleteForumPost,
   validateGetForumPostById,
   validateGetForumPostsByCategory,
   validateUpdateCategory,
+  validateUpdateForumPost,
 } from '../../../middlewares/validators/forum';
 import {
   createCategoryController,
   createForumPostController,
   deleteCategoryController,
+  deleteForumPostByIdController,
   getCategoriesController,
   getForumPostByIdController,
   getForumPostsByCategoryController,
@@ -64,8 +67,20 @@ forumRouter
 forumRouter
   .route('/p/:postId')
   .get(validateGetForumPostById, handleBadRequest, getForumPostByIdController)
-  .patch(passportJwtAuth, isAuthenticated, updateForumPostController)
-  .delete();
+  .patch(
+    passportJwtAuth,
+    isAuthenticated,
+    validateUpdateForumPost,
+    handleBadRequest,
+    updateForumPostController
+  )
+  .delete(
+    passportJwtAuth,
+    isAuthenticated,
+    validateDeleteForumPost,
+    handleBadRequest,
+    deleteForumPostByIdController
+  );
 
 forumRouter
   .route('/c/:categoryId/p')

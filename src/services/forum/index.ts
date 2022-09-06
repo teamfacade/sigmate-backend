@@ -22,6 +22,7 @@ import {
 } from '../database/category';
 import {
   createForumPost,
+  deleteForumPost,
   getForumPostById,
   getForumPostsByCategory,
   getForumPostVoteCount,
@@ -61,8 +62,10 @@ const forumPostToJSON = async (
     'createdAt',
     'updatedAt',
     'createdBy',
+    'updatedBy',
   ]) as ForumPostResponse;
   const createdBy = forumPost.createdBy || (await forumPost.$get('createdBy'));
+  const updatedBy = forumPost.updatedBy || (await forumPost.$get('updatedBy'));
   const [viewCount, voteCount, commentCount] = await Promise.all([
     forumPost.$count('views'),
     getForumPostVoteCount(forumPost),
@@ -85,6 +88,8 @@ const forumPostToJSON = async (
     forumResponse.myVote = myVote;
   }
   forumResponse.createdBy = await userPublicInfoToJSON(createdBy);
+  updatedBy &&
+    (forumResponse.updatedBy = await userPublicInfoToJSON(updatedBy));
   return forumResponse;
 };
 
@@ -290,6 +295,23 @@ export const updateForumPostController = async (
     res
       .status(200)
       .json({ success: true, forumPost: await forumPostToJSON(forumPost) });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteForumPostByIdController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const id = req.params.postId as unknown as number;
+    const deletedBy = req.user;
+    const deletedByDevice = req.device;
+    if (!deletedBy || !deletedByDevice) throw new UnauthenticatedError();
+    await deleteForumPost(id, deletedBy, deletedByDevice);
+    res.status(204).send();
   } catch (error) {
     next(error);
   }
