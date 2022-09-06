@@ -1,3 +1,4 @@
+import { ValidationError } from 'express-validator';
 import { Transaction } from 'sequelize/types';
 import { PaginationOptions } from '../../middlewares/handlePagination';
 import db from '../../models';
@@ -6,6 +7,7 @@ import ForumComment from '../../models/ForumComment';
 import ForumPost, {
   ForumPostAttributes,
   ForumPostCreationDTO,
+  ForumPostDTO,
 } from '../../models/ForumPost';
 import ForumPostView from '../../models/ForumPostView';
 import ForumTag, { ForumTagAttributes } from '../../models/ForumTag';
@@ -246,6 +248,98 @@ export const createForumPost = async (
         transaction,
       });
     });
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+export const updateForumPost = async (
+  forumPostDTO: ForumPostDTO,
+  updatedBy: User,
+  updatedByDevice: UserDevice
+) => {
+  // Final validation check
+  const validationErrors: Partial<ValidationError>[] = [];
+  if (!forumPostDTO.id) {
+    validationErrors.push({
+      param: 'id',
+      value: forumPostDTO.id,
+      msg: 'REQUIRED',
+    });
+  }
+
+  if (!updatedBy) {
+    validationErrors.push({
+      param: 'updatedBy',
+      value: forumPostDTO.id,
+      msg: 'UNAUTHENTICATED',
+    });
+  }
+
+  if (!updatedByDevice) {
+    validationErrors.push({
+      param: 'updatedByDevice',
+      value: forumPostDTO.id,
+      msg: 'INTERNAL SERVER ERROR',
+    });
+  }
+
+  if (validationErrors.length) {
+    throw new BadRequestError({
+      clientMessage: 'ERR_DB_FORUMPOST_UPDATE_ID',
+      validationErrors,
+    });
+  }
+
+  try {
+    const forumPostId = await db.sequelize.transaction(async (transaction) => {
+      // Look for the forum post
+      const fp = await ForumPost.findByPk(forumPostDTO.id, { transaction });
+      if (!fp) throw new NotFoundError();
+      const ps: Promise<unknown>[] = [];
+
+      // If content is edited, record the time
+      if (forumPostDTO.content) {
+        forumPostDTO.contentUpdatedAt = new Date();
+      }
+
+      // Update text content
+      if (forumPostDTO.title || forumPostDTO.content) {
+        ps.push(
+          fp.update(
+            {
+              title: forumPostDTO.title,
+              content: forumPostDTO.content,
+              contentUpdatedAt: forumPostDTO.contentUpdatedAt,
+            },
+            { transaction }
+          )
+        );
+      }
+
+      // Update categories
+      if (forumPostDTO.categories) {
+        ps.push(
+          setForumPostCategoryNames(fp, forumPostDTO.categories, transaction)
+        );
+      }
+
+      // Update tags
+      if (forumPostDTO.tags) {
+        ps.push(setForumPostTagNames(fp, forumPostDTO.tags, transaction));
+      }
+
+      // Set updated by
+      ps.push(fp.$set('updatedBy', updatedBy, { transaction }));
+      ps.push(fp.$set('updatedByDevice', updatedByDevice, { transaction }));
+
+      // Wait for all updates to finish
+      await Promise.all(ps);
+
+      return fp.id;
+    });
+
+    return await getForumPostById(forumPostId);
   } catch (error) {
     throw new SequelizeError(error as Error);
   }

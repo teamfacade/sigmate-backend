@@ -6,7 +6,9 @@ import Category, {
 } from '../../models/Category';
 import ForumPost, {
   ForumPostCreateRequestBody,
+  ForumPostDTO,
   ForumPostResponse,
+  ForumPostUpdateRequestBody,
 } from '../../models/ForumPost';
 import ApiError from '../../utils/errors/ApiError';
 import BadRequestError from '../../utils/errors/BadRequestError';
@@ -23,6 +25,7 @@ import {
   getForumPostById,
   getForumPostsByCategory,
   getForumPostVoteCount,
+  updateForumPost,
 } from '../database/forum';
 import { pick } from 'lodash';
 import NotFoundError from '../../utils/errors/NotFoundError';
@@ -54,7 +57,7 @@ const forumPostToJSON = async (
     'comments',
     'categories',
     'tags',
-    'contentUploadedAt',
+    'contentUpdatedAt',
     'createdAt',
     'updatedAt',
     'createdBy',
@@ -252,6 +255,40 @@ export const createForumPostController = async (
     });
     res
       .status(201)
+      .json({ success: true, forumPost: await forumPostToJSON(forumPost) });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateForumPostController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { title, content, categories, tags } =
+      req.body as unknown as ForumPostUpdateRequestBody;
+
+    const id = req.params.postId as unknown as number;
+
+    const updatedBy = req.user;
+    const updatedByDevice = req.device;
+    if (!updatedBy || !updatedByDevice) throw new UnauthenticatedError();
+    const forumPostDTO: ForumPostDTO = {
+      id,
+      title,
+      content,
+      categories,
+      tags,
+    };
+    const forumPost = await updateForumPost(
+      forumPostDTO,
+      updatedBy,
+      updatedByDevice
+    );
+    res
+      .status(200)
       .json({ success: true, forumPost: await forumPostToJSON(forumPost) });
   } catch (error) {
     next(error);

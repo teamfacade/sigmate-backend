@@ -53,6 +53,11 @@ export interface ForumPostCreateRequestBody
   tags: ForumTagAttributes['name'][];
 }
 
+export type ForumPostUpdateRequestBody = Partial<ForumPostCreateRequestBody>;
+
+export type ForumPostDTO = ForumPostUpdateRequestBody &
+  Pick<ForumPostAttributes, 'id' | 'contentUpdatedAt'>;
+
 export type ForumPostCreationDTO = ForumPostCreateRequestBody &
   Pick<ForumPostAttributes, 'createdBy' | 'createdByDevice'>;
 

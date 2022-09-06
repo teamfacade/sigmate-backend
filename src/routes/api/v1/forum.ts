@@ -21,6 +21,7 @@ import {
   getForumPostByIdController,
   getForumPostsByCategoryController,
   updateCategoryController,
+  updateForumPostController,
 } from '../../../services/forum';
 
 const forumRouter = express.Router();
@@ -62,7 +63,9 @@ forumRouter
 
 forumRouter
   .route('/p/:postId')
-  .get(validateGetForumPostById, handleBadRequest, getForumPostByIdController);
+  .get(validateGetForumPostById, handleBadRequest, getForumPostByIdController)
+  .patch(passportJwtAuth, isAuthenticated, updateForumPostController)
+  .delete();
 
 forumRouter
   .route('/c/:categoryId/p')
