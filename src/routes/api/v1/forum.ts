@@ -9,10 +9,12 @@ import handlePagination from '../../../middlewares/handlePagination';
 import {
   validateCreateCategory,
   validateCreateForumPost,
+  validateCreateForumPostComment,
   validateDeleteCategory,
   validateDeleteForumPost,
   validateDeleteMyForumPostVote,
   validateGetForumPostById,
+  validateGetForumPostComments,
   validateGetForumPostsByCategory,
   validateGetMyForumPostVote,
   validateUpdateCategory,
@@ -21,12 +23,14 @@ import {
 } from '../../../middlewares/validators/forum';
 import {
   createCategoryController,
+  createForumPostCommentController,
   createForumPostController,
   deleteCategoryController,
   deleteForumPostByIdController,
   deleteMyForumPostVoteController,
   getCategoriesController,
   getForumPostByIdController,
+  getForumPostCommentsController,
   getForumPostsByCategoryController,
   getMyForumPostVoteController,
   updateCategoryController,
@@ -95,15 +99,6 @@ forumRouter
   );
 
 forumRouter
-  .route('/c/:categoryId/p')
-  .get(
-    handlePagination,
-    validateGetForumPostsByCategory,
-    handleBadRequest,
-    getForumPostsByCategoryController
-  );
-
-forumRouter
   .route('/p/:postId/vote')
   .get(
     passportJwtAuth,
@@ -124,6 +119,32 @@ forumRouter
     validateDeleteMyForumPostVote,
     handleBadRequest,
     deleteMyForumPostVoteController
+  );
+
+// Comments
+forumRouter
+  .route('/p/:postId/cm')
+  .get(
+    passportJwtAuthOptional,
+    handlePagination,
+    validateGetForumPostComments,
+    handleBadRequest,
+    getForumPostCommentsController
+  )
+  .post(
+    passportJwtAuth,
+    validateCreateForumPostComment,
+    handleBadRequest,
+    createForumPostCommentController
+  );
+
+forumRouter
+  .route('/c/:categoryId/p')
+  .get(
+    handlePagination,
+    validateGetForumPostsByCategory,
+    handleBadRequest,
+    getForumPostsByCategoryController
   );
 
 export default forumRouter;

@@ -219,3 +219,39 @@ export const validateDeleteMyForumPostVote = param('postId')
   .withMessage('NOT_INT')
   .bail()
   .toInt();
+
+export const validateGetForumPostComments = param('postId')
+  .trim()
+  .escape()
+  .stripLow()
+  .notEmpty()
+  .withMessage('REQUIRED')
+  .bail()
+  .isInt()
+  .withMessage('NOT_INT')
+  .bail()
+  .toInt();
+
+export const validateCreateForumPostComment = [
+  param('postId')
+    .trim()
+    .escape()
+    .stripLow()
+    .notEmpty()
+    .withMessage('REQUIRED')
+    .bail()
+    .isInt()
+    .withMessage('NOT_INT')
+    .bail()
+    .toInt(),
+  body('content')
+    .trim()
+    .stripLow()
+    .notEmpty()
+    .withMessage('REQUIRED')
+    .bail()
+    .isLength({ min: 1, max: 16383 })
+    .withMessage('LENGTH')
+    .bail(),
+  body('parentId').optional().isInt().withMessage('NOT_INT').bail().toInt(),
+];

@@ -3,7 +3,10 @@ import { Transaction } from 'sequelize/types';
 import { PaginationOptions } from '../../middlewares/handlePagination';
 import db from '../../models';
 import Category, { CategoryAttributes } from '../../models/Category';
-import ForumComment from '../../models/ForumComment';
+import ForumComment, {
+  ForumCommentAttributes,
+  ForumCommentCreationAttributes,
+} from '../../models/ForumComment';
 import ForumPost, {
   ForumPostAttributes,
   ForumPostCreationDTO,
@@ -60,6 +63,8 @@ export const getForumPostById = async (
             attributes: ['id', 'name', 'isBanned'],
             through: { attributes: [] },
           },
+          { model: User, as: 'createdBy' },
+          { model: ForumComment, limit: 10 },
         ],
         transaction,
       });
@@ -432,6 +437,124 @@ export const voteForumPost = async (
 
       return myNewVote;
     });
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+export const getForumPostComments = async (
+  forumPost: ForumPost,
+  pg: PaginationOptions
+) => {
+  if (!forumPost) throw new NotFoundError();
+  const { limit, offset } = pg;
+
+  try {
+    return await forumPost.$get('comments', {
+      include: [{ model: User, as: 'createdBy' }],
+      limit,
+      offset,
+    });
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+export const getForumPostCommentStats = async (c: ForumComment) => {
+  if (!c) throw new NotFoundError();
+  try {
+    const [likeCount, dislikeCount, replyCount] = await Promise.all([
+      c.$count('votes', { where: { like: true } }),
+      c.$count('votes', { where: { like: false } }),
+      c.$count('replies'),
+    ]);
+    const voteCount = likeCount - dislikeCount;
+    return [voteCount, replyCount];
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+export const getForumCommentById = async (id: ForumCommentAttributes['id']) => {
+  if (!id) return null;
+  try {
+    return await ForumComment.findByPk(id, {
+      include: [
+        { model: User, as: 'createdBy' },
+        {
+          model: ForumComment,
+          as: 'parent',
+          attributes: ['id', 'content'],
+          include: [{ model: User, as: 'createdBy' }],
+        },
+        {
+          model: ForumComment,
+          as: 'replies',
+          attributes: ['id', 'content'],
+          include: [{ model: User, as: 'createdBy' }],
+          limit: 10,
+        },
+      ],
+    });
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+export const createForumPostComment = async (
+  fp: ForumPost,
+  forumCommentCreationDTO: ForumCommentCreationAttributes,
+  createdBy: User,
+  createdByDevice: UserDevice
+) => {
+  if (!forumCommentCreationDTO.content) {
+    throw new BadRequestError({
+      validationErrors: [
+        {
+          param: 'content',
+          value: forumCommentCreationDTO.content,
+          msg: 'REQUIRED',
+        },
+      ],
+    });
+  }
+  // Forum post not found
+  if (!fp) throw new NotFoundError();
+
+  try {
+    const id = await db.sequelize.transaction(async (transaction) => {
+      // Create a comment
+      const c = await ForumComment.create(
+        { content: forumCommentCreationDTO.content },
+        { transaction }
+      );
+
+      // Is this a reply to another comment?
+      let pc: ForumComment | null = null; // parent comment
+      if (forumCommentCreationDTO.parentId) {
+        pc = await ForumComment.findByPk(forumCommentCreationDTO.parentId, {
+          transaction,
+        });
+        // Parent comment not found
+        if (!pc) throw new NotFoundError();
+      }
+      const ps = [
+        // promises
+        c.$set('createdBy', createdBy, { transaction }), // Record who wrote the comment
+        c.$set('createdByDevice', createdByDevice, { transaction }),
+        fp.$add('comments', c, { transaction }), // Add the comment to the post
+      ];
+      if (pc) {
+        // If this is a reply,
+        // Connect the parent with the reply
+        ps.push(c.$set('parent', pc, { transaction }));
+      }
+      await Promise.all(ps);
+
+      return c.id;
+    });
+
+    return await getForumCommentById(id);
   } catch (error) {
     throw new SequelizeError(error as Error);
   }

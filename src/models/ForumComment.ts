@@ -11,26 +11,51 @@ import { Optional } from 'sequelize/types';
 import ForumCommentVote from './ForumCommentVote';
 import ForumPost from './ForumPost';
 import ForumReport from './ForumReport';
-import User from './User';
+import User, { UserPublicResponse } from './User';
 import UserDevice from './UserDevice';
 
 export interface ForumCommentAttributes {
   id: number;
   content: string;
-  createdBy: User;
-  createdByDevice: UserDevice;
-  deletedBy: User;
-  deletedByDevice: UserDevice;
-  votes: ForumCommentVote[];
-  post: ForumPost;
+  createdBy?: User;
+  createdByDevice?: UserDevice;
+  deletedBy?: User;
+  deletedByDevice?: UserDevice;
+  votes?: ForumCommentVote[];
+  post?: ForumPost;
+  parentId?: number;
   parent?: ForumComment;
   replies?: ForumComment[];
   reports?: ForumReport[];
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export type ForumCommentCreationAttributes = Optional<
   ForumCommentAttributes,
   'id'
+>;
+
+export type ForumCommentCreationDTO = Required<
+  Pick<ForumCommentCreationAttributes, 'content' | 'parentId'>
+>;
+
+export interface ForumCommentResponse
+  extends Pick<
+    ForumCommentAttributes,
+    'id' | 'content' | 'createdAt' | 'updatedAt'
+  > {
+  voteCount: number;
+  replyCount: number;
+  parent?: ForumCommentResponse;
+  replies?: ForumCommentResponse[];
+  parentId?: ForumCommentAttributes['id'];
+  createdBy?: UserPublicResponse;
+}
+
+export type ForumCommentCreateRequest = Pick<
+  ForumCommentAttributes,
+  'content' | 'parentId'
 >;
 
 @Table({
@@ -47,31 +72,37 @@ export default class ForumComment extends Model<
   ForumCommentCreationAttributes
 > {
   @AllowNull(false)
-  @Column(DataType.TEXT)
+  @Column(DataType.STRING)
   content!: ForumCommentAttributes['content'];
 
-  @BelongsTo(() => User, 'createdById')
-  createdBy!: ForumCommentAttributes['createdBy'];
+  @BelongsTo(() => User, { as: 'createdBy', foreignKey: 'createdById' })
+  createdBy: ForumCommentAttributes['createdBy'];
 
-  @BelongsTo(() => UserDevice, 'createdByDeviceId')
-  createdByDevice!: ForumCommentAttributes['createdByDevice'];
+  @BelongsTo(() => UserDevice, {
+    as: 'createdByDevice',
+    foreignKey: 'createdByDeviceId',
+  })
+  createdByDevice: ForumCommentAttributes['createdByDevice'];
 
-  @BelongsTo(() => User, 'deletedById')
-  deletedBy!: ForumCommentAttributes['deletedBy'];
+  @BelongsTo(() => User, { as: 'deletedBy', foreignKey: 'deletedById' })
+  deletedBy: ForumCommentAttributes['deletedBy'];
 
-  @BelongsTo(() => UserDevice, 'deletedByDeviceId')
-  deletedByDevice!: ForumCommentAttributes['deletedByDevice'];
+  @BelongsTo(() => UserDevice, {
+    as: 'deletedByDevice',
+    foreignKey: 'deletedByDeviceId',
+  })
+  deletedByDevice: ForumCommentAttributes['deletedByDevice'];
 
   @HasMany(() => ForumCommentVote, 'forumCommentId')
-  votes!: ForumCommentAttributes['votes'];
+  votes: ForumCommentAttributes['votes'];
 
   @BelongsTo(() => ForumPost, 'forumPostId')
-  post!: ForumCommentAttributes['post'];
+  post: ForumCommentAttributes['post'];
 
-  @BelongsTo(() => ForumComment, 'parentId')
+  @BelongsTo(() => ForumComment, { as: 'parent', foreignKey: 'parentId' })
   parent: ForumCommentAttributes['parent'];
 
-  @HasMany(() => ForumComment, 'parentId')
+  @HasMany(() => ForumComment, { as: 'replies', foreignKey: 'parentId' })
   replies: ForumCommentAttributes['replies'];
 
   @HasMany(() => ForumReport, 'forumCommentId')

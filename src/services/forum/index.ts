@@ -22,9 +22,12 @@ import {
 } from '../database/category';
 import {
   createForumPost,
+  createForumPostComment,
   deleteForumPost,
   deleteForumPostVote,
   getForumPostById,
+  getForumPostComments,
+  getForumPostCommentStats,
   getForumPostsByCategory,
   getForumPostVoteCount,
   getMyForumPostVote,
@@ -39,6 +42,11 @@ import ForumPostVote, {
   ForumPostVoteResponse,
 } from '../../models/ForumPostVote';
 import ConflictError from '../../utils/errors/ConflictError';
+import ForumComment, {
+  ForumCommentCreateRequest,
+  ForumCommentCreationDTO,
+  ForumCommentResponse,
+} from '../../models/ForumComment';
 
 export const categoryToJSON = (category: Category, all = false) => {
   const categoryJSON = category.toJSON();
@@ -104,6 +112,31 @@ const forumPostVoteToJSON = async (v: ForumPostVote) => {
     createdBy: await userPublicInfoToJSON(createdBy as User),
   };
   return vr;
+};
+
+const forumCommentToJSON = async (c: ForumComment | null) => {
+  if (!c) return c;
+  const createdBy = c.createdBy || (await c.$get('createdBy'));
+  const { parentId } = c.toJSON();
+  const [voteCount, replyCount] = await getForumPostCommentStats(c);
+  const cr: ForumCommentResponse = {
+    id: c.id,
+    content: c.content,
+    createdAt: c.createdAt,
+    createdBy: await userPublicInfoToJSON(createdBy as User),
+    voteCount,
+    replyCount,
+    parentId,
+  };
+  if (c.parent) {
+    const p = await forumCommentToJSON(c.parent);
+    p && (cr.parent = p);
+  }
+  if (c.replies) {
+    const rs = await Promise.all(c.replies.map((c) => forumCommentToJSON(c)));
+    cr.replies = rs as ForumCommentResponse[];
+  }
+  return cr;
 };
 
 export const getCategoriesController = async (
@@ -389,6 +422,64 @@ export const deleteMyForumPostVoteController = async (
     if (!v) throw new ConflictError();
     await deleteForumPostVote(v, user, device);
     res.status(200).send({ success: true });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getForumPostCommentsController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const postId = req.params.postId as unknown as number;
+    const pg = req.pg;
+    if (!pg) throw new BadRequestError();
+    const fp = await getForumPostById(postId);
+    if (!fp) throw new NotFoundError();
+    const cs = await getForumPostComments(fp, pg);
+    const crs = await Promise.all(cs.map((c) => forumCommentToJSON(c)));
+    res.status(200).json({
+      success: true,
+      forumPost: { id: fp.id },
+      forumComments: crs,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const createForumPostCommentController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const postId = req.params.postId as unknown as number;
+    const createdBy = req.user;
+    const createdByDevice = req.device;
+    if (!createdBy || !createdByDevice) throw new UnauthenticatedError();
+    const fp = await getForumPostById(postId);
+    if (!fp) throw new NotFoundError();
+    const { content, parentId } = req.body as ForumCommentCreateRequest;
+    if (!content || !parentId) {
+      throw new BadRequestError();
+    }
+    const forumCommentCreationDTO: ForumCommentCreationDTO = {
+      content,
+      parentId,
+    };
+    const c = await createForumPostComment(
+      fp,
+      forumCommentCreationDTO,
+      createdBy,
+      createdByDevice
+    );
+    res.status(201).json({
+      success: true,
+      forumPostComment: await forumCommentToJSON(c),
+    });
   } catch (error) {
     next(error);
   }
