@@ -64,7 +64,12 @@ export const getForumPostById = async (
             through: { attributes: [] },
           },
           { model: User, as: 'createdBy' },
-          { model: ForumComment, limit: 10 },
+          {
+            model: ForumComment,
+            attributes: ['id', 'content', 'createdAt', 'parentId'],
+            include: [{ model: User, as: 'createdBy' }],
+            limit: 10,
+          },
         ],
         transaction,
       });
@@ -451,7 +456,11 @@ export const getForumPostComments = async (
 
   try {
     return await forumPost.$get('comments', {
-      include: [{ model: User, as: 'createdBy' }],
+      include: [
+        { model: User, as: 'createdBy' },
+        { model: ForumPost, as: 'replies' },
+        { model: ForumPost, as: 'replies' },
+      ],
       limit,
       offset,
     });

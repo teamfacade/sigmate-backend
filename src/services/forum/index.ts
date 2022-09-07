@@ -70,7 +70,6 @@ const forumPostToJSON = async (
     'id',
     'title',
     'content',
-    'comments',
     'categories',
     'tags',
     'contentUpdatedAt',
@@ -99,6 +98,12 @@ const forumPostToJSON = async (
   forumResponse.createdBy = await userPublicInfoToJSON(createdBy);
   updatedBy &&
     (forumResponse.updatedBy = await userPublicInfoToJSON(updatedBy));
+  if (forumPost.comments) {
+    const crs = await Promise.all(
+      forumPost.comments.map((c) => forumCommentToJSON(c))
+    );
+    forumResponse.comments = crs as ForumCommentResponse[];
+  }
   return forumResponse;
 };
 
@@ -442,8 +447,10 @@ export const getForumPostCommentsController = async (
     const crs = await Promise.all(cs.map((c) => forumCommentToJSON(c)));
     res.status(200).json({
       success: true,
-      forumPost: { id: fp.id },
-      forumComments: crs,
+      forumPost: {
+        id: fp.id,
+        comments: crs,
+      },
     });
   } catch (error) {
     next(error);
@@ -463,7 +470,7 @@ export const createForumPostCommentController = async (
     const fp = await getForumPostById(postId);
     if (!fp) throw new NotFoundError();
     const { content, parentId } = req.body as ForumCommentCreateRequest;
-    if (!content || !parentId) {
+    if (!content) {
       throw new BadRequestError();
     }
     const forumCommentCreationDTO: ForumCommentCreationDTO = {

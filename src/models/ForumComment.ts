@@ -36,8 +36,9 @@ export type ForumCommentCreationAttributes = Optional<
   'id'
 >;
 
-export type ForumCommentCreationDTO = Required<
-  Pick<ForumCommentCreationAttributes, 'content' | 'parentId'>
+export type ForumCommentCreationDTO = Pick<
+  ForumCommentCreationAttributes,
+  'content' | 'parentId'
 >;
 
 export interface ForumCommentResponse

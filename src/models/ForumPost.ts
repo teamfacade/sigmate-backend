@@ -10,7 +10,7 @@ import {
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
 import Category, { CategoryAttributes } from './Category';
-import ForumComment from './ForumComment';
+import ForumComment, { ForumCommentResponse } from './ForumComment';
 import ForumPostCategory from './ForumPostCategory';
 import ForumPostImage from './ForumPostImage';
 import ForumPostTag from './ForumPostTag';
@@ -69,11 +69,11 @@ export interface ForumPostResponse
     | 'content'
     | 'views'
     | 'votes'
-    | 'comments'
     | 'categories'
     | 'tags'
     | 'contentUpdatedAt'
   > {
+  comments?: ForumCommentResponse[];
   viewCount?: number;
   voteCount?: number;
   commentCount?: number;
