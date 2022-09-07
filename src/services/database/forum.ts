@@ -458,8 +458,8 @@ export const getForumPostComments = async (
     return await forumPost.$get('comments', {
       include: [
         { model: User, as: 'createdBy' },
-        { model: ForumPost, as: 'replies' },
-        { model: ForumPost, as: 'replies' },
+        { model: ForumComment, as: 'replies' },
+        { model: ForumComment, as: 'parent' },
       ],
       limit,
       offset,
