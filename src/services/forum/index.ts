@@ -23,17 +23,21 @@ import {
 import {
   createForumPost,
   createForumPostComment,
+  deleteForumCommentVote,
   deleteForumPost,
   deleteForumPostComment,
   deleteForumPostVote,
+  getForumCommentById,
   getForumPostById,
   getForumPostComments,
   getForumPostCommentStats,
   getForumPostsByCategory,
   getForumPostVoteCount,
+  getMyForumCommentVote,
   getMyForumPostVote,
   updateForumComment,
   updateForumPost,
+  voteForumComment,
   voteForumPost,
 } from '../database/forum';
 import { pick } from 'lodash';
@@ -49,6 +53,9 @@ import ForumComment, {
   ForumCommentCreationDTO,
   ForumCommentResponse,
 } from '../../models/ForumComment';
+import ForumCommentVote, {
+  ForumCommentVoteResponse,
+} from '../../models/ForumCommentVote';
 
 export const categoryToJSON = (category: Category, all = false) => {
   const categoryJSON = category.toJSON();
@@ -121,7 +128,23 @@ const forumPostVoteToJSON = async (v: ForumPostVote) => {
   return vr;
 };
 
-const forumCommentToJSON = async (c: ForumComment | null) => {
+const forumCommentVoteToJSON = async (v: ForumCommentVote) => {
+  const vj = v.toJSON();
+  const createdBy = v.createdBy || (await v.$get('createdBy'));
+  if (!createdBy) throw new ConflictError();
+  const vr: ForumCommentVoteResponse = {
+    id: vj.id,
+    like: vj.like,
+    createdAt: v.createdAt,
+    createdBy: await userPublicInfoToJSON(createdBy),
+  };
+  return vr;
+};
+
+const forumCommentToJSON = async (
+  c: ForumComment | null,
+  myself: User | null = null
+) => {
   if (!c) return c;
   const createdBy = c.createdBy || (await c.$get('createdBy'));
   const { parentId } = c.toJSON();
@@ -142,6 +165,12 @@ const forumCommentToJSON = async (c: ForumComment | null) => {
   if (c.replies) {
     const rs = await Promise.all(c.replies.map((c) => forumCommentToJSON(c)));
     cr.replies = rs as ForumCommentResponse[];
+  }
+  if (myself) {
+    const myVote = await getMyForumCommentVote(c, myself);
+    cr.myVote = myVote ? await forumCommentVoteToJSON(myVote) : null;
+  } else {
+    cr.myVote = null;
   }
   return cr;
 };
@@ -428,7 +457,7 @@ export const deleteMyForumPostVoteController = async (
     const v = await getMyForumPostVote(fp, user);
     if (!v) throw new ConflictError();
     await deleteForumPostVote(v, user, device);
-    res.status(200).send({ success: true });
+    res.status(200).json({ success: true });
   } catch (error) {
     next(error);
   }
@@ -501,37 +530,19 @@ export const updateForumPostCommentController = async (
 ) => {
   try {
     // Data from request
-    const postId = req.params.postId as unknown as number;
     const commentId = req.params.commentId as unknown as number;
     const content = req.body.content as string;
     const updatedBy = req.user;
     const updatedByDevice = req.device;
 
     // Validation
-    if (!postId) {
-      throw new BadRequestError({
-        validationErrors: [
-          {
-            location: 'params',
-            param: 'postId',
-            value: postId,
-            msg: 'REQUIRED',
-          },
-        ],
-      });
-    }
-
-    // If forum post is not found, 404.
-    const fp = await ForumPost.findByPk(postId);
-    if (!fp) throw new NotFoundError();
-
     if (!commentId) {
       throw new BadRequestError({
         validationErrors: [
           {
             location: 'params',
-            param: 'postId',
-            value: postId,
+            param: 'commentId',
+            value: commentId,
             msg: 'REQUIRED',
           },
         ],
@@ -566,36 +577,18 @@ export const deleteForumPostCommentController = async (
 ) => {
   try {
     // Parse data from request
-    const postId = req.params.postId as unknown as number;
     const commentId = req.params.commentId as unknown as number;
     const deletedBy = req.user;
     const deletedByDevice = req.device;
 
     // Validation
-    if (!postId) {
-      throw new BadRequestError({
-        validationErrors: [
-          {
-            location: 'params',
-            param: 'postId',
-            value: postId,
-            msg: 'REQUIRED',
-          },
-        ],
-      });
-    }
-
-    // If forum post is not found, 404.
-    const fp = await ForumPost.findByPk(postId);
-    if (!fp) throw new NotFoundError();
-
     if (!commentId) {
       throw new BadRequestError({
         validationErrors: [
           {
             location: 'params',
-            param: 'postId',
-            value: postId,
+            param: 'commentId',
+            value: commentId,
             msg: 'REQUIRED',
           },
         ],
@@ -611,6 +604,94 @@ export const deleteForumPostCommentController = async (
     );
     if (!c) throw new NotFoundError(); // Comment not found, 404.
 
+    res.status(200).json({ success: true });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const voteForumCommentController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const commentId = req.params.commentId as unknown as number;
+    const like = req.body.like as unknown as boolean;
+    const createdBy = req.user;
+    const createdByDevice = req.device;
+
+    if (!commentId) {
+      throw new BadRequestError({
+        validationErrors: [
+          {
+            location: 'params',
+            param: 'commentId',
+            value: commentId,
+            msg: 'REQUIRED',
+          },
+        ],
+      });
+    }
+    if (like === undefined || like === null) {
+      throw new BadRequestError({
+        validationErrors: [
+          {
+            location: 'body',
+            param: 'like',
+            value: like,
+            msg: 'REQUIRED',
+          },
+        ],
+      });
+    }
+    if (!createdBy || !createdByDevice) throw new UnauthenticatedError();
+
+    const c = await voteForumComment(
+      commentId,
+      like,
+      createdBy,
+      createdByDevice
+    );
+    const response = {
+      success: true,
+      forumPostComment: await forumCommentToJSON(c, createdBy),
+    };
+    res.status(200).json(response);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteForumCommentVoteController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const commentId = req.params.commentId as unknown as number;
+    const deletedBy = req.user;
+    const deletedByDevice = req.device;
+
+    if (!commentId) {
+      throw new BadRequestError({
+        validationErrors: [
+          {
+            location: 'params',
+            param: 'commentId',
+            value: commentId,
+            msg: 'REQUIRED',
+          },
+        ],
+      });
+    }
+
+    if (!deletedBy || !deletedByDevice) throw new UnauthenticatedError();
+    const c = await getForumCommentById(commentId);
+    if (!c) throw new NotFoundError();
+    const v = await getMyForumCommentVote(c, deletedBy);
+    if (!v) throw new ConflictError();
+    await deleteForumCommentVote(v, deletedBy, deletedByDevice);
     res.status(200).json({ success: true });
   } catch (error) {
     next(error);

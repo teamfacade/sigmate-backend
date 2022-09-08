@@ -8,7 +8,7 @@ import {
   Table,
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
-import ForumCommentVote from './ForumCommentVote';
+import ForumCommentVote, { ForumCommentVoteResponse } from './ForumCommentVote';
 import ForumPost from './ForumPost';
 import ForumReport from './ForumReport';
 import User, { UserPublicResponse } from './User';
@@ -56,6 +56,7 @@ export interface ForumCommentResponse
   replies?: ForumCommentResponse[];
   parentId?: ForumCommentAttributes['id'];
   createdBy?: UserPublicResponse;
+  myVote?: ForumCommentVoteResponse | null;
 }
 
 export type ForumCommentCreateRequest = Pick<

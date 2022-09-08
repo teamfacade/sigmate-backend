@@ -11,6 +11,7 @@ import {
   validateCreateForumPost,
   validateCreateForumPostComment,
   validateDeleteCategory,
+  validateDeleteForumCommentVote,
   validateDeleteForumPost,
   validateDeleteForumPostComment,
   validateDeleteMyForumPostVote,
@@ -21,6 +22,7 @@ import {
   validateUpdateCategory,
   validateUpdateForumPost,
   validateUpdateForumPostComment,
+  validateVoteForumComment,
   validateVoteForumPost,
 } from '../../../middlewares/validators/forum';
 import {
@@ -28,7 +30,9 @@ import {
   createForumPostCommentController,
   createForumPostController,
   deleteCategoryController,
+  deleteForumCommentVoteController,
   deleteForumPostByIdController,
+  deleteForumPostCommentController,
   deleteMyForumPostVoteController,
   getCategoriesController,
   getForumPostByIdController,
@@ -38,6 +42,7 @@ import {
   updateCategoryController,
   updateForumPostCommentController,
   updateForumPostController,
+  voteForumCommentController,
   voteForumPostController,
 } from '../../../services/forum';
 
@@ -142,14 +147,34 @@ forumRouter
   );
 
 forumRouter
-  .route('/p/:postId/cm/:commentId')
+  .route('/cm/:commentId')
   .patch(
     passportJwtAuth,
     validateUpdateForumPostComment,
     handleBadRequest,
     updateForumPostCommentController
   )
-  .delete(passportJwtAuth, validateDeleteForumPostComment, handleBadRequest);
+  .delete(
+    passportJwtAuth,
+    validateDeleteForumPostComment,
+    handleBadRequest,
+    deleteForumPostCommentController
+  );
+
+forumRouter
+  .route('/cm/:commentId/vote')
+  .post(
+    passportJwtAuth,
+    validateVoteForumComment,
+    handleBadRequest,
+    voteForumCommentController
+  )
+  .delete(
+    passportJwtAuth,
+    validateDeleteForumCommentVote,
+    handleBadRequest,
+    deleteForumCommentVoteController
+  );
 
 forumRouter
   .route('/c/:categoryId/p')

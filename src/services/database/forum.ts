@@ -8,6 +8,7 @@ import ForumComment, {
   ForumCommentCreationAttributes,
   ForumCommentDTO,
 } from '../../models/ForumComment';
+import ForumCommentVote from '../../models/ForumCommentVote';
 import ForumPost, {
   ForumPostAttributes,
   ForumPostCreationDTO,
@@ -629,7 +630,7 @@ export const updateForumComment = async (
   try {
     return await db.sequelize.transaction(async (transaction) => {
       const c = await ForumComment.findByPk(id, { transaction });
-      if (!c) return null;
+      if (!c) throw new NotFoundError();
       await Promise.all([
         c.update({ content }, { transaction }),
         c.$set('updatedBy', updatedBy, { transaction }),
@@ -650,13 +651,108 @@ export const deleteForumPostComment = async (
   try {
     return await db.sequelize.transaction(async (transaction) => {
       const c = await ForumComment.findByPk(forumCommentId, { transaction });
-      if (!c) return null;
+      if (!c) throw new NotFoundError();
       await Promise.all([
         c.$set('deletedBy', deletedBy, { transaction }),
         c.$set('deletedByDevice', deletedByDevice, { transaction }),
         c.destroy({ transaction }),
       ]);
       return c;
+    });
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+export const voteForumComment = async (
+  forumCommentId: number,
+  like: boolean,
+  createdBy: User,
+  createdByDevice: UserDevice
+) => {
+  try {
+    return await db.sequelize.transaction(async (transaction) => {
+      // Find the forum comment
+      const c = await ForumComment.findByPk(forumCommentId, { transaction });
+      if (!c) throw new NotFoundError();
+      const ps: Promise<unknown>[] = [];
+
+      // Have I voted before?
+      const myVote = await getMyForumCommentVote(c, createdBy, transaction);
+      if (myVote) {
+        // If I am attempting to vote the same opinion again, stop. No need.
+        if (myVote.like === like) return c;
+
+        // If not,
+        // delete old vote
+        ps.push(myVote.$set('deletedBy', createdBy, { transaction }));
+        ps.push(
+          myVote.$set('deletedByDevice', createdByDevice, { transaction })
+        );
+        ps.push(myVote.destroy({ transaction }));
+      }
+
+      // Create new vote
+      const myNewVote = await ForumCommentVote.create(
+        { like },
+        { transaction }
+      );
+      ps.push(myNewVote.$set('comment', c, { transaction }));
+      ps.push(myNewVote.$set('createdBy', createdBy, { transaction }));
+      ps.push(
+        myNewVote.$set('createdByDevice', createdByDevice, { transaction })
+      );
+
+      await Promise.all(ps);
+      return c;
+    });
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+export const getMyForumCommentVote = async (
+  forumComment: ForumComment,
+  myself: User,
+  transaction: Transaction | undefined = undefined
+) => {
+  if (!forumComment) throw new NotFoundError();
+  if (!myself) throw new UnauthenticatedError();
+  try {
+    const vs = await forumComment.$get('votes', {
+      include: [
+        {
+          model: User,
+          as: 'createdBy',
+          where: { id: myself.id },
+        },
+      ],
+      limit: 1,
+      order: [['createdAt', 'DESC']],
+      transaction,
+    });
+    if (!vs || vs.length === 0) {
+      return null;
+    }
+    return vs[0];
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+export const deleteForumCommentVote = async (
+  v: ForumCommentVote,
+  deletedBy: User,
+  deletedByDevice: UserDevice
+) => {
+  try {
+    return await db.sequelize.transaction(async (transaction) => {
+      if (!v) throw new NotFoundError();
+      await Promise.all([
+        v.$set('deletedBy', deletedBy, { transaction }),
+        v.$set('deletedByDevice', deletedByDevice, { transaction }),
+        v.destroy({ transaction }),
+      ]);
     });
   } catch (error) {
     throw new SequelizeError(error as Error);

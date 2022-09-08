@@ -257,17 +257,6 @@ export const validateCreateForumPostComment = [
 ];
 
 export const validateUpdateForumPostComment = [
-  param('postId')
-    .trim()
-    .escape()
-    .stripLow()
-    .notEmpty()
-    .withMessage('REQUIRED')
-    .bail()
-    .isInt()
-    .withMessage('NOT_INT')
-    .bail()
-    .toInt(),
   param('commentId')
     .trim()
     .escape()
@@ -291,7 +280,7 @@ export const validateUpdateForumPostComment = [
 ];
 
 export const validateDeleteForumPostComment = [
-  param('postId')
+  param('commentId')
     .trim()
     .escape()
     .stripLow()
@@ -302,6 +291,33 @@ export const validateDeleteForumPostComment = [
     .withMessage('NOT_INT')
     .bail()
     .toInt(),
+];
+
+export const validateVoteForumComment = [
+  param('commentId')
+    .trim()
+    .escape()
+    .stripLow()
+    .notEmpty()
+    .withMessage('REQUIRED')
+    .bail()
+    .isInt()
+    .withMessage('NOT_INT')
+    .bail()
+    .toInt(),
+  body('like')
+    .trim()
+    .stripLow()
+    .notEmpty()
+    .withMessage('REQUIRED')
+    .bail()
+    .isBoolean()
+    .withMessage('NOT_BOOLEAN')
+    .bail()
+    .toBoolean(),
+];
+
+export const validateDeleteForumCommentVote = [
   param('commentId')
     .trim()
     .escape()
