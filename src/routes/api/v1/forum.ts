@@ -12,6 +12,7 @@ import {
   validateCreateForumPostComment,
   validateDeleteCategory,
   validateDeleteForumPost,
+  validateDeleteForumPostComment,
   validateDeleteMyForumPostVote,
   validateGetForumPostById,
   validateGetForumPostComments,
@@ -19,6 +20,7 @@ import {
   validateGetMyForumPostVote,
   validateUpdateCategory,
   validateUpdateForumPost,
+  validateUpdateForumPostComment,
   validateVoteForumPost,
 } from '../../../middlewares/validators/forum';
 import {
@@ -34,6 +36,7 @@ import {
   getForumPostsByCategoryController,
   getMyForumPostVoteController,
   updateCategoryController,
+  updateForumPostCommentController,
   updateForumPostController,
   voteForumPostController,
 } from '../../../services/forum';
@@ -137,6 +140,16 @@ forumRouter
     handleBadRequest,
     createForumPostCommentController
   );
+
+forumRouter
+  .route('/p/:postId/cm/:commentId')
+  .patch(
+    passportJwtAuth,
+    validateUpdateForumPostComment,
+    handleBadRequest,
+    updateForumPostCommentController
+  )
+  .delete(passportJwtAuth, validateDeleteForumPostComment, handleBadRequest);
 
 forumRouter
   .route('/c/:categoryId/p')

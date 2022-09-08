@@ -24,6 +24,7 @@ import {
   createForumPost,
   createForumPostComment,
   deleteForumPost,
+  deleteForumPostComment,
   deleteForumPostVote,
   getForumPostById,
   getForumPostComments,
@@ -31,6 +32,7 @@ import {
   getForumPostsByCategory,
   getForumPostVoteCount,
   getMyForumPostVote,
+  updateForumComment,
   updateForumPost,
   voteForumPost,
 } from '../database/forum';
@@ -487,6 +489,129 @@ export const createForumPostCommentController = async (
       success: true,
       forumPostComment: await forumCommentToJSON(c),
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateForumPostCommentController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    // Data from request
+    const postId = req.params.postId as unknown as number;
+    const commentId = req.params.commentId as unknown as number;
+    const content = req.body.content as string;
+    const updatedBy = req.user;
+    const updatedByDevice = req.device;
+
+    // Validation
+    if (!postId) {
+      throw new BadRequestError({
+        validationErrors: [
+          {
+            location: 'params',
+            param: 'postId',
+            value: postId,
+            msg: 'REQUIRED',
+          },
+        ],
+      });
+    }
+
+    // If forum post is not found, 404.
+    const fp = await ForumPost.findByPk(postId);
+    if (!fp) throw new NotFoundError();
+
+    if (!commentId) {
+      throw new BadRequestError({
+        validationErrors: [
+          {
+            location: 'params',
+            param: 'postId',
+            value: postId,
+            msg: 'REQUIRED',
+          },
+        ],
+      });
+    }
+    if (!updatedBy || !updatedByDevice) throw new UnauthenticatedError();
+
+    // Perform the update
+    const c = await updateForumComment(
+      { id: commentId, content },
+      updatedBy,
+      updatedByDevice
+    );
+
+    // If comment not found, 404.
+    if (!c) throw new NotFoundError();
+
+    const response = {
+      success: true,
+      forumPostComment: await forumCommentToJSON(c),
+    };
+    res.status(200).json(response);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteForumPostCommentController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    // Parse data from request
+    const postId = req.params.postId as unknown as number;
+    const commentId = req.params.commentId as unknown as number;
+    const deletedBy = req.user;
+    const deletedByDevice = req.device;
+
+    // Validation
+    if (!postId) {
+      throw new BadRequestError({
+        validationErrors: [
+          {
+            location: 'params',
+            param: 'postId',
+            value: postId,
+            msg: 'REQUIRED',
+          },
+        ],
+      });
+    }
+
+    // If forum post is not found, 404.
+    const fp = await ForumPost.findByPk(postId);
+    if (!fp) throw new NotFoundError();
+
+    if (!commentId) {
+      throw new BadRequestError({
+        validationErrors: [
+          {
+            location: 'params',
+            param: 'postId',
+            value: postId,
+            msg: 'REQUIRED',
+          },
+        ],
+      });
+    }
+    if (!deletedBy || !deletedByDevice) throw new UnauthenticatedError();
+
+    // Perform the delete
+    const c = await deleteForumPostComment(
+      commentId,
+      deletedBy,
+      deletedByDevice
+    );
+    if (!c) throw new NotFoundError(); // Comment not found, 404.
+
+    res.status(200).json({ success: true });
   } catch (error) {
     next(error);
   }

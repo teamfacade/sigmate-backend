@@ -255,3 +255,62 @@ export const validateCreateForumPostComment = [
     .bail(),
   body('parentId').optional().isInt().withMessage('NOT_INT').bail().toInt(),
 ];
+
+export const validateUpdateForumPostComment = [
+  param('postId')
+    .trim()
+    .escape()
+    .stripLow()
+    .notEmpty()
+    .withMessage('REQUIRED')
+    .bail()
+    .isInt()
+    .withMessage('NOT_INT')
+    .bail()
+    .toInt(),
+  param('commentId')
+    .trim()
+    .escape()
+    .stripLow()
+    .notEmpty()
+    .withMessage('REQUIRED')
+    .bail()
+    .isInt()
+    .withMessage('NOT_INT')
+    .bail()
+    .toInt(),
+  body('content')
+    .trim()
+    .stripLow()
+    .notEmpty()
+    .withMessage('REQUIRED')
+    .bail()
+    .isLength({ min: 1, max: 16383 })
+    .withMessage('LENGTH')
+    .bail(),
+];
+
+export const validateDeleteForumPostComment = [
+  param('postId')
+    .trim()
+    .escape()
+    .stripLow()
+    .notEmpty()
+    .withMessage('REQUIRED')
+    .bail()
+    .isInt()
+    .withMessage('NOT_INT')
+    .bail()
+    .toInt(),
+  param('commentId')
+    .trim()
+    .escape()
+    .stripLow()
+    .notEmpty()
+    .withMessage('REQUIRED')
+    .bail()
+    .isInt()
+    .withMessage('NOT_INT')
+    .bail()
+    .toInt(),
+];

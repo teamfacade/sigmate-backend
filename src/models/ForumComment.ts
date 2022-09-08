@@ -19,6 +19,8 @@ export interface ForumCommentAttributes {
   content: string;
   createdBy?: User;
   createdByDevice?: UserDevice;
+  updatedBy?: User;
+  updatedByDevice?: UserDevice;
   deletedBy?: User;
   deletedByDevice?: UserDevice;
   votes?: ForumCommentVote[];
@@ -35,6 +37,8 @@ export type ForumCommentCreationAttributes = Optional<
   ForumCommentAttributes,
   'id'
 >;
+
+export type ForumCommentDTO = Pick<ForumCommentAttributes, 'id' | 'content'>;
 
 export type ForumCommentCreationDTO = Pick<
   ForumCommentCreationAttributes,
@@ -84,6 +88,15 @@ export default class ForumComment extends Model<
     foreignKey: 'createdByDeviceId',
   })
   createdByDevice: ForumCommentAttributes['createdByDevice'];
+
+  @BelongsTo(() => User, { as: 'updatedBy', foreignKey: 'updatedById' })
+  updatedBy: ForumCommentAttributes['updatedBy'];
+
+  @BelongsTo(() => UserDevice, {
+    as: 'updatedByDevice',
+    foreignKey: 'updatedByDeviceId',
+  })
+  updatedByDevice: ForumCommentAttributes['updatedByDevice'];
 
   @BelongsTo(() => User, { as: 'deletedBy', foreignKey: 'deletedById' })
   deletedBy: ForumCommentAttributes['deletedBy'];

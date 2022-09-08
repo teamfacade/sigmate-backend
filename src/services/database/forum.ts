@@ -6,6 +6,7 @@ import Category, { CategoryAttributes } from '../../models/Category';
 import ForumComment, {
   ForumCommentAttributes,
   ForumCommentCreationAttributes,
+  ForumCommentDTO,
 } from '../../models/ForumComment';
 import ForumPost, {
   ForumPostAttributes,
@@ -67,8 +68,18 @@ export const getForumPostById = async (
           {
             model: ForumComment,
             attributes: ['id', 'content', 'createdAt', 'parentId'],
-            include: [{ model: User, as: 'createdBy' }],
+            where: { parentId: null },
+            include: [
+              { model: User, as: 'createdBy' },
+              {
+                model: ForumComment,
+                as: 'replies',
+                include: [{ model: User, as: 'createdBy' }],
+                order: [['createdAt', 'DESC']],
+              },
+            ],
             limit: 10,
+            order: [['createdAt', 'DESC']],
           },
         ],
         transaction,
@@ -119,7 +130,22 @@ export const getForumPostsByCategory = async (
         },
         { model: User, as: 'createdBy' },
         { model: UserDevice, as: 'createdByDevice' },
-        { model: ForumComment, limit: 10 },
+        {
+          model: ForumComment,
+          attributes: ['id', 'content', 'createdAt', 'parentId'],
+          where: { parentId: null },
+          include: [
+            { model: User, as: 'createdBy' },
+            {
+              model: ForumComment,
+              as: 'replies',
+              include: [{ model: User, as: 'createdBy' }],
+              order: [['createdAt', 'DESC']],
+            },
+          ],
+          limit: 10,
+          order: [['createdAt', 'DESC']],
+        },
       ],
     });
   } catch (error) {
@@ -225,6 +251,22 @@ export const createForumPost = async (
             model: ForumTag,
             attributes: ['id', 'name', 'isBanned'],
             through: { attributes: [] },
+          },
+          {
+            model: ForumComment,
+            attributes: ['id', 'content', 'createdAt', 'parentId'],
+            where: { parentId: null },
+            include: [
+              { model: User, as: 'createdBy' },
+              {
+                model: ForumComment,
+                as: 'replies',
+                include: [{ model: User, as: 'createdBy' }],
+                order: [['createdAt', 'DESC']],
+              },
+            ],
+            limit: 10,
+            order: [['createdAt', 'DESC']],
           },
           { model: User, as: 'createdBy' },
           { model: UserDevice, as: 'createdByDevice' },
@@ -458,8 +500,15 @@ export const getForumPostComments = async (
     return await forumPost.$get('comments', {
       include: [
         { model: User, as: 'createdBy' },
-        { model: ForumComment, as: 'replies' },
-        { model: ForumComment, as: 'parent' },
+        {
+          model: ForumComment,
+          as: 'replies',
+          where: { parentId: null },
+          include: [{ model: User, as: 'createdBy' }],
+          limit: 10,
+          order: [['createdAt', 'DESC']],
+        },
+        { model: ForumComment, as: 'parent', attributes: ['id'] },
       ],
       limit,
       offset,
@@ -500,8 +549,10 @@ export const getForumCommentById = async (id: ForumCommentAttributes['id']) => {
           model: ForumComment,
           as: 'replies',
           attributes: ['id', 'content'],
+          where: { parentId: null },
           include: [{ model: User, as: 'createdBy' }],
           limit: 10,
+          order: [['createdAt', 'DESC']],
         },
       ],
     });
@@ -564,6 +615,49 @@ export const createForumPostComment = async (
     });
 
     return await getForumCommentById(id);
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+export const updateForumComment = async (
+  forumCommentDTO: ForumCommentDTO,
+  updatedBy: User,
+  updatedByDevice: UserDevice
+) => {
+  const { id, content } = forumCommentDTO;
+  try {
+    return await db.sequelize.transaction(async (transaction) => {
+      const c = await ForumComment.findByPk(id, { transaction });
+      if (!c) return null;
+      await Promise.all([
+        c.update({ content }, { transaction }),
+        c.$set('updatedBy', updatedBy, { transaction }),
+        c.$set('updatedByDevice', updatedByDevice, { transaction }),
+      ]);
+      return c;
+    });
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+export const deleteForumPostComment = async (
+  forumCommentId: number,
+  deletedBy: User,
+  deletedByDevice: UserDevice
+) => {
+  try {
+    return await db.sequelize.transaction(async (transaction) => {
+      const c = await ForumComment.findByPk(forumCommentId, { transaction });
+      if (!c) return null;
+      await Promise.all([
+        c.$set('deletedBy', deletedBy, { transaction }),
+        c.$set('deletedByDevice', deletedByDevice, { transaction }),
+        c.destroy({ transaction }),
+      ]);
+      return c;
+    });
   } catch (error) {
     throw new SequelizeError(error as Error);
   }
