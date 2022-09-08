@@ -1,5 +1,4 @@
 import { Optional } from 'sequelize/types';
-import Require from '../types/Require';
 import {
   Model,
   DataType,
@@ -158,7 +157,7 @@ export type UserCreationAttributes = Optional<
   | 'cookiesFunctional'
   | 'cookiesTargeting'
 >;
-export interface UserDTO extends Require<Partial<UserAttributes>, 'id'> {
+export interface UserDTO extends Partial<UserAttributes> {
   referredByCode?: UserAttributes['referralCode'];
 }
 export type UserCreationDTO = Omit<UserDTO, 'id'>;
@@ -254,7 +253,6 @@ export default class User extends Model<
   @Column(DataType.BOOLEAN)
   isAdmin!: UserAttributes['isAdmin'];
 
-  @Unique('metamaskWallet')
   @Column(DataType.STRING(64))
   metamaskWallet: UserAttributes['metamaskWallet'];
 

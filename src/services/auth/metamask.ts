@@ -22,7 +22,7 @@ import { userToJSON } from '../user';
 import { renewMetaMaskNonce } from '../database/auth';
 
 export const generateNonce = () => {
-  return crypto.randomInt(10000000, 999999999);
+  return crypto.randomInt(1000000, 999999999);
 };
 
 const getSignMessage = (nonce: string | number): string => {
@@ -30,7 +30,7 @@ const getSignMessage = (nonce: string | number): string => {
   return 'I am signing my one-time nonce: ' + nonce;
 };
 
-const verifySignature = (
+export const verifySignature = (
   publicAddress: string,
   nonce: string | number,
   signature: string
