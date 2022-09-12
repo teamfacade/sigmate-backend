@@ -13,9 +13,9 @@ interface DBConfigs {
 const databaseConfig: DBConfigs = {
   development: {
     username: process.env.DB_USERNAME,
-    password: process.env.DB_PASSWORD,
+    password: process.env.DB_DEV_PASSWORD,
     database: process.env.DB_DATABASE,
-    host: process.env.DB_HOST,
+    host: process.env.DB_DEV_HOST,
     port: process.env.DB_PORT,
     dialect: 'mysql',
     timezone: '+09:00',
@@ -37,9 +37,9 @@ const databaseConfig: DBConfigs = {
   },
   production: {
     username: process.env.DB_USERNAME,
-    password: process.env.DB_PASSWORD,
+    password: process.env.DB_AWS_PASSWORD,
     database: process.env.DB_DATABASE,
-    host: process.env.DB_HOST,
+    host: process.env.DB_AWS_HOST,
     port: process.env.DB_PORT,
     dialect: 'mysql',
     timezone: '+09:00',
