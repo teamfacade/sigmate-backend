@@ -20,7 +20,6 @@ import { OpenseaCollectionResponse, OPENSEA_BASE_URL } from './opensea';
  * @returns Whether fetch was successful
  */
 export const fetchCollectionBySlug = async (collectionSlug: string) => {
-  // const collectionSlug = collection.slug;
   const collectionDTO: Partial<CollectionAttributes> = {};
   const deployerAddresses: string[] = [];
   const paymentTokens: BcTokenCreationAttributes[] = [];
@@ -31,33 +30,44 @@ export const fetchCollectionBySlug = async (collectionSlug: string) => {
       `${OPENSEA_BASE_URL}/collection/${collectionSlug}`
     );
     if (!res.data?.collection) throw new NotFoundError();
+
+    // data
     const c = res.data.collection;
 
     // Prepare data from Opensea
     collectionDTO.slug = c.slug;
+    collectionDTO.name = c.name;
     c.primary_asset_contracts[0].address &&
       (collectionDTO.contractAddress = c.primary_asset_contracts[0].address);
-    collectionDTO.name = c.name;
-    c.description && (collectionDTO.description = c.description);
     collectionDTO.contractSchema = c.primary_asset_contracts[0].schema_name;
+    c.description && (collectionDTO.description = c.description);
     c.twitter_username && (collectionDTO.twitterHandle = c.twitter_username);
     c.discord_url && (collectionDTO.discordUrl = c.discord_url);
     c.external_url && (collectionDTO.websiteUrl = c.external_url);
     c.telegram_url && (collectionDTO.telegramUrl = c.telegram_url);
     c.image_url && (collectionDTO.imageUrl = c.image_url);
     c.banner_image_url && (collectionDTO.bannerImageUrl = c.banner_image_url);
+    c.external_url && (collectionDTO.websiteUrl = c.external_url);
 
     deployerAddresses.concat(c.editors);
     paymentTokens.concat(
-      c.payment_tokens.map((pt) => {
-        return {
-          name: pt.name,
-          symbol: pt.symbol,
-          address: pt.address,
-          imageUrl: pt.image_url,
-          decimals: pt.decimals,
-        };
-      })
+      c.payment_tokens.map(
+        (pt: {
+          name: any;
+          symbol: any;
+          address: any;
+          image_url: any;
+          decimals: any;
+        }) => {
+          return {
+            name: pt.name,
+            symbol: pt.symbol,
+            address: pt.address,
+            imageUrl: pt.image_url,
+            decimals: pt.decimals,
+          };
+        }
+      )
     );
   } catch (error) {
     const e = error as unknown as AxiosError;
