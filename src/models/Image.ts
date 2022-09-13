@@ -24,10 +24,10 @@ export interface ImageAttributes {
   id: string; // UUID (also the filename in our servers)
   originalFilename: string; // user-provided (sanitize!)
   originalFilesize: number; // size in bytes
-  caption?: string; // also used as alt attribute in img tag
+  caption?: string; // also used as alt attribute in img tag //necce
   mimetype: string; // HTTP mimetype header
   md5: string; // md5 hash of image file. duplication prevention
-  blocks?: Block[];
+  blocks?: Block[]; // all necce
   blockAudits?: BlockAudit[];
   createdByDevice: UserDevice;
   createdBy?: User;

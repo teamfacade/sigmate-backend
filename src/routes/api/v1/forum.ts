@@ -73,15 +73,13 @@ forumRouter
     deleteCategoryController
   );
 
-forumRouter
-  .route('/p')
-  .post(
-    passportJwtAuth,
-    isAuthenticated,
-    validateCreateForumPost,
-    handleBadRequest,
-    createForumPostController
-  );
+forumRouter.route('/p').post(
+  passportJwtAuth,
+  isAuthenticated,
+  validateCreateForumPost,
+  handleBadRequest,
+  createForumPostController // upload img
+);
 
 forumRouter
   .route('/p/:postId')
@@ -96,7 +94,7 @@ forumRouter
     isAuthenticated,
     validateUpdateForumPost,
     handleBadRequest,
-    updateForumPostController
+    updateForumPostController // upload img
   )
   .delete(
     passportJwtAuth,

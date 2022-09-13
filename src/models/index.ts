@@ -6,12 +6,14 @@ import Block from './Block';
 import BlockAudit from './BlockAudit';
 import BlockVerification from './BlockVerification';
 import Category from './Category';
+import Channel from './Channel';
 import Collection from './Collection';
 import CollectionDeployer from './CollectionDeployer';
 import CollectionDocumentTable from './CollectionDocumentTable';
 import CollectionPaymentToken from './CollectionPaymentToken';
 import CollectionType from './CollectionType';
 import CollectionUtility from './CollectionUtility';
+import DiscordAnnouncement from './DiscordAnnouncement';
 import Document from './Document';
 import DocumentAudit from './DocumentAudit';
 import DocumentAuditCategory from './DocumentAuditCategory';
@@ -31,6 +33,7 @@ import MintingSchedule from './MintingSchedule';
 import Nft from './Nft';
 import Opinion from './Opinion';
 import OpinionVerification from './OpinionVerification';
+import TwitterAnnouncement from './TwitterAnnouncement';
 import Url from './Url';
 import UrlVerification from './UrlVerification';
 import User from './User';
@@ -76,12 +79,14 @@ const initDatabase = () => {
     BlockAudit,
     BlockVerification,
     Category,
+    Channel,
     Collection,
     CollectionDeployer,
     CollectionDocumentTable,
     CollectionPaymentToken,
     CollectionType,
     CollectionUtility,
+    DiscordAnnouncement,
     Document,
     DocumentAudit,
     DocumentAuditCategory,
@@ -101,6 +106,7 @@ const initDatabase = () => {
     Nft,
     Opinion,
     OpinionVerification,
+    TwitterAnnouncement,
     Url,
     UrlVerification,
     User,
@@ -122,10 +128,12 @@ const initDatabase = () => {
     BlockAudit,
     BlockVerification,
     Category,
+    Channel,
     Collection,
     CollectionDocumentTable,
     CollectionType,
     CollectionUtility,
+    DiscordAnnouncement,
     Document,
     DocumentAudit,
     DocumentCategory,
@@ -141,6 +149,7 @@ const initDatabase = () => {
     Nft,
     Opinion,
     OpinionVerification,
+    TwitterAnnouncement,
     Url,
     UrlVerification,
     User,

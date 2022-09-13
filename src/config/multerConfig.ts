@@ -5,10 +5,12 @@ import s3 from './s3Config';
 const imageUploader = multer({
   storage: multerS3({
     s3,
-    bucket: process.env.AWS_BUCKET_NAME as string,
+    bucket: process.env.AWS_BUCKET_NAME,
     contentType: multerS3.AUTO_CONTENT_TYPE,
     key: function (req, file, cb) {
-      cb(null, file.originalname);
+      const newFileName = Date.now() + '-' + file.originalname;
+      const fullPath = 'test/' + newFileName;
+      cb(null, fullPath);
     },
     acl: 'public-read-write',
   }),
