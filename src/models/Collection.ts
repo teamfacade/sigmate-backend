@@ -21,6 +21,9 @@ import MintingSchedule from './MintingSchedule';
 import Nft from './Nft';
 import User from './User';
 import UserDevice from './UserDevice';
+import DiscordAnnouncement from './DiscordAnnouncement';
+import TwitterAnnouncement from './TwitterAnnouncement';
+import Channel from './Channel';
 
 export interface CollectionAttributes {
   id: number;
@@ -47,6 +50,9 @@ export interface CollectionAttributes {
   imageUrl?: string;
   bannerImageUrl?: string;
   document?: Document;
+  channel?: Channel;
+  discordAnnouncement?: DiscordAnnouncement[];
+  twitterAnnouncement?: TwitterAnnouncement[];
   createdBy?: User;
   createdByDevice?: UserDevice;
   updatedBy?: User;
@@ -147,6 +153,9 @@ export default class Collection extends Model<
   @HasOne(() => Document, 'collectionId')
   document: CollectionAttributes['document'];
 
+  @HasOne(() => Channel, 'collectionId')
+  channel: CollectionAttributes['channel'];
+
   @BelongsTo(() => User, 'createdById')
   createdBy: CollectionAttributes['createdBy'];
 
@@ -174,6 +183,12 @@ export default class Collection extends Model<
 
   @HasMany(() => Nft, 'collectionId')
   nfts!: CollectionAttributes['nfts'];
+
+  @HasMany(() => DiscordAnnouncement, 'collectionId')
+  discordAnnouncement: CollectionAttributes['discordAnnouncement'];
+
+  @HasMany(() => TwitterAnnouncement, 'collectionId')
+  twitterAnnouncement: CollectionAttributes['twitterAnnouncement'];
 
   @Column(DataType.DATE)
   openseaUpdatedAt: CollectionAttributes['openseaUpdatedAt'];

@@ -6,11 +6,12 @@ import {
   Table,
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
-import Channel from './Channel';
+import Collection from './Collection';
 
 export interface TwitterAnnouncementAttributes {
   id: number;
-  project: Channel;
+  collection: Collection;
+  twitterChannel: string;
   contentId: string;
   content: string;
   timestamp: string;
@@ -34,8 +35,11 @@ export default class TwitterAnnouncement extends Model<
   TwitterAnnouncementAttributes,
   TwitterAnnouncementCreationAttributes
 > {
-  @BelongsTo(() => Channel, 'name')
-  project!: TwitterAnnouncementAttributes['project'];
+  @BelongsTo(() => Collection, { foreignKey: 'collectionId' })
+  collection!: TwitterAnnouncementAttributes['collection'];
+
+  @Column(DataType.STRING(150))
+  twitterChannel!: string;
 
   @Column(DataType.STRING(150))
   contentId!: string;

@@ -6,11 +6,12 @@ import {
   Table,
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
-import Channel from './Channel';
+import Collection from './Collection';
 
 export interface DiscordAnnouncementAttributes {
   id: number;
-  project: Channel;
+  collection: Collection;
+  discordChannel: string;
   contentId: string;
   content: string;
   timestamp: string;
@@ -34,8 +35,11 @@ export default class DiscordAnnouncement extends Model<
   DiscordAnnouncementAttributes,
   DiscordAnnouncementCreationAttributes
 > {
-  @BelongsTo(() => Channel, 'name')
-  project!: DiscordAnnouncementAttributes['project'];
+  @BelongsTo(() => Collection, { foreignKey: 'collectionId' })
+  collection!: DiscordAnnouncementAttributes['collection'];
+
+  @Column(DataType.STRING(150))
+  discordChannel!: string;
 
   @Column(DataType.STRING(150))
   contentId!: string;

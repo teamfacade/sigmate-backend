@@ -2,22 +2,17 @@ import {
   BelongsTo,
   Column,
   DataType,
-  HasMany,
   Model,
   Table,
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
 import Collection from './Collection';
-import DiscordAnnouncement from './DiscordAnnouncement';
-import TwitterAnnouncement from './TwitterAnnouncement';
 
 export interface ChannelAttributes {
   id: number;
-  projectName: Collection;
+  collection: Collection;
   discordChannel: string;
   twitterChannel: string;
-  discordAnnouncement?: DiscordAnnouncement[];
-  twitterAnnouncement?: TwitterAnnouncement[];
 }
 
 export type ChannelCreationAttributes = Optional<ChannelAttributes, 'id'>;
@@ -35,18 +30,12 @@ export default class Channel extends Model<
   ChannelAttributes,
   ChannelCreationAttributes
 > {
-  @BelongsTo(() => Collection, 'name')
-  projectName!: ChannelAttributes['projectName'];
+  @BelongsTo(() => Collection, { foreignKey: 'collectionId' })
+  collection!: ChannelAttributes['collection'];
 
   @Column(DataType.STRING(150))
   discordChannel!: string;
 
   @Column(DataType.STRING(150))
   twitterChannel!: string;
-
-  @HasMany(() => DiscordAnnouncement, 'name')
-  discordAnnouncement: ChannelAttributes['discordAnnouncement'];
-
-  @HasMany(() => TwitterAnnouncement, 'name')
-  twitterdAnnouncement: ChannelAttributes['twitterAnnouncement'];
 }
