@@ -215,6 +215,7 @@ export const createCollection = async (
           collectionAttrib: 'team',
           createdBy: collectionDTO.createdBy,
           createdByDevice: collectionDTO.createdByDevice,
+          approved: true,
         },
         transaction
       ),
@@ -228,6 +229,7 @@ export const createCollection = async (
           collectionAttrib: 'history',
           createdBy: collectionDTO.createdBy,
           createdByDevice: collectionDTO.createdByDevice,
+          approved: true,
         },
         transaction
       ),
@@ -241,6 +243,7 @@ export const createCollection = async (
           collectionAttrib: 'type',
           createdBy: collectionDTO.createdBy,
           createdByDevice: collectionDTO.createdByDevice,
+          approved: true,
         },
         transaction
       ),
@@ -254,6 +257,7 @@ export const createCollection = async (
           collectionAttrib: 'utility',
           createdBy: collectionDTO.createdBy,
           createdByDevice: collectionDTO.createdByDevice,
+          approved: true,
         },
         transaction
       ),
@@ -267,6 +271,7 @@ export const createCollection = async (
           collectionAttrib: 'mintingPriceWl',
           createdBy: collectionDTO.createdBy,
           createdByDevice: collectionDTO.createdByDevice,
+          approved: true,
         },
         transaction
       ),
@@ -280,6 +285,7 @@ export const createCollection = async (
           collectionAttrib: 'mintingPricePublic',
           createdBy: collectionDTO.createdBy,
           createdByDevice: collectionDTO.createdByDevice,
+          approved: true,
         },
         transaction
       ),
@@ -293,6 +299,7 @@ export const createCollection = async (
           collectionAttrib: 'floorPrice',
           createdBy: collectionDTO.createdBy,
           createdByDevice: collectionDTO.createdByDevice,
+          approved: true,
         },
         transaction
       ),
@@ -306,6 +313,7 @@ export const createCollection = async (
           collectionAttrib: 'discordUrl',
           createdBy: collectionDTO.createdBy,
           createdByDevice: collectionDTO.createdByDevice,
+          approved: true,
         },
         transaction
       ),
@@ -319,6 +327,7 @@ export const createCollection = async (
           collectionAttrib: 'twitterHandle',
           createdBy: collectionDTO.createdBy,
           createdByDevice: collectionDTO.createdByDevice,
+          approved: true,
         },
         transaction
       ),
@@ -332,6 +341,7 @@ export const createCollection = async (
           collectionAttrib: 'websiteUrl',
           createdBy: collectionDTO.createdBy,
           createdByDevice: collectionDTO.createdByDevice,
+          approved: true,
         },
         transaction
       ),
@@ -346,6 +356,7 @@ export const createCollection = async (
           collectionAttrib: 'paymentTokens',
           createdBy: collectionDTO.createdBy,
           createdByDevice: collectionDTO.createdByDevice,
+          approved: true,
         },
         transaction
       ),
@@ -359,6 +370,7 @@ export const createCollection = async (
           collectionAttrib: 'marketplace',
           createdBy: collectionDTO.createdBy,
           createdByDevice: collectionDTO.createdByDevice,
+          approved: true,
         },
         transaction
       ),

@@ -20,6 +20,7 @@ export const createTextBlock = async (
         element: blockDTO.element,
         textContent: blockDTO.textContent,
         parent: blockDTO.parent,
+        collectionAttrib: blockDTO.collectionAttrib,
       },
       { transaction }
     ),
@@ -29,6 +30,7 @@ export const createTextBlock = async (
         element: blockDTO.element,
         textContent: blockDTO.textContent,
         parentId: blockDTO.parent?.id || undefined,
+        approvedAt: blockDTO.approved ? new Date() : undefined,
       },
       { transaction }
     ),
@@ -40,13 +42,20 @@ export const createTextBlock = async (
     ba.$set('block', b, { transaction }),
   ];
 
+  const d = blockDTO.createdByDevice;
+  const u = blockDTO.createdBy;
+
   // Who created this block?
-  blockDTO.createdByDevice &&
-    ps.push(
-      b.$set('createdByDevice', blockDTO.createdByDevice, { transaction })
-    );
-  blockDTO.createdBy &&
-    ps.push(b.$set('createdBy', blockDTO.createdBy, { transaction }));
+  u && ps.push(b.$set('createdBy', u, { transaction }));
+  d && ps.push(b.$set('createdByDevice', d, { transaction }));
+
+  // Who created this block audit?
+  u && ps.push(ba.$set('createdBy', u, { transaction }));
+  d && ps.push(ba.$set('createdByDevice', d, { transaction }));
+  if (blockDTO.approved) {
+    u && ps.push(ba.$set('approvedBy', u, { transaction }));
+    d && ps.push(ba.$set('approvedByDevice', d, { transaction }));
+  }
 
   // Link document
   blockDTO.document &&
@@ -78,22 +87,21 @@ export const createCollectionAttribBlock = async (
 ) => {
   try {
     const [block] = await createTextBlock(
-      _.pick(blockDTO, [
-        'element',
-        'textContent',
-        'createdByDevice',
-        'createdBy',
-        'document',
-        'style',
-        'parent',
-      ]),
+      {
+        element: blockDTO.element,
+        textContent: blockDTO.textContent,
+        collectionAttrib: blockDTO.collectionAttrib,
+        createdByDevice: blockDTO.createdByDevice,
+        createdBy: blockDTO.createdBy,
+        document: blockDTO.document,
+        style: blockDTO.style,
+        parent: blockDTO.parent,
+        approved: true,
+      },
       transaction
     );
     await Promise.all([
       block.$set('collection', blockDTO.collection, { transaction }),
-      block.$set('collectionAttrib', blockDTO.collectionAttrib, {
-        transaction,
-      }),
     ]);
     return block;
   } catch (error) {

@@ -34,7 +34,6 @@ const getUserDevice = async (
         throw new ApiError('ERR_IP_UNINIT');
       }
     } catch (error) {
-      console.error(error); // TODO remove in production
       throw new ApiError('ERR_IP_PARSE');
     }
 

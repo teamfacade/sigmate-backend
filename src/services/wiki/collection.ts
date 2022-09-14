@@ -85,12 +85,11 @@ export const getCollectionBySlugController = async (
     }
 
     if (!cl) throw new NotFoundError();
-    const clr = await cl.toResponseJSON();
 
     // Send response to client
     const response: GetCollectionBySlugResponse = {
       success: true,
-      collection: clr,
+      collection: await cl.toResponseJSON(),
     };
     res.status(200).json(response);
   } catch (error) {
@@ -251,7 +250,7 @@ export const updateCollectionController = async (
     if (!u) throw new UnauthenticatedError();
     if (!d) throw new ApiError('ERR_DEVICE');
 
-    const { slug } = req.query as UpdateCollectionReqQuery;
+    const { slug } = req.params as UpdateCollectionReqQuery;
     const body = req.body as UpdateCollectionReqBody;
     const {
       collectionDeployers = [],

@@ -55,7 +55,7 @@ export interface BlockAttributes {
 
 export type BlockCreationAttributes = Optional<BlockAttributes, 'id'>;
 
-export type TextBlockCreationDTO = Required<
+export type TextBlockCreationAttribs = Required<
   Pick<BlockAttributes, 'textContent'>
 > &
   Pick<
@@ -64,9 +64,14 @@ export type TextBlockCreationDTO = Required<
     | 'document'
     | 'style'
     | 'parent'
+    | 'collectionAttrib'
     | 'createdByDevice'
     | 'createdBy'
   >;
+
+export interface TextBlockCreationDTO extends TextBlockCreationAttribs {
+  approved: boolean;
+}
 export interface TextBlockAuditDTO
   extends Partial<
     Pick<
@@ -237,10 +242,22 @@ export default class Block extends Model<
         order: [['createdAt', 'DESC']],
       }),
       this.$count('verifications', {
-        include: [{ model: VerificationType, where: { isUpvote: true } }],
+        include: [
+          {
+            model: VerificationType,
+            where: { isUpvote: true },
+            attributes: ['isUpvote'],
+          },
+        ],
       }),
       this.$count('verifications', {
-        include: [{ model: VerificationType, where: { isUpvote: false } }],
+        include: [
+          {
+            model: VerificationType,
+            where: { isUpvote: false },
+            attributes: ['isUpvote'],
+          },
+        ],
       }),
       this.$count('opinions'),
       this.getMyVerification(myself),
