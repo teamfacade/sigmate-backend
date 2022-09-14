@@ -17,8 +17,8 @@ export interface CollectionTypeAttributes {
   id: number;
   name: string;
   collections?: Collection[];
-  createdBy: User;
-  createdByDevice: UserDevice;
+  createdBy?: User;
+  createdByDevice?: UserDevice;
   updatedBy?: User;
   updatedByDevice?: UserDevice;
 }
@@ -27,6 +27,11 @@ export type CollectionTypeCreationAttributes = Optional<
   CollectionTypeAttributes,
   'id'
 >;
+
+export interface CollectionTypeFindOrCreateDTO
+  extends Omit<CollectionTypeCreationAttributes, 'collections'> {
+  collection?: Collection;
+}
 
 @Table({
   tableName: 'collection_types',
@@ -49,10 +54,10 @@ export default class CollectionType extends Model<
   collections: CollectionTypeAttributes['collections'];
 
   @BelongsTo(() => User, 'createdById')
-  createdBy!: CollectionTypeAttributes['createdBy'];
+  createdBy: CollectionTypeAttributes['createdBy'];
 
   @BelongsTo(() => UserDevice, 'createdByDeviceId')
-  createdByDevice!: CollectionTypeAttributes['createdByDevice'];
+  createdByDevice: CollectionTypeAttributes['createdByDevice'];
 
   @BelongsTo(() => User, 'updatedById')
   updatedBy: CollectionTypeAttributes['updatedBy'];

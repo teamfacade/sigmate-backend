@@ -2,7 +2,7 @@ import { ValidationError } from 'express-validator';
 import ApiError, { ApiErrorOptions } from './ApiError';
 
 export interface BadRequestErrorOptions extends ApiErrorOptions {
-  validationErrors?: Partial<ValidationError>[];
+  validationErrors?: (Partial<ValidationError> & { data?: any })[];
 }
 
 export default class BadRequestError extends ApiError {
