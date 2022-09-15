@@ -219,7 +219,7 @@ export const validateCreateCollection = [
     .isLength({ min: 1, max: 191 })
     .withMessage('TOO_LONG')
     .bail(),
-  body('type')
+  body('category')
     .optional()
     .trim()
     .stripLow()
@@ -452,7 +452,7 @@ export const validateUpdateCollection = [
     .isLength({ min: 1, max: 191 })
     .withMessage('TOO_LONG')
     .bail(),
-  body('type')
+  body('category')
     .optional()
     .trim()
     .stripLow()
