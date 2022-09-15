@@ -123,6 +123,15 @@ export const validateUpdateForumPost = [
     .isArray()
     .withMessage('NOT_ARRAY')
     .bail()
+    .custom((value) => {
+      if (value.length === undefined) throw new Error('NOT_ARRAY');
+      for (let i = 0; i < value.length; i++) {
+        if (typeof value[i] !== 'number') {
+          throw new Error('NOT_INT');
+        }
+      }
+      return true;
+    })
     .toArray(),
   body('tags')
     .optional()
@@ -152,7 +161,20 @@ export const validateCreateForumPost = [
     .bail()
     .isLength({ min: 1, max: 16383 })
     .withMessage('LENGTH'),
-  body('categories').isArray().withMessage('NOT_ARRAY').bail().toArray(),
+  body('categories')
+    .isArray()
+    .withMessage('NOT_ARRAY')
+    .bail()
+    .custom((value) => {
+      if (value.length === undefined) throw new Error('NOT_ARRAY');
+      for (let i = 0; i < value.length; i++) {
+        if (typeof value[i] !== 'number') {
+          throw new Error('NOT_INT');
+        }
+      }
+      return true;
+    })
+    .toArray(),
   body('tags')
     .isArray()
     .withMessage('NOT_ARRAY')
