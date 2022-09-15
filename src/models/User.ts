@@ -22,7 +22,7 @@ import BlockVerification from './BlockVerification';
 import Category from './Category';
 import Collection from './Collection';
 import CollectionDocumentTable from './CollectionDocumentTable';
-import CollectionType from './CollectionType';
+import CollectionCategory from './CollectionCategory';
 import CollectionUtility from './CollectionUtility';
 import Document from './Document';
 import DocumentAudit from './DocumentAudit';
@@ -100,8 +100,8 @@ export interface UserAttributes {
   updatedCollections?: Collection[];
   createdCollectionDocumentTables?: CollectionDocumentTable[];
   updatedCollectionDocumentTables?: CollectionDocumentTable[];
-  createdCollectionTypes?: CollectionType[];
-  updatedCollectionTypes?: CollectionType[];
+  createdCollectionCategories?: CollectionCategory[];
+  updatedCollectionCategories?: CollectionCategory[];
   createdCollectionUtilities?: CollectionUtility[];
   updatedCollectionUtilities?: CollectionUtility[];
   createdDocuments?: Document[];
@@ -395,11 +395,11 @@ export default class User extends Model<
   @HasMany(() => CollectionDocumentTable, 'updatedByDeviceId')
   updatedCollectionDocumentTable: UserAttributes['updatedCollectionDocumentTables'];
 
-  @HasMany(() => CollectionType, 'createdById')
-  createdCollectionTypes: UserAttributes['createdCollectionTypes'];
+  @HasMany(() => CollectionCategory, 'createdById')
+  createdCollectionCategories: UserAttributes['createdCollectionCategories'];
 
-  @HasMany(() => CollectionType, 'updatedById')
-  updatedCollectionTypes: UserAttributes['updatedCollectionTypes'];
+  @HasMany(() => CollectionCategory, 'updatedById')
+  updatedCollectionCategories: UserAttributes['updatedCollectionCategories'];
 
   @HasMany(() => CollectionUtility, 'createdById')
   createdCollectionUtilities: UserAttributes['createdCollectionUtilities'];

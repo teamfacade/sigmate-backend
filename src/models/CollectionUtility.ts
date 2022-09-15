@@ -6,6 +6,7 @@ import {
   HasMany,
   Model,
   Table,
+  Unique,
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
 import Collection from './Collection';
@@ -16,8 +17,8 @@ export interface CollectionUtilityAttributes {
   id: number;
   name: string;
   collections?: Collection[];
-  createdBy: User;
-  createdByDevice: UserDevice;
+  createdBy?: User;
+  createdByDevice?: UserDevice;
   updatedBy?: User;
   updatedByDevice?: UserDevice;
 }
@@ -26,6 +27,11 @@ export type CollectionUtilityCreationAttributes = Optional<
   CollectionUtilityAttributes,
   'id'
 >;
+
+export interface CollectionUtilityFindOrCreateDTO
+  extends Omit<CollectionUtilityCreationAttributes, 'collections'> {
+  collection?: Collection;
+}
 
 @Table({
   tableName: 'collection_utilities',
@@ -39,6 +45,7 @@ export default class CollectionUtility extends Model<
   CollectionUtilityAttributes,
   CollectionUtilityCreationAttributes
 > {
+  @Unique('name')
   @AllowNull(false)
   @Column(DataType.STRING(64))
   name!: CollectionUtilityAttributes['name'];

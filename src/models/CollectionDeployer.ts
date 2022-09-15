@@ -11,7 +11,7 @@ import Collection from './Collection';
 export interface CollectionDeployerAttributes {
   id: number;
   address: string;
-  collection: Collection;
+  collection?: Collection;
 }
 
 export type CollectionDeployerCreationAttributes = Optional<
@@ -33,5 +33,5 @@ export default class CollectionDeployer extends Model<
   address!: CollectionDeployerAttributes['address'];
 
   @BelongsTo(() => Collection, 'collectionId')
-  collection!: CollectionDeployerAttributes['collection'];
+  collection: CollectionDeployerAttributes['collection'];
 }

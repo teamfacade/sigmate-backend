@@ -1,9 +1,11 @@
+import _ from 'lodash';
 import {
   AllowNull,
   BelongsTo,
   BelongsToMany,
   Column,
   DataType,
+  Default,
   HasMany,
   HasOne,
   Model,
@@ -11,12 +13,19 @@ import {
   Unique,
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
-import BcToken from './BcToken';
-import CollectionDeployer from './CollectionDeployer';
+import BcToken, { BcTokenCreationAttributes, BcTokenResponse } from './BcToken';
+import Block, { BlockResponse } from './Block';
+import CollectionDeployer, {
+  CollectionDeployerAttributes,
+} from './CollectionDeployer';
 import CollectionPaymentToken from './CollectionPaymentToken';
-import CollectionType from './CollectionType';
-import CollectionUtility from './CollectionUtility';
-import Document from './Document';
+import CollectionCategory, {
+  CollectionCategoryAttributes,
+} from './CollectionCategory';
+import CollectionUtility, {
+  CollectionUtilityAttributes,
+} from './CollectionUtility';
+import Document, { DocumentAttributes } from './Document';
 import MintingSchedule from './MintingSchedule';
 import Nft from './Nft';
 import User from './User';
@@ -46,20 +55,135 @@ export interface CollectionAttributes {
   whitepaperUrl?: string;
   imageUrl?: string;
   bannerImageUrl?: string;
+  mintingPriceWl?: string;
+  mintingPricePublic?: string;
+  floorPrice?: string;
   document?: Document;
   createdBy?: User;
   createdByDevice?: UserDevice;
   updatedBy?: User;
   updatedByDevice?: UserDevice;
   mintingSchedules?: MintingSchedule[];
-  type: CollectionType;
-  utility: CollectionUtility;
+  category?: CollectionCategory;
+  utility?: CollectionUtility;
   marketplace: string;
-  nfts: Nft[];
-  openseaUpdatedAt?: Date;
+  nfts?: Nft[];
+  openseaMetadataUpdatedAt?: Date;
+  openseaPriceUpdatedAt?: Date;
+
+  // Blocks
+  // For verifying collection data
+  blocks?: Block[];
 }
 
 export type CollectionCreationAttributes = Optional<CollectionAttributes, 'id'>;
+
+export type BlockCollectionAttrib =
+  | 'team'
+  | 'history'
+  | 'category'
+  | 'utility'
+  | 'mintingPriceWl'
+  | 'mintingPricePublic'
+  | 'floorPrice'
+  | 'discordUrl'
+  | 'twitterHandle'
+  | 'websiteUrl'
+  | 'paymentTokens'
+  | 'marketplace'
+  | '';
+
+export interface CollectionResponse
+  extends Pick<
+    CollectionAttributes,
+    | 'id'
+    | 'contractAddress'
+    | 'slug'
+    | 'name'
+    | 'description'
+    | 'contractSchema'
+    | 'email'
+    | 'blogUrl'
+    | 'redditUrl'
+    | 'facebookUrl'
+    | 'twitterHandle'
+    | 'discordUrl'
+    | 'websiteUrl'
+    | 'telegramUrl'
+    | 'bitcointalkUrl'
+    | 'githubUrl'
+    | 'wechatUrl'
+    | 'linkedInUrl'
+    | 'whitepaperUrl'
+    | 'imageUrl'
+    | 'bannerImageUrl'
+    | 'floorPrice'
+    | 'mintingPriceWl'
+    | 'mintingPricePublic'
+    | 'marketplace'
+    | 'openseaMetadataUpdatedAt'
+    | 'openseaPriceUpdatedAt'
+  > {
+  collectionDeployers: (CollectionDeployerAttributes['address'] | null)[];
+  paymentTokens?: (BcTokenResponse | null)[];
+  document: Pick<DocumentAttributes, 'id' | 'title'>;
+  category: Pick<CollectionCategoryAttributes, 'id' | 'name'>;
+  utility: Pick<CollectionUtilityAttributes, 'id' | 'name'>;
+  blocks?: Record<BlockCollectionAttrib, BlockResponse>;
+}
+
+export interface CollectionCreationDTO
+  extends Pick<
+    CollectionAttributes,
+    | 'contractAddress'
+    | 'slug'
+    | 'name'
+    | 'description'
+    | 'contractSchema'
+    | 'email'
+    | 'blogUrl'
+    | 'redditUrl'
+    | 'facebookUrl'
+    | 'twitterHandle'
+    | 'discordUrl'
+    | 'websiteUrl'
+    | 'telegramUrl'
+    | 'bitcointalkUrl'
+    | 'githubUrl'
+    | 'wechatUrl'
+    | 'linkedInUrl'
+    | 'whitepaperUrl'
+    | 'imageUrl'
+    | 'bannerImageUrl'
+    | 'mintingPriceWl'
+    | 'mintingPricePublic'
+    | 'floorPrice'
+    | 'document'
+    | 'marketplace'
+    | 'openseaMetadataUpdatedAt'
+    | 'openseaPriceUpdatedAt'
+  > {
+  collectionDeployers: CollectionDeployerAttributes['address'][];
+  paymentTokens: BcTokenCreationAttributes[];
+  category?: CollectionCategoryAttributes['name'];
+  utility?: CollectionUtilityAttributes['name'];
+  createdBy: User;
+  createdByDevice?: UserDevice;
+  team?: string;
+  history?: string;
+}
+
+export interface CollectionUpdateDTO
+  extends Omit<
+    Partial<CollectionCreationDTO>,
+    'createdBy' | 'createdByDevice'
+  > {
+  updatedBy?: User;
+  updatedByDevice?: UserDevice;
+}
+
+export const OPENSEA_METADATA_UPDATE_PERIOD = 24 * 60 * 60 * 1000;
+export const OPENSEA_PRICE_UPDATE_PERIOD = 60 * 60 * 1000;
 
 @Table({
   modelName: 'Collection',
@@ -96,7 +220,7 @@ export default class Collection extends Model<
   paymentTokens: CollectionAttributes['paymentTokens'];
 
   @AllowNull(false)
-  @Column(DataType.STRING(10))
+  @Column(DataType.STRING(16))
   contractSchema!: CollectionAttributes['contractSchema'];
 
   @Column(DataType.STRING(191))
@@ -111,7 +235,7 @@ export default class Collection extends Model<
   @Column(DataType.STRING(1024))
   facebookUrl: CollectionAttributes['facebookUrl'];
 
-  @Column(DataType.STRING(1024))
+  @Column(DataType.STRING(25))
   twitterHandle: CollectionAttributes['twitterHandle'];
 
   @Column(DataType.STRING(1024))
@@ -144,6 +268,16 @@ export default class Collection extends Model<
   @Column(DataType.STRING(1024))
   bannerImageUrl: CollectionAttributes['bannerImageUrl'];
 
+  @Column(DataType.STRING)
+  mintingPriceWl?: CollectionAttributes['mintingPriceWl'];
+
+  @Column(DataType.STRING)
+  mintingPricePublic?: CollectionAttributes['mintingPricePublic'];
+
+  @Default('0')
+  @Column(DataType.STRING)
+  floorPrice?: CollectionAttributes['floorPrice'];
+
   @HasOne(() => Document, 'collectionId')
   document: CollectionAttributes['document'];
 
@@ -162,19 +296,118 @@ export default class Collection extends Model<
   @HasMany(() => MintingSchedule, 'collectionId')
   mintingSchedules: CollectionAttributes['mintingSchedules'];
 
-  @BelongsTo(() => CollectionType, 'collectionTypeId')
-  type!: CollectionAttributes['type'];
+  @BelongsTo(() => CollectionCategory, 'collectionCategoryId')
+  category: CollectionAttributes['category'];
 
   @BelongsTo(() => CollectionUtility, 'collectionUtilityId')
-  utility!: CollectionAttributes['utility'];
+  utility: CollectionAttributes['utility'];
 
   @AllowNull(false)
   @Column(DataType.STRING(191))
   marketplace!: CollectionAttributes['marketplace'];
 
   @HasMany(() => Nft, 'collectionId')
-  nfts!: CollectionAttributes['nfts'];
+  nfts: CollectionAttributes['nfts'];
 
   @Column(DataType.DATE)
-  openseaUpdatedAt: CollectionAttributes['openseaUpdatedAt'];
+  openseaMetadataUpdatedAt: CollectionAttributes['openseaMetadataUpdatedAt'];
+
+  @Column(DataType.DATE)
+  openseaPriceUpdatedAt: CollectionAttributes['openseaPriceUpdatedAt'];
+
+  @HasMany(() => Block, 'collectionId')
+  blocks: CollectionAttributes['blocks'];
+
+  async toResponseJSON(
+    myself: User | null = null
+  ): Promise<CollectionResponse> {
+    const clj = this.toJSON();
+    const props = _.pick(clj, [
+      'id',
+      'contractAddress',
+      'slug',
+      'name',
+      'description',
+      'contractSchema',
+      'email',
+      'blogUrl',
+      'redditUrl',
+      'facebookUrl',
+      'twitterHandle',
+      'discordUrl',
+      'websiteUrl',
+      'telegramUrl',
+      'bitcointalkUrl',
+      'githubUrl',
+      'wechatUrl',
+      'linkedInUrl',
+      'whitepaperUrl',
+      'imageUrl',
+      'bannerImageUrl',
+      'floorPrice',
+      'mintingPriceWl',
+      'mintingPricePublic',
+      'marketplace',
+      'openseaMetadataUpdatedAt',
+      'openseaPriceUpdatedAt',
+    ]);
+
+    const [
+      collectionDeployers,
+      paymentTokens,
+      document,
+      category,
+      utility,
+      blocks,
+    ] = await Promise.all([
+      this.$get('collectionDeployers', { attributes: ['address'] }),
+      this.$get('paymentTokens', {
+        attributes: ['id', 'name', 'symbol', 'address', 'imageUrl', 'decimals'],
+      }),
+      this.$get('document', { attributes: ['id', 'title'] }),
+      this.$get('category', { attributes: ['id', 'name'] }),
+      this.$get('utility', { attributes: ['id', 'name'] }),
+      this.$get('blocks', {
+        include: [
+          {
+            model: User,
+            as: 'createdBy',
+          },
+          {
+            model: User,
+            as: 'updatedBy',
+          },
+          Collection,
+        ],
+      }),
+    ]);
+
+    // All the blocks
+    const blockResponses = blocks
+      ? await Promise.all(blocks.map((blk) => blk.toResponseJSON(myself)))
+      : undefined;
+
+    const blkrEntries: [BlockCollectionAttrib, BlockResponse][] | undefined =
+      blockResponses?.map((b) => [b.collectionAttrib || '', b]);
+
+    const blockResponse = blkrEntries
+      ? (Object.fromEntries<BlockResponse>(blkrEntries) as Record<
+          BlockCollectionAttrib,
+          BlockResponse
+        >)
+      : undefined;
+
+    const response: CollectionResponse = {
+      ...props,
+      collectionDeployers:
+        collectionDeployers as CollectionResponse['collectionDeployers'],
+      paymentTokens: paymentTokens as CollectionResponse['paymentTokens'],
+      document: document as CollectionResponse['document'],
+      category: category as CollectionResponse['category'],
+      utility: utility as CollectionResponse['utility'],
+      blocks: blockResponse,
+    };
+
+    return response;
+  }
 }

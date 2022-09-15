@@ -1,6 +1,6 @@
 import { body, param } from 'express-validator';
 import { USERNAME_MAX_LENGTH } from '../../models/User';
-import { inMySQLIntRange, toInt } from './utils';
+import { inMySQLIntRange } from './utils';
 
 export const validateGetProfileByProfileId = param('profileId')
   .trim()
@@ -12,8 +12,7 @@ export const validateGetProfileByProfileId = param('profileId')
   .isInt()
   .custom(inMySQLIntRange())
   .withMessage('NOT_INT')
-  .bail()
-  .customSanitizer(toInt);
+  .bail();
 
 export const validateGetProfileByUserName = param('userName')
   .trim()
