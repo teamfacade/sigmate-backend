@@ -9,7 +9,7 @@ import { Optional } from 'sequelize/types';
 import Collection from './Collection';
 export interface TwitterAnnouncementAttributes {
   id: number;
-  collection: Collection;
+  collection: number;
   twitterChannel: string;
   contentId: string;
   content: string;

@@ -9,7 +9,7 @@ import { Optional } from 'sequelize/types';
 import Collection from './Collection';
 export interface ChannelAttributes {
   id: number;
-  collection: Collection;
+  collection: number;
   discordChannel: string;
   twitterChannel: string;
 }
