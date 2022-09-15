@@ -19,7 +19,9 @@ import CollectionDeployer, {
   CollectionDeployerAttributes,
 } from './CollectionDeployer';
 import CollectionPaymentToken from './CollectionPaymentToken';
-import CollectionType, { CollectionTypeAttributes } from './CollectionType';
+import CollectionCategory, {
+  CollectionCategoryAttributes,
+} from './CollectionCategory';
 import CollectionUtility, {
   CollectionUtilityAttributes,
 } from './CollectionUtility';
@@ -62,7 +64,7 @@ export interface CollectionAttributes {
   updatedBy?: User;
   updatedByDevice?: UserDevice;
   mintingSchedules?: MintingSchedule[];
-  type?: CollectionType;
+  category?: CollectionCategory;
   utility?: CollectionUtility;
   marketplace: string;
   nfts?: Nft[];
@@ -79,7 +81,7 @@ export type CollectionCreationAttributes = Optional<CollectionAttributes, 'id'>;
 export type BlockCollectionAttrib =
   | 'team'
   | 'history'
-  | 'type'
+  | 'category'
   | 'utility'
   | 'mintingPriceWl'
   | 'mintingPricePublic'
@@ -125,7 +127,7 @@ export interface CollectionResponse
   collectionDeployers: (CollectionDeployerAttributes['address'] | null)[];
   paymentTokens?: (BcTokenResponse | null)[];
   document: Pick<DocumentAttributes, 'id' | 'title'>;
-  type: Pick<CollectionTypeAttributes, 'id' | 'name'>;
+  category: Pick<CollectionCategoryAttributes, 'id' | 'name'>;
   utility: Pick<CollectionUtilityAttributes, 'id' | 'name'>;
   blocks?: Record<BlockCollectionAttrib, BlockResponse>;
 }
@@ -163,7 +165,7 @@ export interface CollectionCreationDTO
   > {
   collectionDeployers: CollectionDeployerAttributes['address'][];
   paymentTokens: BcTokenCreationAttributes[];
-  type?: CollectionTypeAttributes['name'];
+  category?: CollectionCategoryAttributes['name'];
   utility?: CollectionUtilityAttributes['name'];
   createdBy: User;
   createdByDevice?: UserDevice;
@@ -294,8 +296,8 @@ export default class Collection extends Model<
   @HasMany(() => MintingSchedule, 'collectionId')
   mintingSchedules: CollectionAttributes['mintingSchedules'];
 
-  @BelongsTo(() => CollectionType, 'collectionTypeId')
-  type: CollectionAttributes['type'];
+  @BelongsTo(() => CollectionCategory, 'collectionCategoryId')
+  category: CollectionAttributes['category'];
 
   @BelongsTo(() => CollectionUtility, 'collectionUtilityId')
   utility: CollectionAttributes['utility'];
@@ -354,7 +356,7 @@ export default class Collection extends Model<
       collectionDeployers,
       paymentTokens,
       document,
-      type,
+      category,
       utility,
       blocks,
     ] = await Promise.all([
@@ -363,7 +365,7 @@ export default class Collection extends Model<
         attributes: ['id', 'name', 'symbol', 'address', 'imageUrl', 'decimals'],
       }),
       this.$get('document', { attributes: ['id', 'title'] }),
-      this.$get('type', { attributes: ['id', 'name'] }),
+      this.$get('category', { attributes: ['id', 'name'] }),
       this.$get('utility', { attributes: ['id', 'name'] }),
       this.$get('blocks', {
         include: [
@@ -401,7 +403,7 @@ export default class Collection extends Model<
         collectionDeployers as CollectionResponse['collectionDeployers'],
       paymentTokens: paymentTokens as CollectionResponse['paymentTokens'],
       document: document as CollectionResponse['document'],
-      type: type as CollectionResponse['type'],
+      category: category as CollectionResponse['category'],
       utility: utility as CollectionResponse['utility'],
       blocks: blockResponse,
     };

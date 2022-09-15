@@ -8,7 +8,7 @@ import Collection, {
   OPENSEA_PRICE_UPDATE_PERIOD,
 } from '../../models/Collection';
 import { CollectionDeployerAttributes } from '../../models/CollectionDeployer';
-import { CollectionTypeAttributes } from '../../models/CollectionType';
+import { CollectionCategoryAttributes } from '../../models/CollectionCategory';
 import { CollectionUtilityAttributes } from '../../models/CollectionUtility';
 import Document, { DocumentAttributes } from '../../models/Document';
 import ApiError from '../../utils/errors/ApiError';
@@ -128,7 +128,7 @@ interface CreateCollectionReqBody
   paymentTokens?: BcTokenRequest[];
   websiteUrl: string;
   document?: DocumentAttributes['id'];
-  type?: CollectionTypeAttributes['name'];
+  category?: CollectionCategoryAttributes['name'];
   utility?: CollectionUtilityAttributes['name'];
   team?: string;
   history?: string;
@@ -217,7 +217,7 @@ export const createCollectionController = async (
       floorPrice: body.floorPrice,
       document,
       marketplace: body.marketplace,
-      type: body.type,
+      category: body.category,
       utility: body.utility,
       team: body.team,
       history: body.history,
@@ -252,11 +252,7 @@ export const updateCollectionController = async (
 
     const { slug } = req.params as UpdateCollectionReqQuery;
     const body = req.body as UpdateCollectionReqBody;
-    const {
-      collectionDeployers = [],
-      paymentTokens = [],
-      document: documentId,
-    } = body;
+    const { collectionDeployers, paymentTokens, document: documentId } = body;
 
     // Validation
     // Check if document exists
@@ -303,7 +299,7 @@ export const updateCollectionController = async (
       floorPrice: body.floorPrice,
       document,
       marketplace: body.marketplace,
-      type: body.type,
+      category: body.category,
       utility: body.utility,
       team: body.team,
       history: body.history,

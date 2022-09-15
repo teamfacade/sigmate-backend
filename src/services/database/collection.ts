@@ -9,9 +9,9 @@ import Collection, {
   CollectionUpdateDTO,
 } from '../../models/Collection';
 import CollectionDeployer from '../../models/CollectionDeployer';
-import CollectionType, {
-  CollectionTypeFindOrCreateDTO,
-} from '../../models/CollectionType';
+import CollectionCategory, {
+  CollectionCategoryFindOrCreateDTO,
+} from '../../models/CollectionCategory';
 import CollectionUtility, {
   CollectionUtilityFindOrCreateDTO,
 } from '../../models/CollectionUtility';
@@ -77,34 +77,36 @@ export const setCollectionPaymentTokens = async (
   }
 };
 
-export const findOrCreateCollectionType = async (
-  collectionTypeDTO: CollectionTypeFindOrCreateDTO,
+export const findOrCreateCollectionCategory = async (
+  collectionCategoryDTO: CollectionCategoryFindOrCreateDTO,
   transaction: Transaction | undefined = undefined
 ) => {
   try {
-    // Collection Type
-    const [ct, created] = await CollectionType.findOrCreate({
-      where: { name: collectionTypeDTO.name },
+    // Collection category
+    const [cc, created] = await CollectionCategory.findOrCreate({
+      where: { name: collectionCategoryDTO.name },
       transaction,
     });
     const ps: Promise<unknown>[] = []; // promises
     if (created) {
-      collectionTypeDTO.createdBy &&
+      collectionCategoryDTO.createdBy &&
         ps.push(
-          ct.$set('createdBy', collectionTypeDTO.createdBy, { transaction })
+          cc.$set('createdBy', collectionCategoryDTO.createdBy, { transaction })
         );
-      collectionTypeDTO.createdByDevice &&
+      collectionCategoryDTO.createdByDevice &&
         ps.push(
-          ct.$set('createdByDevice', collectionTypeDTO.createdByDevice, {
+          cc.$set('createdByDevice', collectionCategoryDTO.createdByDevice, {
             transaction,
           })
         );
     }
-    if (collectionTypeDTO.collection) {
-      ps.push(collectionTypeDTO.collection.$set('type', ct, { transaction }));
+    if (collectionCategoryDTO.collection) {
+      ps.push(
+        collectionCategoryDTO.collection.$set('category', cc, { transaction })
+      );
     }
     await Promise.all(ps);
-    return ct;
+    return cc;
   } catch (error) {
     throw new SequelizeError(error as Error);
   }
@@ -135,7 +137,7 @@ export const findOrCreateCollectionUtility = async (
     }
     if (collectionUtilityDTO.collection) {
       ps.push(
-        collectionUtilityDTO.collection.$set('type', cu, { transaction })
+        collectionUtilityDTO.collection.$set('utility', cu, { transaction })
       );
     }
     await Promise.all(ps);
@@ -193,7 +195,7 @@ export const createCollection = async (
     const [
       teamBlock,
       historyBlock,
-      typeBlock,
+      categoryBlock,
       utilityBlock,
       mintingPriceWlBlock,
       mintingPricePublicBlock,
@@ -233,14 +235,14 @@ export const createCollection = async (
         },
         transaction
       ),
-      // Type Block
+      // Category Block
       createCollectionAttribBlock(
         {
           element: blockElement,
-          textContent: collectionDTO.type || '',
+          textContent: collectionDTO.category || '',
           document: collectionDTO.document,
           collection: cl,
-          collectionAttrib: 'type',
+          collectionAttrib: 'category',
           createdBy: collectionDTO.createdBy,
           createdByDevice: collectionDTO.createdByDevice,
           approved: true,
@@ -374,11 +376,11 @@ export const createCollection = async (
         },
         transaction
       ),
-      // Find or create the collection type
-      collectionDTO.type &&
-        findOrCreateCollectionType(
+      // Find or create the collection category
+      collectionDTO.category &&
+        findOrCreateCollectionCategory(
           {
-            name: collectionDTO.type,
+            name: collectionDTO.category,
             collection: cl,
             createdBy: collectionDTO.createdBy,
             createdByDevice: collectionDTO.createdByDevice,
@@ -429,7 +431,7 @@ export const createCollection = async (
         [
           teamBlock,
           historyBlock,
-          typeBlock,
+          categoryBlock,
           utilityBlock,
           mintingPriceWlBlock,
           mintingPricePublicBlock,
@@ -545,12 +547,12 @@ export const updateCollectionBySlug = async (
         )
       );
     }
-    if (blocksObj.type && collectionDTO.type !== undefined) {
+    if (blocksObj.category && collectionDTO.category !== undefined) {
       ps.push(
         auditTextBlock(
-          blocksObj.type,
+          blocksObj.category,
           {
-            textContent: collectionDTO.type,
+            textContent: collectionDTO.category,
             approved: true,
             updatedBy: collectionDTO.updatedBy,
             updatedByDevice: collectionDTO.updatedByDevice,
@@ -693,6 +695,60 @@ export const updateCollectionBySlug = async (
         )
       );
     }
+
+    // Find or create collection category
+    if (collectionDTO.category !== undefined) {
+      ps.push(
+        findOrCreateCollectionCategory(
+          {
+            name: collectionDTO.category,
+            collection: cl,
+            createdBy: collectionDTO.updatedBy,
+            createdByDevice: collectionDTO.updatedByDevice,
+          },
+          transaction
+        )
+      );
+    }
+
+    // Find or create collection utility
+    if (collectionDTO.utility !== undefined) {
+      ps.push(
+        findOrCreateCollectionUtility(
+          {
+            name: collectionDTO.utility,
+            collection: cl,
+            createdBy: collectionDTO.updatedBy,
+            createdByDevice: collectionDTO.updatedByDevice,
+          },
+          transaction
+        )
+      );
+    }
+
+    // Update the document
+    if (collectionDTO.document) {
+      ps.push(cl.$set('document', collectionDTO.document, { transaction }));
+    }
+
+    // Update Collection Deployers
+    if (collectionDTO.collectionDeployers) {
+      ps.push(
+        setCollectionDeployerAddresses(
+          cl,
+          collectionDTO.collectionDeployers,
+          transaction
+        )
+      );
+    }
+
+    // Update Payment Tokens
+    if (collectionDTO.paymentTokens) {
+      ps.push(
+        setCollectionPaymentTokens(cl, collectionDTO.paymentTokens, transaction)
+      );
+    }
+
     await Promise.all(ps);
 
     return cl;

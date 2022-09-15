@@ -10,7 +10,7 @@ import Collection from './Collection';
 import CollectionDeployer from './CollectionDeployer';
 import CollectionDocumentTable from './CollectionDocumentTable';
 import CollectionPaymentToken from './CollectionPaymentToken';
-import CollectionType from './CollectionType';
+import CollectionCategory from './CollectionCategory';
 import CollectionUtility from './CollectionUtility';
 import Document from './Document';
 import DocumentAudit from './DocumentAudit';
@@ -80,7 +80,7 @@ const initDatabase = () => {
     CollectionDeployer,
     CollectionDocumentTable,
     CollectionPaymentToken,
-    CollectionType,
+    CollectionCategory,
     CollectionUtility,
     Document,
     DocumentAudit,
@@ -115,43 +115,7 @@ const initDatabase = () => {
     VerificationType,
   ]);
 
-  const db = {
-    sequelize,
-    AdminUser,
-    Block,
-    BlockAudit,
-    BlockVerification,
-    Category,
-    Collection,
-    CollectionDocumentTable,
-    CollectionType,
-    CollectionUtility,
-    Document,
-    DocumentAudit,
-    DocumentCategory,
-    ForumComment,
-    ForumCommentVote,
-    ForumPost,
-    ForumPostView,
-    ForumPostVote,
-    ForumReport,
-    ForumTag,
-    Image,
-    MintingSchedule,
-    Nft,
-    Opinion,
-    OpinionVerification,
-    Url,
-    UrlVerification,
-    User,
-    UserAgent,
-    UserAttendance,
-    UserAuth,
-    UserDevice,
-    UserGroup,
-    UserProfile,
-    VerificationType,
-  };
+  const db = { sequelize };
 
   return db;
 };
