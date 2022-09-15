@@ -15,5 +15,7 @@ declare namespace NodeJS {
     GOOGLE_CLIENT_SECRET: string;
     PATH_PUBLIC_KEY: string;
     PATH_PRIVATE_KEY: string;
+    AWS_ACCESS_KEY: string;
+    AWS_SECRET_ACCESS_KEY: string;
   }
 }
