@@ -507,3 +507,12 @@ export const validateCreateCollectionCategory = body('name')
   .bail()
   .isLength({ max: 64 })
   .withMessage('TOO_LONG');
+
+export const validateUpdateCollectionCategory = body('name')
+  .trim()
+  .stripLow()
+  .notEmpty()
+  .withMessage('REQUIRED')
+  .bail()
+  .isLength({ max: 64 })
+  .withMessage('TOO_LONG');

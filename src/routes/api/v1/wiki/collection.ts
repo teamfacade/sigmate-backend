@@ -11,6 +11,7 @@ import {
   validateGetCollectionBySlug,
   validateGetCollectionCategories,
   validateUpdateCollection,
+  validateUpdateCollectionCategory,
 } from '../../../../middlewares/validators/wiki/collection';
 import {
   createCollectionCategoryController,
@@ -18,6 +19,7 @@ import {
   deleteCollectionController,
   getCollectionBySlugController,
   getCollectionCategoriesController,
+  updateCollectionCategoryController,
   updateCollectionController,
 } from '../../../../services/wiki/collection';
 
@@ -64,6 +66,14 @@ clRouter
     validateCreateCollectionCategory,
     handleBadRequest,
     createCollectionCategoryController
+  );
+clRouter
+  .route('/category/:cid')
+  .patch(
+    passportJwtAuth,
+    validateUpdateCollectionCategory,
+    handleBadRequest,
+    updateCollectionCategoryController
   );
 
 export default clRouter;

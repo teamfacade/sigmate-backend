@@ -15,6 +15,7 @@ import CollectionCategory, {
   CollectionCategoryAttributes,
   CollectionCategoryCreationDTO,
   CollectionCategoryFindOrCreateDTO,
+  CollectionCategoryUpdateDTO,
 } from '../../models/CollectionCategory';
 import CollectionUtility, {
   CollectionUtilityFindOrCreateDTO,
@@ -29,6 +30,7 @@ import {
 } from './wiki/block';
 import ConflictError from '../../utils/errors/ConflictError';
 import UnauthenticatedError from '../../utils/errors/UnauthenticatedError';
+import BadRequestError from '../../utils/errors/BadRequestError';
 
 export const setCollectionDeployerAddresses = async (
   collection: Collection | null,
@@ -876,6 +878,23 @@ export const createCollectionCategory = async (
         { transaction }
       );
       return cc;
+    });
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+export const updateCollectionCategory = async (
+  dto: CollectionCategoryUpdateDTO
+) => {
+  try {
+    if (!dto.id) throw new BadRequestError();
+    const cc = await CollectionCategory.findByPk(dto.id);
+    if (!cc) throw new NotFoundError();
+    return await cc.update({
+      name: dto.name,
+      updatedById: dto.updatedBy?.id,
+      updatedByDeviceId: dto.updatedByDevice?.id,
     });
   } catch (error) {
     throw new SequelizeError(error as Error);

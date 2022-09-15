@@ -12,7 +12,7 @@ import { Optional } from 'sequelize/types';
 import Collection from './Collection';
 import CollectionUtility from './CollectionUtility';
 import User, { UserAttributes } from './User';
-import UserDevice from './UserDevice';
+import UserDevice, { UserDeviceAttributes } from './UserDevice';
 
 export interface CollectionCategoryAttributes {
   id: number;
@@ -23,7 +23,9 @@ export interface CollectionCategoryAttributes {
   createdBy?: User;
   createdByDeviceId?: UserAttributes['id'];
   createdByDevice?: UserDevice;
+  updatedById?: UserAttributes['id'];
   updatedBy?: User;
+  updatedByDeviceId?: UserDeviceAttributes['id'];
   updatedByDevice?: UserDevice;
 }
 
@@ -40,6 +42,11 @@ export interface CollectionCategoryFindOrCreateDTO
 export type CollectionCategoryCreationDTO = Pick<
   CollectionCategoryCreationAttributes,
   'name' | 'createdBy' | 'createdByDevice'
+>;
+
+export type CollectionCategoryUpdateDTO = Pick<
+  CollectionCategoryAttributes,
+  'id' | 'name' | 'updatedBy' | 'updatedByDevice'
 >;
 
 export type CollectionCategoryResponse = Pick<

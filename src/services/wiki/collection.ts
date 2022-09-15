@@ -27,6 +27,7 @@ import {
   getCollectionBySlug,
   getCollectionCategories,
   updateCollectionBySlugWithTx,
+  updateCollectionCategory,
 } from '../database/collection';
 
 type GetCollectionBySlugRequestQuery = {
@@ -395,6 +396,44 @@ export const createCollectionCategoryController = async (
     });
 
     res.status(201).json({
+      success: true,
+      category: cc.toResponseJSON(),
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+type UpdateCollectionCategoryReqParams = {
+  cid: CollectionCategoryAttributes['id'];
+};
+
+type UpdateCollectionCategoryReqBody = Pick<
+  CollectionCategoryCreationDTO,
+  'name'
+>;
+
+export const updateCollectionCategoryController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const u = req.user;
+    if (!u) throw new UnauthenticatedError();
+    const d = req.device;
+    const { cid: id } =
+      req.params as unknown as UpdateCollectionCategoryReqParams;
+    const { name } = req.body as UpdateCollectionCategoryReqBody;
+
+    const cc = await updateCollectionCategory({
+      id,
+      name,
+      updatedBy: u,
+      updatedByDevice: d,
+    });
+
+    res.status(200).json({
       success: true,
       category: cc.toResponseJSON(),
     });
