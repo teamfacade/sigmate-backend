@@ -8,24 +8,29 @@ import {
   Default,
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
-import Block from './Block';
-import User from './User';
-import UserDevice from './UserDevice';
+import Block, { BlockAttributes } from './Block';
+import User, { UserAttributes } from './User';
+import UserDevice, { UserDeviceAttributes } from './UserDevice';
 
 export interface BlockAuditAttributes {
   id: number;
   action: 'c' | 'u' | 'd'; // create, update, delete
   block?: Block;
+  blockId?: BlockAttributes['id'];
   element?: string;
   style?: { [key: string]: string };
   textContent?: string;
   structure?: number[];
   parentId?: number;
+  createdByDeviceId?: UserDeviceAttributes['id'];
   createdByDevice?: UserDevice;
+  createdById?: UserAttributes['id'];
   createdBy?: User;
   createdAt: Date;
   updatedAt: Date;
+  approvedByDeviceId?: UserDeviceAttributes['id'];
   approvedByDevice?: UserDevice;
+  approvedById?: UserAttributes['id'];
   approvedBy?: User;
   approvedAt?: Date;
   revertedByDevice?: UserDevice;

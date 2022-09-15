@@ -6,20 +6,25 @@ import {
 import handleBadRequest from '../../../../middlewares/handleBadRequest';
 import {
   validateCreateCollection,
+  validateCreateCollectionCategory,
   validateDeleteCollection,
   validateGetCollectionBySlug,
+  validateGetCollectionCategories,
   validateUpdateCollection,
 } from '../../../../middlewares/validators/wiki/collection';
 import {
+  createCollectionCategoryController,
   createCollectionController,
+  deleteCollectionController,
   getCollectionBySlugController,
+  getCollectionCategoriesController,
   updateCollectionController,
 } from '../../../../services/wiki/collection';
 
 const clRouter = express.Router();
 
 clRouter
-  .route('/:slug')
+  .route('/s/:slug')
   .get(
     passportJwtAuthOptional,
     validateGetCollectionBySlug,
@@ -32,7 +37,12 @@ clRouter
     handleBadRequest,
     updateCollectionController
   )
-  .delete(passportJwtAuth, validateDeleteCollection, handleBadRequest);
+  .delete(
+    passportJwtAuth,
+    validateDeleteCollection,
+    handleBadRequest,
+    deleteCollectionController
+  );
 
 clRouter.post(
   '/',
@@ -41,5 +51,19 @@ clRouter.post(
   handleBadRequest,
   createCollectionController
 );
+
+clRouter
+  .route('/category')
+  .get(
+    validateGetCollectionCategories,
+    handleBadRequest,
+    getCollectionCategoriesController
+  )
+  .post(
+    passportJwtAuth,
+    validateCreateCollectionCategory,
+    handleBadRequest,
+    createCollectionCategoryController
+  );
 
 export default clRouter;

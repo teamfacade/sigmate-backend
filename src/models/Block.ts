@@ -43,6 +43,7 @@ export interface BlockAttributes {
 
   // Block for collection attrib verification
   collection?: Collection;
+  collectionId?: CollectionAttributes['id'];
   collectionAttrib?: BlockCollectionAttrib;
 
   createdByDevice?: UserDevice;
@@ -89,6 +90,11 @@ export interface TextBlockAuditDTO
 
 export type CollectionAttribBlockCreationDTO = TextBlockCreationDTO &
   Required<Pick<BlockAttributes, 'collection' | 'collectionAttrib'>>;
+
+export interface CollectionAttribBlockDeletionDTO {
+  deletedBy?: BlockAttributes['deletedBy'];
+  deletedByDevice?: BlockAttributes['deletedByDevice'];
+}
 
 export interface BlockResponse
   extends Pick<

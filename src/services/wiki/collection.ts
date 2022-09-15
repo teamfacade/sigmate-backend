@@ -1,6 +1,7 @@
 import { Request, Response, NextFunction } from 'express';
 import { BcTokenRequest } from '../../models/BcToken';
 import Collection, {
+  CollectionAttributes,
   CollectionCreationDTO,
   CollectionResponse,
   CollectionUpdateDTO,
@@ -8,7 +9,10 @@ import Collection, {
   OPENSEA_PRICE_UPDATE_PERIOD,
 } from '../../models/Collection';
 import { CollectionDeployerAttributes } from '../../models/CollectionDeployer';
-import { CollectionCategoryAttributes } from '../../models/CollectionCategory';
+import {
+  CollectionCategoryAttributes,
+  CollectionCategoryCreationDTO,
+} from '../../models/CollectionCategory';
 import { CollectionUtilityAttributes } from '../../models/CollectionUtility';
 import Document, { DocumentAttributes } from '../../models/Document';
 import ApiError from '../../utils/errors/ApiError';
@@ -17,8 +21,11 @@ import NotFoundError from '../../utils/errors/NotFoundError';
 import UnauthenticatedError from '../../utils/errors/UnauthenticatedError';
 import { fetchCollectionBySlug } from '../3p/collection';
 import {
+  createCollectionCategory,
   createCollectionWithTx,
+  deleteCollectionBySlug,
   getCollectionBySlug,
+  getCollectionCategories,
   updateCollectionBySlugWithTx,
 } from '../database/collection';
 
@@ -311,6 +318,85 @@ export const updateCollectionController = async (
     res.status(200).json({
       success: true,
       collection: await cl.toResponseJSON(),
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+type DeleteCollectionReqParams = {
+  slug: CollectionAttributes['slug'];
+};
+
+export const deleteCollectionController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const u = req.user;
+    if (!u) throw new UnauthenticatedError();
+    const d = req.device;
+    const { slug } = req.params as DeleteCollectionReqParams;
+    await deleteCollectionBySlug({
+      slug,
+      deletedBy: u,
+      deletedByDevice: d,
+    });
+    res.status(200).json({ success: true });
+  } catch (error) {
+    next(error);
+  }
+};
+
+type GetCollectionCategoriesReqQuery = {
+  q?: string;
+};
+
+export const getCollectionCategoriesController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { q: query } = req.query as GetCollectionCategoriesReqQuery;
+    const ccs = await getCollectionCategories(query);
+    res.status(200).json({
+      success: true,
+      query,
+      categories: ccs,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+type CreateCollectionCategoryReqBody = Pick<
+  CollectionCategoryCreationDTO,
+  'name'
+>;
+
+export const createCollectionCategoryController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    // Parse request
+    const u = req.user;
+    const d = req.device;
+    if (!u) throw new UnauthenticatedError();
+    const { name } = req.body as CreateCollectionCategoryReqBody;
+
+    const cc = await createCollectionCategory({
+      name,
+      createdBy: u,
+      createdByDevice: d,
+    });
+
+    res.status(201).json({
+      success: true,
+      category: cc.toResponseJSON(),
     });
   } catch (error) {
     next(error);

@@ -11,7 +11,7 @@ import {
 import { Optional } from 'sequelize/types';
 import Collection from './Collection';
 import CollectionUtility from './CollectionUtility';
-import User from './User';
+import User, { UserAttributes } from './User';
 import UserDevice from './UserDevice';
 
 export interface CollectionCategoryAttributes {
@@ -19,7 +19,9 @@ export interface CollectionCategoryAttributes {
   name: string;
   collections?: Collection[];
   utilities?: CollectionUtility[];
+  createdById?: UserAttributes['id'];
   createdBy?: User;
+  createdByDeviceId?: UserAttributes['id'];
   createdByDevice?: UserDevice;
   updatedBy?: User;
   updatedByDevice?: UserDevice;
@@ -34,6 +36,16 @@ export interface CollectionCategoryFindOrCreateDTO
   extends Omit<CollectionCategoryCreationAttributes, 'collections'> {
   collection?: Collection;
 }
+
+export type CollectionCategoryCreationDTO = Pick<
+  CollectionCategoryCreationAttributes,
+  'name' | 'createdBy' | 'createdByDevice'
+>;
+
+export type CollectionCategoryResponse = Pick<
+  CollectionCategoryAttributes,
+  'id' | 'name'
+>;
 
 @Table({
   tableName: 'collection_categories',
@@ -69,4 +81,11 @@ export default class CollectionCategory extends Model<
 
   @BelongsTo(() => UserDevice, 'updatedByDeviceId')
   updatedByDevice: CollectionCategoryAttributes['updatedByDevice'];
+
+  toResponseJSON(): CollectionCategoryResponse {
+    return {
+      id: this.id,
+      name: this.name,
+    };
+  }
 }

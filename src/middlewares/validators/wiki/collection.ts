@@ -491,3 +491,19 @@ export const validateDeleteCollection = param('slug')
   .isLength({ min: 1, max: 191 })
   .withMessage('TOO_LONG')
   .bail();
+
+export const validateGetCollectionCategories = query('q')
+  .optional()
+  .trim()
+  .stripLow()
+  .isLength({ max: 64 })
+  .withMessage('TOO_LONG');
+
+export const validateCreateCollectionCategory = body('name')
+  .trim()
+  .stripLow()
+  .notEmpty()
+  .withMessage('REQUIRED')
+  .bail()
+  .isLength({ max: 64 })
+  .withMessage('TOO_LONG');

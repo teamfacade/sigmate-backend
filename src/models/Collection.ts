@@ -63,6 +63,8 @@ export interface CollectionAttributes {
   createdByDevice?: UserDevice;
   updatedBy?: User;
   updatedByDevice?: UserDevice;
+  deletedBy?: User;
+  deletedByDevice?: UserDevice;
   mintingSchedules?: MintingSchedule[];
   category?: CollectionCategory;
   utility?: CollectionUtility;
@@ -182,6 +184,12 @@ export interface CollectionUpdateDTO
   updatedByDevice?: UserDevice;
 }
 
+export interface CollectionDeletionDTO
+  extends Pick<CollectionAttributes, 'slug'> {
+  deletedBy?: User;
+  deletedByDevice?: UserDevice;
+}
+
 export const OPENSEA_METADATA_UPDATE_PERIOD = 24 * 60 * 60 * 1000;
 export const OPENSEA_PRICE_UPDATE_PERIOD = 60 * 60 * 1000;
 
@@ -292,6 +300,12 @@ export default class Collection extends Model<
 
   @BelongsTo(() => UserDevice, 'updatedByDeviceId')
   updatedByDevice: CollectionAttributes['updatedByDevice'];
+
+  @BelongsTo(() => User, 'deletedById')
+  deletedBy: CollectionAttributes['deletedBy'];
+
+  @BelongsTo(() => UserDevice, 'deletedByDeviceId')
+  deletedByDevice: CollectionAttributes['deletedByDevice'];
 
   @HasMany(() => MintingSchedule, 'collectionId')
   mintingSchedules: CollectionAttributes['mintingSchedules'];

@@ -1,3 +1,4 @@
+import { Op } from 'sequelize';
 import { Transaction } from 'sequelize/types';
 import db from '../../models';
 import BcToken, { BcTokenCreationAttributes } from '../../models/BcToken';
@@ -6,10 +7,13 @@ import Collection, {
   BlockCollectionAttrib,
   CollectionAttributes,
   CollectionCreationDTO,
+  CollectionDeletionDTO,
   CollectionUpdateDTO,
 } from '../../models/Collection';
 import CollectionDeployer from '../../models/CollectionDeployer';
 import CollectionCategory, {
+  CollectionCategoryAttributes,
+  CollectionCategoryCreationDTO,
   CollectionCategoryFindOrCreateDTO,
 } from '../../models/CollectionCategory';
 import CollectionUtility, {
@@ -18,8 +22,13 @@ import CollectionUtility, {
 import ApiError from '../../utils/errors/ApiError';
 import NotFoundError from '../../utils/errors/NotFoundError';
 import SequelizeError from '../../utils/errors/SequelizeError';
-import { auditTextBlock, createCollectionAttribBlock } from './wiki/block';
+import {
+  auditTextBlock,
+  createCollectionAttribBlock,
+  deleteCollectionAttribBlocks,
+} from './wiki/block';
 import ConflictError from '../../utils/errors/ConflictError';
+import UnauthenticatedError from '../../utils/errors/UnauthenticatedError';
 
 export const setCollectionDeployerAddresses = async (
   collection: Collection | null,
@@ -788,6 +797,85 @@ export const updateCollectionBySlugWithTx = async (
   try {
     return await db.sequelize.transaction(async (transaction) => {
       return await updateCollectionBySlug(slug, collectionDTO, transaction);
+    });
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+export const deleteCollectionBySlug = async (dto: CollectionDeletionDTO) => {
+  try {
+    await db.sequelize.transaction(async (transaction) => {
+      const cl = await Collection.findOne({
+        where: { slug: dto.slug },
+        transaction,
+      });
+      if (!cl) throw new NotFoundError();
+      const u = dto.deletedBy;
+      if (!u) throw new UnauthenticatedError();
+      const d = dto.deletedByDevice;
+
+      // Delete associated blocks
+      await deleteCollectionAttribBlocks(
+        cl,
+        {
+          deletedBy: u,
+          deletedByDevice: d,
+        },
+        transaction
+      );
+      // TODO delete associated document
+      // TODO delete associated NFTs
+      // TODO delete associated minting schedules
+
+      // Mark who deleted this collection
+      await cl.$set('deletedBy', u, { transaction });
+      d && (await cl.$set('deletedByDevice', d, { transaction }));
+
+      // Finally, delete collection
+      await cl.destroy({ transaction });
+    });
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+export const getCollectionCategories = async (
+  query: CollectionCategoryAttributes['name'] = ''
+) => {
+  try {
+    if (!query) {
+      return await CollectionCategory.findAll({ attributes: ['id', 'name'] });
+    } else {
+      // Search for categories that start with query
+      return await CollectionCategory.findAll({
+        where: {
+          name: {
+            [Op.startsWith]: query,
+          },
+        },
+        attributes: ['id', 'name'],
+      });
+    }
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+export const createCollectionCategory = async (
+  dto: CollectionCategoryCreationDTO
+) => {
+  try {
+    return await db.sequelize.transaction(async (transaction) => {
+      const cc = await CollectionCategory.create(
+        {
+          name: dto.name,
+          createdById: dto.createdBy?.id,
+          createdByDeviceId: dto.createdByDevice?.id,
+        },
+        { transaction }
+      );
+      return cc;
     });
   } catch (error) {
     throw new SequelizeError(error as Error);

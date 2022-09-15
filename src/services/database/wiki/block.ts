@@ -3,10 +3,13 @@ import { Transaction } from 'sequelize/types';
 import db from '../../../models';
 import Block, {
   CollectionAttribBlockCreationDTO,
+  CollectionAttribBlockDeletionDTO,
   TextBlockAuditDTO,
   TextBlockCreationDTO,
 } from '../../../models/Block';
 import BlockAudit from '../../../models/BlockAudit';
+import Collection from '../../../models/Collection';
+import ConflictError from '../../../utils/errors/ConflictError';
 import NotFoundError from '../../../utils/errors/NotFoundError';
 import SequelizeError from '../../../utils/errors/SequelizeError';
 
@@ -168,6 +171,55 @@ export const auditTextBlock = async (
     await Promise.all(ps);
 
     return block;
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+export const deleteCollectionAttribBlocks = async (
+  collection: Collection,
+  dto: CollectionAttribBlockDeletionDTO,
+  transaction: Transaction | undefined = undefined
+) => {
+  try {
+    const blocks =
+      collection.blocks ||
+      (await collection.$get('blocks', { transaction })) ||
+      [];
+    const u = dto.deletedBy;
+    const d = dto.deletedByDevice;
+    if (u) {
+      await Promise.all(
+        blocks.map((b) => b.$set('deletedBy', u, { transaction }))
+      );
+    }
+    if (d) {
+      await Promise.all(
+        blocks.map((b) => b.$set('deletedByDevice', d, { transaction }))
+      );
+    }
+    await Promise.all(
+      blocks.map((b) =>
+        BlockAudit.create(
+          {
+            action: 'd',
+            blockId: b.id,
+            createdByDeviceId: d?.id,
+            createdById: u?.id,
+            approvedByDeviceId: d?.id,
+            approvedById: u?.id,
+            approvedAt: new Date(),
+          },
+          { transaction }
+        )
+      )
+    );
+
+    if (!collection.id) throw new ConflictError();
+    await Block.destroy({
+      where: { collectionId: collection.id },
+      transaction,
+    });
   } catch (error) {
     throw new SequelizeError(error as Error);
   }
