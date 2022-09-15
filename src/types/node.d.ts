@@ -4,6 +4,7 @@ declare namespace NodeJS {
     PORT: number;
     DB_DATABASE: string;
     DB_USERNAME: string;
+    DB_AWS_USERNAME: string;
     DB_PASSWORD: string;
     DB_DEV_PASSWORD: string;
     DB_AWS_PASSWORD: string;

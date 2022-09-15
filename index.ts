@@ -14,7 +14,7 @@ const app = express();
 setupExpress(app);
 setupRoutes(app);
 
-if (process.env.NODE_ENV === 'development') {
+if (process.env.NODE_ENV === 'production') {
   syncDatabase();
 }
 
