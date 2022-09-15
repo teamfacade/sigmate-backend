@@ -10,6 +10,7 @@ import {
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
 import Collection from './Collection';
+import CollectionCategory from './CollectionCategory';
 import User from './User';
 import UserDevice from './UserDevice';
 
@@ -17,6 +18,7 @@ export interface CollectionUtilityAttributes {
   id: number;
   name: string;
   collections?: Collection[];
+  category?: CollectionCategory;
   createdBy?: User;
   createdByDevice?: UserDevice;
   updatedBy?: User;
@@ -49,6 +51,9 @@ export default class CollectionUtility extends Model<
   @AllowNull(false)
   @Column(DataType.STRING(64))
   name!: CollectionUtilityAttributes['name'];
+
+  @BelongsTo(() => CollectionCategory, 'collectionCategoryId')
+  category: CollectionUtilityAttributes['category'];
 
   @HasMany(() => Collection, 'collectionUtilityId')
   collections: CollectionUtilityAttributes['collections'];

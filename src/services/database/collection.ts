@@ -19,6 +19,7 @@ import ApiError from '../../utils/errors/ApiError';
 import NotFoundError from '../../utils/errors/NotFoundError';
 import SequelizeError from '../../utils/errors/SequelizeError';
 import { auditTextBlock, createCollectionAttribBlock } from './wiki/block';
+import ConflictError from '../../utils/errors/ConflictError';
 
 export const setCollectionDeployerAddresses = async (
   collection: Collection | null,
@@ -124,17 +125,30 @@ export const findOrCreateCollectionUtility = async (
     });
     const ps: Promise<unknown>[] = []; // promises
     if (created) {
-      collectionUtilityDTO.createdBy &&
+      if (!collectionUtilityDTO.category) {
+        // All utilities must belong to a collection category
+        throw new ConflictError('ERR_COLLECTION_UTILITY_CREATE_NO_CATEGORY');
+      }
+
+      ps.push(
+        cu.$set('category', collectionUtilityDTO.category, { transaction })
+      );
+
+      if (collectionUtilityDTO.createdBy) {
         ps.push(
           cu.$set('createdBy', collectionUtilityDTO.createdBy, { transaction })
         );
-      collectionUtilityDTO.createdByDevice &&
+      }
+
+      if (collectionUtilityDTO.createdByDevice) {
         ps.push(
           cu.$set('createdByDevice', collectionUtilityDTO.createdByDevice, {
             transaction,
           })
         );
+      }
     }
+
     if (collectionUtilityDTO.collection) {
       ps.push(
         collectionUtilityDTO.collection.$set('utility', cu, { transaction })
@@ -376,28 +390,6 @@ export const createCollection = async (
         },
         transaction
       ),
-      // Find or create the collection category
-      collectionDTO.category &&
-        findOrCreateCollectionCategory(
-          {
-            name: collectionDTO.category,
-            collection: cl,
-            createdBy: collectionDTO.createdBy,
-            createdByDevice: collectionDTO.createdByDevice,
-          },
-          transaction
-        ),
-      // Find or create the collection utility
-      collectionDTO.utility &&
-        findOrCreateCollectionUtility(
-          {
-            name: collectionDTO.utility,
-            collection: cl,
-            createdBy: collectionDTO.createdBy,
-            createdByDevice: collectionDTO.createdByDevice,
-          },
-          transaction
-        ),
       // Link the document
       collectionDTO.document &&
         cl.$set('document', collectionDTO.document, { transaction }),
@@ -445,6 +437,37 @@ export const createCollection = async (
         { transaction }
       )
     );
+
+    // Find or create the collection category
+    let cc: CollectionCategory | undefined = undefined;
+    if (collectionDTO.category) {
+      cc = await findOrCreateCollectionCategory(
+        {
+          name: collectionDTO.category,
+          collection: cl,
+          createdBy: collectionDTO.createdBy,
+          createdByDevice: collectionDTO.createdByDevice,
+        },
+        transaction
+      );
+    }
+
+    // Find or create the collection utility
+    if (collectionDTO.utility) {
+      ps.push(
+        findOrCreateCollectionUtility(
+          {
+            name: collectionDTO.utility,
+            collection: cl,
+            category: cc || undefined,
+            createdBy: collectionDTO.createdBy,
+            createdByDevice: collectionDTO.createdByDevice,
+          },
+          transaction
+        )
+      );
+    }
+
     await Promise.all(ps);
 
     return cl;
@@ -696,36 +719,6 @@ export const updateCollectionBySlug = async (
       );
     }
 
-    // Find or create collection category
-    if (collectionDTO.category !== undefined) {
-      ps.push(
-        findOrCreateCollectionCategory(
-          {
-            name: collectionDTO.category,
-            collection: cl,
-            createdBy: collectionDTO.updatedBy,
-            createdByDevice: collectionDTO.updatedByDevice,
-          },
-          transaction
-        )
-      );
-    }
-
-    // Find or create collection utility
-    if (collectionDTO.utility !== undefined) {
-      ps.push(
-        findOrCreateCollectionUtility(
-          {
-            name: collectionDTO.utility,
-            collection: cl,
-            createdBy: collectionDTO.updatedBy,
-            createdByDevice: collectionDTO.updatedByDevice,
-          },
-          transaction
-        )
-      );
-    }
-
     // Update the document
     if (collectionDTO.document) {
       ps.push(cl.$set('document', collectionDTO.document, { transaction }));
@@ -746,6 +739,38 @@ export const updateCollectionBySlug = async (
     if (collectionDTO.paymentTokens) {
       ps.push(
         setCollectionPaymentTokens(cl, collectionDTO.paymentTokens, transaction)
+      );
+    }
+
+    // Find or create collection category
+    let cc: CollectionCategory | undefined = undefined;
+    if (collectionDTO.category !== undefined) {
+      cc = await findOrCreateCollectionCategory(
+        {
+          name: collectionDTO.category,
+          collection: cl,
+          createdBy: collectionDTO.updatedBy,
+          createdByDevice: collectionDTO.updatedByDevice,
+        },
+        transaction
+      );
+    } else {
+      cc = cl.category || (await cl.$get('category')) || undefined;
+    }
+
+    // Find or create collection utility
+    if (collectionDTO.utility !== undefined) {
+      ps.push(
+        findOrCreateCollectionUtility(
+          {
+            name: collectionDTO.utility,
+            collection: cl,
+            category: cc || undefined,
+            createdBy: collectionDTO.updatedBy,
+            createdByDevice: collectionDTO.updatedByDevice,
+          },
+          transaction
+        )
       );
     }
 
