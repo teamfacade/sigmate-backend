@@ -2,10 +2,16 @@ import { NextFunction, Request, Response } from 'express';
 import { query } from 'express-validator';
 import handleBadRequest from './handleBadRequest';
 
+export interface PaginationOptions {
+  limit: number;
+  page: number;
+  offset: number;
+}
+
 const validatePagination = [
   query('limit')
     .optional()
-    .isInt({ min: 10, max: 100 })
+    .isInt({ min: 1, max: 100 })
     .withMessage('NOT_INT')
     .bail()
     .toInt(),

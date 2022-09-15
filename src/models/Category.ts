@@ -53,7 +53,7 @@ export interface CategoryResponse {
 }
 
 @Table({
-  tableName: 'document_categories',
+  tableName: 'categories',
   modelName: 'Category',
   timestamps: true,
   paranoid: false,

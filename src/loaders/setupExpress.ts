@@ -3,6 +3,7 @@ import express, { Express } from 'express';
 import morgan from 'morgan';
 import cors from 'cors';
 import passport from 'passport';
+import requestIp from 'request-ip';
 import expressConfig from '../config/express';
 import jwtStrategy from '../services/passport/jwt';
 import getUserDevice from '../middlewares/getUserDevice';
@@ -25,6 +26,7 @@ const setupExpress = (app: Express) => {
   app.use(passport.initialize());
 
   // Collect information about user's connection
+  app.use(requestIp.mw());
   app.use(getUserDevice);
 };
 

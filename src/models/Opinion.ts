@@ -28,9 +28,13 @@ export interface OpinionAttributes {
   opinionVerifications?: OpinionVerification[]; // verifications made on this opinion
   createdByDevice: UserDevice;
   createdBy?: User;
+  createdAt: Date;
 }
 
-export type OpinionCreationAttributes = Optional<OpinionAttributes, 'id'>;
+export type OpinionCreationAttributes = Optional<
+  OpinionAttributes,
+  'id' | 'createdAt'
+>;
 
 @Table({
   tableName: 'opinions',

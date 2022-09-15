@@ -11,7 +11,6 @@ import {
   Unique,
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
-import { intToIp, ipToInt } from '../utils/ipAddress';
 import AdminUser from './AdminUser';
 import Block from './Block';
 import BlockAudit from './BlockAudit';
@@ -19,7 +18,7 @@ import BlockVerification from './BlockVerification';
 import Category from './Category';
 import Collection from './Collection';
 import CollectionDocumentTable from './CollectionDocumentTable';
-import CollectionType from './CollectionType';
+import CollectionCategory from './CollectionCategory';
 import CollectionUtility from './CollectionUtility';
 import Document from './Document';
 import DocumentAudit from './DocumentAudit';
@@ -46,7 +45,7 @@ export type UserDeviceIdType = number;
 
 export interface UserDeviceAttributes {
   id: UserDeviceIdType;
-  ipv4?: number;
+  ipv4?: string;
   ipv6?: string;
   userAgentId: number;
   userAgent: UserAgent;
@@ -69,8 +68,8 @@ export interface UserDeviceAttributes {
   updatedCollections?: Collection[];
   createdCollectionDocumentTables?: CollectionDocumentTable[];
   updatedCollectionDocumentTables?: CollectionDocumentTable[];
-  createdCollectionTypes?: CollectionType[];
-  updatedCollectionTypes?: CollectionType[];
+  createdCollectionCategories?: CollectionCategory[];
+  updatedCollectionCategories?: CollectionCategory[];
   createdCollectionUtilities?: CollectionUtility[];
   updatedCollectionUtilities?: CollectionUtility[];
   createdDocuments?: Document[];
@@ -123,15 +122,11 @@ export default class UserDevice extends Model<
   UserDeviceCreationAttributes
 > {
   @Unique('device')
-  @Column(DataType.INTEGER)
-  get ipv4() {
-    return intToIp(this.getDataValue('ipv4'));
-  }
-  set ipv4(value: string | undefined) {
-    this.setDataValue('ipv4', ipToInt(value));
-  }
+  @Column(DataType.STRING(191))
+  ipv4: UserDeviceAttributes['ipv4'];
 
-  @Column(DataType.STRING(60)) // 39 + trailing network masks
+  @Unique('device')
+  @Column(DataType.STRING(191))
   ipv6: UserDeviceAttributes['ipv6'];
 
   @BelongsTo(() => UserAgent, 'userAgentId')
@@ -195,11 +190,11 @@ export default class UserDevice extends Model<
   @HasMany(() => CollectionDocumentTable, 'updatedByDeviceId')
   updatedCollectionDocumentTable: UserDeviceAttributes['updatedCollectionDocumentTables'];
 
-  @HasMany(() => CollectionType, 'createdByDeviceId')
-  createdCollectionTypes: UserDeviceAttributes['createdCollectionTypes'];
+  @HasMany(() => CollectionCategory, 'createdByDeviceId')
+  createdCollectionCategories: UserDeviceAttributes['createdCollectionCategories'];
 
-  @HasMany(() => CollectionType, 'updatedByDeviceId')
-  updatedCollectionTypes: UserDeviceAttributes['updatedCollectionTypes'];
+  @HasMany(() => CollectionCategory, 'updatedByDeviceId')
+  updatedCollectionCategories: UserDeviceAttributes['updatedCollectionCategories'];
 
   @HasMany(() => CollectionUtility, 'createdByDeviceId')
   createdCollectionUtilities: UserDeviceAttributes['createdCollectionUtilities'];

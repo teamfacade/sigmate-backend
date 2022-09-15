@@ -1,5 +1,4 @@
 import { Optional } from 'sequelize/types';
-import Require from '../types/Require';
 import {
   Model,
   DataType,
@@ -14,7 +13,7 @@ import {
   BelongsToMany,
 } from 'sequelize-typescript';
 import UserGroup from './UserGroup';
-import UserProfile from './UserProfile';
+import UserProfile, { UserProfileAttributes } from './UserProfile';
 import UserAuth from './UserAuth';
 import AdminUser from './AdminUser';
 import Block from './Block';
@@ -23,7 +22,7 @@ import BlockVerification from './BlockVerification';
 import Category from './Category';
 import Collection from './Collection';
 import CollectionDocumentTable from './CollectionDocumentTable';
-import CollectionType from './CollectionType';
+import CollectionCategory from './CollectionCategory';
 import CollectionUtility from './CollectionUtility';
 import Document from './Document';
 import DocumentAudit from './DocumentAudit';
@@ -101,8 +100,8 @@ export interface UserAttributes {
   updatedCollections?: Collection[];
   createdCollectionDocumentTables?: CollectionDocumentTable[];
   updatedCollectionDocumentTables?: CollectionDocumentTable[];
-  createdCollectionTypes?: CollectionType[];
-  updatedCollectionTypes?: CollectionType[];
+  createdCollectionCategories?: CollectionCategory[];
+  updatedCollectionCategories?: CollectionCategory[];
   createdCollectionUtilities?: CollectionUtility[];
   updatedCollectionUtilities?: CollectionUtility[];
   createdDocuments?: Document[];
@@ -158,12 +157,54 @@ export type UserCreationAttributes = Optional<
   | 'cookiesFunctional'
   | 'cookiesTargeting'
 >;
-
-// export type UserDTO = Require<Partial<UserAttributes>, 'id'>;
-export interface UserDTO extends Require<Partial<UserAttributes>, 'id'> {
+export interface UserDTO extends Partial<UserAttributes> {
   referredByCode?: UserAttributes['referralCode'];
 }
 export type UserCreationDTO = Omit<UserDTO, 'id'>;
+
+export interface UserResponse
+  extends Pick<
+    UserAttributes,
+    | 'id'
+    | 'userName'
+    | 'userNameUpdatedAt'
+    | 'email'
+    | 'metamaskWallet'
+    | 'isMetamaskWalletPublic'
+    | 'googleAccount'
+    | 'twitterHandle'
+    | 'isTwitterHandlePublic'
+    | 'discordAccount'
+    | 'isDiscordAccountPublic'
+    | 'isTester'
+    | 'isAdmin'
+    | 'locale'
+    | 'theme'
+    | 'emailEssential'
+    | 'emailMarketing'
+    | 'cookiesEssential'
+    | 'cookiesAnalytics'
+    | 'cookiesFunctional'
+    | 'cookiesTargeting'
+    | 'agreeTos'
+    | 'agreePrivacy'
+    | 'agreeLegal'
+    | 'referralCode'
+    | 'group'
+    | 'primaryProfile'
+    | 'adminUser'
+  > {
+  referredBy: UserAttributes['referralCode'] | null;
+}
+
+// User information if requested by another user (only public information)
+export interface UserPublicResponse
+  extends Pick<
+    UserResponse,
+    'id' | 'userName' | 'metamaskWallet' | 'twitterHandle' | 'discordAccount'
+  > {
+  primaryProfile: Omit<UserProfileAttributes, 'user'>;
+}
 
 export const availableThemes = ['light', 'dark', 'auto'];
 
@@ -212,7 +253,6 @@ export default class User extends Model<
   @Column(DataType.BOOLEAN)
   isAdmin!: UserAttributes['isAdmin'];
 
-  @Unique('metamaskWallet')
   @Column(DataType.STRING(64))
   metamaskWallet: UserAttributes['metamaskWallet'];
 
@@ -355,11 +395,11 @@ export default class User extends Model<
   @HasMany(() => CollectionDocumentTable, 'updatedByDeviceId')
   updatedCollectionDocumentTable: UserAttributes['updatedCollectionDocumentTables'];
 
-  @HasMany(() => CollectionType, 'createdById')
-  createdCollectionTypes: UserAttributes['createdCollectionTypes'];
+  @HasMany(() => CollectionCategory, 'createdById')
+  createdCollectionCategories: UserAttributes['createdCollectionCategories'];
 
-  @HasMany(() => CollectionType, 'updatedById')
-  updatedCollectionTypes: UserAttributes['updatedCollectionTypes'];
+  @HasMany(() => CollectionCategory, 'updatedById')
+  updatedCollectionCategories: UserAttributes['updatedCollectionCategories'];
 
   @HasMany(() => CollectionUtility, 'createdById')
   createdCollectionUtilities: UserAttributes['createdCollectionUtilities'];

@@ -12,6 +12,11 @@ export interface VerificationTypeAttributes {
   urlVerifications?: UrlVerification[];
 }
 
+export type VerificationTypeResponse = Pick<
+  VerificationTypeAttributes,
+  'id' | 'name' | 'isUpvote'
+>;
+
 @Table({
   tableName: 'verification_types',
   modelName: 'VerificationType',
@@ -43,4 +48,12 @@ export default class VerificationType extends Model<VerificationTypeAttributes> 
 
   @HasMany(() => UrlVerification, 'vtypeId')
   urlVerifications!: VerificationTypeAttributes['urlVerifications'];
+
+  toResponseJSON(): VerificationTypeResponse {
+    return {
+      id: this.id,
+      name: this.name,
+      isUpvote: this.isUpvote,
+    };
+  }
 }

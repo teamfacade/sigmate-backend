@@ -1,32 +1,30 @@
 import {
-  AllowNull,
   BelongsTo,
   Column,
   DataType,
-  HasMany,
   Table,
   Model,
+  AllowNull,
+  Default,
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
 import Block from './Block';
-import Image from './Image';
-import Url from './Url';
 import User from './User';
 import UserDevice from './UserDevice';
 
 export interface BlockAuditAttributes {
   id: number;
-  block: Block;
+  action: 'c' | 'u' | 'd'; // create, update, delete
+  block?: Block;
   element?: string;
-  style?: string;
+  style?: { [key: string]: string };
   textContent?: string;
-  image?: Image;
-  url?: Url;
-  structure?: string;
-  parent?: Block;
-  children?: Block[];
+  structure?: number[];
+  parentId?: number;
   createdByDevice?: UserDevice;
   createdBy?: User;
+  createdAt: Date;
+  updatedAt: Date;
   approvedByDevice?: UserDevice;
   approvedBy?: User;
   approvedAt?: Date;
@@ -35,7 +33,10 @@ export interface BlockAuditAttributes {
   revertedAt?: Date;
 }
 
-export type BlockAuditCreationAttributes = Optional<BlockAuditAttributes, 'id'>;
+export type BlockAuditCreationAttributes = Optional<
+  BlockAuditAttributes,
+  'id' | 'action' | 'createdAt' | 'updatedAt'
+>;
 
 @Table({
   tableName: 'block_audits',
@@ -50,39 +51,34 @@ export default class BlockAudit extends Model<
   BlockAuditAttributes,
   BlockAuditCreationAttributes
 > {
-  @BelongsTo(() => Block, 'blockId')
-  block!: BlockAuditAttributes['block'];
-
+  @Default('u')
   @AllowNull(false)
-  @Column(DataType.TEXT)
-  element!: BlockAuditAttributes['element'];
+  @Column(DataType.STRING(1))
+  action!: BlockAuditAttributes['action'];
+
+  @BelongsTo(() => Block, 'blockId')
+  block: BlockAuditAttributes['block'];
+
+  @Column(DataType.STRING(16))
+  element: BlockAuditAttributes['element'];
+
+  @Column(DataType.JSON)
+  style: BlockAuditAttributes['style'];
 
   @Column(DataType.TEXT)
-  style!: BlockAuditAttributes['style'];
+  textContent: BlockAuditAttributes['textContent'];
 
-  @Column(DataType.TEXT)
-  textContent!: BlockAuditAttributes['textContent'];
+  @Column(DataType.JSON)
+  structure: BlockAuditAttributes['structure'];
 
-  @BelongsTo(() => Image, 'imageId')
-  image!: BlockAuditAttributes['image'];
-
-  @BelongsTo(() => Url, 'urlId')
-  url!: BlockAuditAttributes['url'];
-
-  @Column(DataType.TEXT)
-  structure!: BlockAuditAttributes['structure'];
-
-  @BelongsTo(() => Block, 'parentId')
-  parent: BlockAuditAttributes['parent'];
-
-  @HasMany(() => Block, 'parentId')
-  children: BlockAuditAttributes['children'];
+  @Column(DataType.INTEGER)
+  parentId: BlockAuditAttributes['parentId'];
 
   @BelongsTo(() => UserDevice, 'createdByDeviceId')
-  createdByDevice!: BlockAuditAttributes['createdByDevice'];
+  createdByDevice: BlockAuditAttributes['createdByDevice'];
 
   @BelongsTo(() => User, 'createdById')
-  createdBy!: BlockAuditAttributes['createdBy'];
+  createdBy: BlockAuditAttributes['createdBy'];
 
   @BelongsTo(() => UserDevice, 'approvedByDeviceId')
   approvedByDevice: BlockAuditAttributes['approvedByDevice'];

@@ -23,7 +23,10 @@ export interface ForumTagAttributes {
   createdByDevice: UserDevice;
 }
 
-export type ForumTagCreationAttributes = Optional<ForumTagAttributes, 'id'>;
+export type ForumTagCreationAttributes = Optional<
+  ForumTagAttributes,
+  'id' | 'isBanned'
+>;
 
 @Table({
   tableName: 'forum_tags',
