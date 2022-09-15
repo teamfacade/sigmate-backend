@@ -14,61 +14,65 @@ export const createTextBlock = async (
   blockDTO: TextBlockCreationDTO,
   transaction: Transaction | undefined = undefined
 ) => {
-  const [b, ba] = await Promise.all([
-    Block.create(
-      {
-        element: blockDTO.element,
-        textContent: blockDTO.textContent,
-        parent: blockDTO.parent,
-        collectionAttrib: blockDTO.collectionAttrib,
-      },
-      { transaction }
-    ),
-    BlockAudit.create(
-      {
-        action: 'c', // create operation
-        element: blockDTO.element,
-        textContent: blockDTO.textContent,
-        parentId: blockDTO.parent?.id || undefined,
-        approvedAt: blockDTO.approved ? new Date() : undefined,
-      },
-      { transaction }
-    ),
-  ]);
+  try {
+    const [b, ba] = await Promise.all([
+      Block.create(
+        {
+          element: blockDTO.element,
+          textContent: blockDTO.textContent,
+          parent: blockDTO.parent,
+          collectionAttrib: blockDTO.collectionAttrib,
+        },
+        { transaction }
+      ),
+      BlockAudit.create(
+        {
+          action: 'c', // create operation
+          element: blockDTO.element,
+          textContent: blockDTO.textContent,
+          parentId: blockDTO.parent?.id || undefined,
+          approvedAt: blockDTO.approved ? new Date() : undefined,
+        },
+        { transaction }
+      ),
+    ]);
 
-  const ps: Promise<unknown>[] = [
-    // promises
-    // Link block audit(creation) entry
-    ba.$set('block', b, { transaction }),
-  ];
+    const ps: Promise<unknown>[] = [
+      // promises
+      // Link block audit(creation) entry
+      ba.$set('block', b, { transaction }),
+    ];
 
-  const d = blockDTO.createdByDevice;
-  const u = blockDTO.createdBy;
+    const d = blockDTO.createdByDevice;
+    const u = blockDTO.createdBy;
 
-  // Who created this block?
-  u && ps.push(b.$set('createdBy', u, { transaction }));
-  d && ps.push(b.$set('createdByDevice', d, { transaction }));
+    // Who created this block?
+    u && ps.push(b.$set('createdBy', u, { transaction }));
+    d && ps.push(b.$set('createdByDevice', d, { transaction }));
 
-  // Who created this block audit?
-  u && ps.push(ba.$set('createdBy', u, { transaction }));
-  d && ps.push(ba.$set('createdByDevice', d, { transaction }));
-  if (blockDTO.approved) {
-    u && ps.push(ba.$set('approvedBy', u, { transaction }));
-    d && ps.push(ba.$set('approvedByDevice', d, { transaction }));
+    // Who created this block audit?
+    u && ps.push(ba.$set('createdBy', u, { transaction }));
+    d && ps.push(ba.$set('createdByDevice', d, { transaction }));
+    if (blockDTO.approved) {
+      u && ps.push(ba.$set('approvedBy', u, { transaction }));
+      d && ps.push(ba.$set('approvedByDevice', d, { transaction }));
+    }
+
+    // Link document
+    blockDTO.document &&
+      ps.push(b.$set('document', blockDTO.document, { transaction }));
+
+    // Link parent block
+    if (blockDTO.parent) {
+      ps.push(b.$set('parent', blockDTO.parent, { transaction }));
+    }
+    await Promise.all(ps);
+
+    const ret: [Block, BlockAudit] = [b, ba];
+    return ret;
+  } catch (error) {
+    throw new SequelizeError(error as Error);
   }
-
-  // Link document
-  blockDTO.document &&
-    ps.push(b.$set('document', blockDTO.document, { transaction }));
-
-  // Link parent block
-  if (blockDTO.parent) {
-    ps.push(b.$set('parent', blockDTO.parent, { transaction }));
-  }
-  await Promise.all(ps);
-
-  const ret: [Block, BlockAudit] = [b, ba];
-  return ret;
 };
 
 export const createTextBlockWithTx = async (blockDTO: TextBlockCreationDTO) => {

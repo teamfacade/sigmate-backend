@@ -42,7 +42,7 @@ export const getCollectionBySlugController = async (
   next: NextFunction
 ) => {
   try {
-    const { create = false, update = false } =
+    const { create = false, update = true } =
       req.query as GetCollectionBySlugRequestQuery;
     const { slug } = req.params as GetCollectionBySlugRequestParams;
     let cl = await getCollectionBySlug(slug);
