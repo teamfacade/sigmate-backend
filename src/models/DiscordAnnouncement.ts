@@ -34,12 +34,16 @@ export default class DiscordAnnouncement extends Model<
 > {
   @BelongsTo(() => Collection, { foreignKey: 'collectionId' })
   collection!: DiscordAnnouncementAttributes['collection'];
+
   @Column(DataType.STRING(150))
   discordChannel!: string;
+
   @Column(DataType.STRING(150))
   contentId!: string;
+
   @Column(DataType.TEXT)
   content!: string;
+
   @Column(DataType.STRING(150))
   timestamp!: string;
 }

@@ -34,12 +34,16 @@ export default class TwitterAnnouncement extends Model<
 > {
   @BelongsTo(() => Collection, { foreignKey: 'collectionId' })
   collection!: TwitterAnnouncementAttributes['collection'];
+
   @Column(DataType.STRING(150))
   twitterChannel!: string;
+
   @Column(DataType.STRING(150))
   contentId!: string;
+
   @Column(DataType.TEXT)
   content!: string;
+
   @Column(DataType.STRING(150))
   timestamp!: string;
 }

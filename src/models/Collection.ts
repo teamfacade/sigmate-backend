@@ -21,6 +21,9 @@ import MintingSchedule from './MintingSchedule';
 import Nft from './Nft';
 import User from './User';
 import UserDevice from './UserDevice';
+import Channel from './Channel';
+import DiscordAnnouncement from './DiscordAnnouncement';
+import TwitterAnnouncement from './TwitterAnnouncement';
 
 export interface CollectionAttributes {
   id: number;
@@ -57,6 +60,9 @@ export interface CollectionAttributes {
   marketplace: string;
   nfts: Nft[];
   openseaUpdatedAt?: Date;
+  channel?: Channel;
+  discordAnnouncement?: DiscordAnnouncement[];
+  twitterAnnouncement?: TwitterAnnouncement[];
 }
 
 export type CollectionCreationAttributes = Optional<CollectionAttributes, 'id'>;
@@ -177,4 +183,13 @@ export default class Collection extends Model<
 
   @Column(DataType.DATE)
   openseaUpdatedAt: CollectionAttributes['openseaUpdatedAt'];
+
+  @HasOne(() => Channel, 'collectionId')
+  channel: CollectionAttributes['channel'];
+
+  @HasMany(() => DiscordAnnouncement, 'collectionId')
+  discordAnnouncement: CollectionAttributes['discordAnnouncement'];
+
+  @HasMany(() => TwitterAnnouncement, 'collectionId')
+  twitterAnnouncement: CollectionAttributes['twitterAnnouncement'];
 }
