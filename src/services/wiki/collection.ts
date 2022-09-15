@@ -22,10 +22,12 @@ import UnauthenticatedError from '../../utils/errors/UnauthenticatedError';
 import { fetchCollectionBySlug } from '../3p/collection';
 import {
   createCollectionCategory,
+  createCollectionUtility,
   createCollectionWithTx,
   deleteCollectionBySlug,
   getCollectionBySlug,
   getCollectionCategories,
+  getCollectionUtilitiesByCollectionCategoryId,
   updateCollectionBySlugWithTx,
   updateCollectionCategory,
 } from '../database/collection';
@@ -437,6 +439,69 @@ export const updateCollectionCategoryController = async (
       success: true,
       category: cc.toResponseJSON(),
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+type GetCollectionUtilitiesReqQuery = {
+  q?: string;
+};
+
+type GetCollectionUtilitiesReqParams = {
+  cid: CollectionCategoryAttributes['id'];
+};
+
+export const getCollectionUtilitiesController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { q: query } = req.query as GetCollectionUtilitiesReqQuery;
+    const { cid } = req.params as unknown as GetCollectionUtilitiesReqParams;
+
+    const cus = await getCollectionUtilitiesByCollectionCategoryId(cid, query);
+
+    res.status(200).json({
+      success: true,
+      utilities: cus,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+type CreateCollectionUtilitiesReqParams = {
+  cid: CollectionCategoryAttributes['id'];
+};
+
+type CreateCollectionUtilitiesReqBody = {
+  name: CollectionUtilityAttributes['name'];
+};
+
+export const createCollectionUtilityController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const u = req.user;
+    if (!u) throw new UnauthenticatedError();
+    const d = req.device;
+    const { cid } = req.params as unknown as CreateCollectionUtilitiesReqParams;
+    if (!cid) throw new BadRequestError();
+    const { name } = req.body as CreateCollectionUtilitiesReqBody;
+    if (!name) throw new BadRequestError();
+
+    const cu = await createCollectionUtility({
+      name,
+      createdById: u?.id,
+      createdByDeviceId: d?.id,
+      collectionCategoryId: cid,
+    });
+
+    res.status(201).json({ success: true, utility: cu.toResponseJSON() });
   } catch (error) {
     next(error);
   }

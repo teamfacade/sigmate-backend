@@ -508,11 +508,49 @@ export const validateCreateCollectionCategory = body('name')
   .isLength({ max: 64 })
   .withMessage('TOO_LONG');
 
-export const validateUpdateCollectionCategory = body('name')
-  .trim()
-  .stripLow()
-  .notEmpty()
-  .withMessage('REQUIRED')
-  .bail()
-  .isLength({ max: 64 })
-  .withMessage('TOO_LONG');
+export const validateUpdateCollectionCategory = [
+  param('cid')
+    .notEmpty()
+    .withMessage('REQUIRED')
+    .isInt()
+    .withMessage('NOT_INT')
+    .bail()
+    .toInt(),
+  body('name')
+    .trim()
+    .stripLow()
+    .notEmpty()
+    .withMessage('REQUIRED')
+    .bail()
+    .isLength({ max: 64 })
+    .withMessage('TOO_LONG'),
+];
+
+export const validateGetCollectionUtilities = [
+  query('q')
+    .optional()
+    .trim()
+    .stripLow()
+    .isLength({ max: 64 })
+    .withMessage('TOO_LONG'),
+  param('cid').isInt().withMessage('NOT_INT').bail().toInt(),
+];
+
+export const validateCreateCollectionUtility = [
+  param('cid')
+    .notEmpty()
+    .withMessage('REQUIRED')
+    .isInt()
+    .withMessage('NOT_INT')
+    .bail()
+    .toInt(),
+  body('name')
+    .trim()
+    .stripLow()
+    .notEmpty()
+    .withMessage('REQUIRED')
+    .bail()
+    .isLength({ max: 64 })
+    .withMessage('TOO_LONG')
+    .bail(),
+];

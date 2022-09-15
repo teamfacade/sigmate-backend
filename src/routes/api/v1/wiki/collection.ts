@@ -7,18 +7,22 @@ import handleBadRequest from '../../../../middlewares/handleBadRequest';
 import {
   validateCreateCollection,
   validateCreateCollectionCategory,
+  validateCreateCollectionUtility,
   validateDeleteCollection,
   validateGetCollectionBySlug,
   validateGetCollectionCategories,
+  validateGetCollectionUtilities,
   validateUpdateCollection,
   validateUpdateCollectionCategory,
 } from '../../../../middlewares/validators/wiki/collection';
 import {
   createCollectionCategoryController,
   createCollectionController,
+  createCollectionUtilityController,
   deleteCollectionController,
   getCollectionBySlugController,
   getCollectionCategoriesController,
+  getCollectionUtilitiesController,
   updateCollectionCategoryController,
   updateCollectionController,
 } from '../../../../services/wiki/collection';
@@ -76,4 +80,17 @@ clRouter
     updateCollectionCategoryController
   );
 
+clRouter
+  .route('/category/:cid/utility')
+  .get(
+    validateGetCollectionUtilities,
+    handleBadRequest,
+    getCollectionUtilitiesController
+  )
+  .post(
+    passportJwtAuth,
+    validateCreateCollectionUtility,
+    handleBadRequest,
+    createCollectionUtilityController
+  );
 export default clRouter;

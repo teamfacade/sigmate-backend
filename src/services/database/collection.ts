@@ -18,6 +18,8 @@ import CollectionCategory, {
   CollectionCategoryUpdateDTO,
 } from '../../models/CollectionCategory';
 import CollectionUtility, {
+  CollectionUtilityAttributes,
+  CollectionUtilityCreationDTO,
   CollectionUtilityFindOrCreateDTO,
 } from '../../models/CollectionUtility';
 import ApiError from '../../utils/errors/ApiError';
@@ -896,6 +898,63 @@ export const updateCollectionCategory = async (
       updatedById: dto.updatedBy?.id,
       updatedByDeviceId: dto.updatedByDevice?.id,
     });
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+// TODO Delete Collection Category
+
+export const getCollectionUtilitiesByCollectionCategoryId = async (
+  collectionCategoryId: CollectionCategoryAttributes['id'],
+  query: CollectionUtilityAttributes['name'] | undefined = ''
+) => {
+  try {
+    const cc = await CollectionCategory.findByPk(collectionCategoryId);
+    if (!cc) throw new NotFoundError();
+    if (!query) {
+      // TODO pagination
+      return await cc.$get('utilities', { attributes: ['id', 'name'] });
+    } else {
+      // Look for utilities that starts with query
+      return await cc.$get('utilities', {
+        where: {
+          name: {
+            [Op.startsWith]: query,
+          },
+        },
+        attributes: ['id', 'name'],
+      });
+    }
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+export const createCollectionUtility = async (
+  dto: CollectionUtilityCreationDTO
+) => {
+  try {
+    // Check if CollectionCategory exists first
+    if (dto.collectionCategoryId) {
+      const cu = await CollectionCategory.findByPk(dto.collectionCategoryId);
+      if (!cu) throw new ConflictError();
+    }
+
+    const cu = await CollectionUtility.create({
+      name: dto.name,
+      createdById: dto.createdById,
+      createdByDeviceId: dto.createdByDeviceId,
+      collectionCategoryId: dto.collectionCategoryId,
+    });
+
+    await Promise.all([
+      dto.createdBy && cu.$set('createdBy', dto.createdBy),
+      dto.createdByDevice && cu.$set('createdByDevice', dto.createdByDevice),
+      dto.category && cu.$set('category', dto.category),
+    ]);
+
+    return cu;
   } catch (error) {
     throw new SequelizeError(error as Error);
   }
