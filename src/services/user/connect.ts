@@ -170,7 +170,7 @@ export const connectMetaMaskController = async (
         msg: 'ERR_METAMASK_SIGNATURE_INVALID',
         metamaskWallet,
       };
-      res.status(403).json(response);
+      res.status(401).json(response);
     }
 
     // Wait for all promises to finish

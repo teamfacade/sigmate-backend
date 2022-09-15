@@ -5,7 +5,11 @@ declare namespace NodeJS {
     DB_DATABASE: string;
     DB_USERNAME: string;
     DB_PASSWORD: string;
+    DB_DEV_PASSWORD: string;
+    DB_AWS_PASSWORD: string;
     DB_HOST: string;
+    DB_DEV_HOST: string;
+    DB_AWS_HOST: string;
     DB_PORT: number;
     GOOGLE_CLIENT_ID: string;
     GOOGLE_CLIENT_SECRET: string;
