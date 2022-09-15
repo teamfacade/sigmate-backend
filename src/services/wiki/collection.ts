@@ -27,9 +27,11 @@ import {
   deleteCollectionBySlug,
   getCollectionBySlug,
   getCollectionCategories,
+  getCollectionCategoryById,
   getCollectionUtilitiesByCollectionCategoryId,
   updateCollectionBySlugWithTx,
   updateCollectionCategory,
+  updateCollectionUtility,
 } from '../database/collection';
 
 type GetCollectionBySlugRequestQuery = {
@@ -501,7 +503,46 @@ export const createCollectionUtilityController = async (
       collectionCategoryId: cid,
     });
 
-    res.status(201).json({ success: true, utility: cu.toResponseJSON() });
+    res.status(201).json({ success: true, utility: await cu.toResponseJSON() });
+  } catch (error) {
+    next(error);
+  }
+};
+
+type UpdateCollectionUtilitiesReqParams = {
+  cid: CollectionCategoryAttributes['id'];
+  uid: CollectionUtilityAttributes['id'];
+};
+
+type UpdateCollectionUtilitiesReqBody = {
+  name: CollectionUtilityAttributes['name'];
+};
+
+export const updateCollectionUtilityController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const u = req.user;
+    if (!u) throw new UnauthenticatedError();
+    const d = req.device;
+    const { cid, uid } =
+      req.params as unknown as UpdateCollectionUtilitiesReqParams;
+    const cc = await getCollectionCategoryById(cid);
+    if (!cc) throw new NotFoundError();
+    const { name } = req.body as UpdateCollectionUtilitiesReqBody;
+    const cu = await updateCollectionUtility({
+      id: uid,
+      name,
+      updatedBy: u,
+      updatedByDevice: d,
+    });
+
+    res.status(200).json({
+      success: true,
+      utility: await cu.toResponseJSON(['category']),
+    });
   } catch (error) {
     next(error);
   }

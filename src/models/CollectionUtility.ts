@@ -54,6 +54,16 @@ export type CollectionUtilityCreationDTO = Pick<
   | 'category'
 >;
 
+export type CollectionUtilityUpdateDTO = Pick<
+  CollectionUtilityCreationAttributes,
+  | 'id'
+  | 'name'
+  | 'updatedBy'
+  | 'updatedByDevice'
+  | 'updatedById'
+  | 'updatedByDeviceId'
+>;
+
 export type CollectionUtilityResponse = Pick<
   CollectionUtilityAttributes,
   'id' | 'name' | 'category'
@@ -99,11 +109,19 @@ export default class CollectionUtility extends Model<
   @BelongsTo(() => UserDevice, 'updatedByDeviceId')
   updatedByDevice: CollectionUtilityAttributes['updatedByDevice'];
 
-  toResponseJSON(): CollectionUtilityResponse {
-    return {
+  async toResponseJSON(attributes: string[] = []) {
+    let category = this.category || undefined;
+    if (attributes.includes('category')) {
+      category =
+        ((await this.$get('category', {
+          attributes: ['id', 'name'],
+        })) as CollectionCategory | null) || undefined;
+    }
+    const response: CollectionUtilityResponse = {
       id: this.id,
       name: this.name,
-      category: this.category || undefined,
+      category,
     };
+    return response;
   }
 }

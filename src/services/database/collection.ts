@@ -21,6 +21,7 @@ import CollectionUtility, {
   CollectionUtilityAttributes,
   CollectionUtilityCreationDTO,
   CollectionUtilityFindOrCreateDTO,
+  CollectionUtilityUpdateDTO,
 } from '../../models/CollectionUtility';
 import ApiError from '../../utils/errors/ApiError';
 import NotFoundError from '../../utils/errors/NotFoundError';
@@ -844,6 +845,16 @@ export const deleteCollectionBySlug = async (dto: CollectionDeletionDTO) => {
   }
 };
 
+export const getCollectionCategoryById = async (
+  id: CollectionCategoryAttributes['id']
+) => {
+  try {
+    return await CollectionCategory.findByPk(id);
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
 export const getCollectionCategories = async (
   query: CollectionCategoryAttributes['name'] = ''
 ) => {
@@ -959,3 +970,21 @@ export const createCollectionUtility = async (
     throw new SequelizeError(error as Error);
   }
 };
+
+export const updateCollectionUtility = async (
+  dto: CollectionUtilityUpdateDTO
+) => {
+  try {
+    const cu = await CollectionUtility.findByPk(dto.id);
+    if (!cu) throw new NotFoundError();
+    return await cu.update({
+      name: dto.name,
+      updatedById: dto.updatedBy?.id || dto.updatedById,
+      updatedByDeviceId: dto.updatedByDevice?.id || dto.updatedByDeviceId,
+    });
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+// TODO Delete collection utility

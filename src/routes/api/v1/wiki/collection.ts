@@ -14,6 +14,7 @@ import {
   validateGetCollectionUtilities,
   validateUpdateCollection,
   validateUpdateCollectionCategory,
+  validateUpdateCollectionUtility,
 } from '../../../../middlewares/validators/wiki/collection';
 import {
   createCollectionCategoryController,
@@ -25,6 +26,7 @@ import {
   getCollectionUtilitiesController,
   updateCollectionCategoryController,
   updateCollectionController,
+  updateCollectionUtilityController,
 } from '../../../../services/wiki/collection';
 
 const clRouter = express.Router();
@@ -93,4 +95,14 @@ clRouter
     handleBadRequest,
     createCollectionUtilityController
   );
+
+clRouter
+  .route('/category/:cid/utility/:uid')
+  .patch(
+    passportJwtAuth,
+    validateUpdateCollectionUtility,
+    handleBadRequest,
+    updateCollectionUtilityController
+  );
+
 export default clRouter;

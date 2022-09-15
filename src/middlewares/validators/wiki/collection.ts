@@ -554,3 +554,22 @@ export const validateCreateCollectionUtility = [
     .withMessage('TOO_LONG')
     .bail(),
 ];
+
+export const validateUpdateCollectionUtility = [
+  param('cid')
+    .notEmpty()
+    .withMessage('REQUIRED')
+    .isInt()
+    .withMessage('NOT_INT')
+    .bail()
+    .toInt(),
+  body('name')
+    .trim()
+    .stripLow()
+    .notEmpty()
+    .withMessage('REQUIRED')
+    .bail()
+    .isLength({ max: 64 })
+    .withMessage('TOO_LONG')
+    .bail(),
+];
