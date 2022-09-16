@@ -2,9 +2,11 @@ import db from '../models';
 import UserGroup from '../models/UserGroup';
 
 const forceSync = true;
+export let isDBSyncing = false;
 
 const syncDatabase = () => {
   console.log('Starting database sync...');
+  isDBSyncing = true;
   db.sequelize
     .sync({ force: forceSync, logging: false })
     .then(() => {
@@ -105,11 +107,14 @@ const syncDatabase = () => {
           })
           .then(() => {
             console.log(`✅ User groups successfully initialized.`);
+            isDBSyncing = false;
           })
           .catch((err) => {
             console.error(err);
             console.log(`❌ Failed to initialize user groups.`);
           });
+      } else {
+        isDBSyncing = false;
       }
     })
     .catch((error) => {
