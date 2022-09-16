@@ -13,10 +13,7 @@ import setupErrorHandlers from './src/loaders/setupErrorHandlers';
 const app = express();
 setupExpress(app);
 setupRoutes(app);
-
-if (process.env.NODE_ENV === 'production') {
-  syncDatabase();
-}
+syncDatabase();
 
 setupErrorHandlers(app);
 

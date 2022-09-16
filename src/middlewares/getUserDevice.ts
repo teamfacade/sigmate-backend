@@ -7,12 +7,18 @@ import {
   findOrCreateUserDevice,
 } from '../services/database/device';
 import ApiError from '../utils/errors/ApiError';
+import { isDBSyncing } from '../loaders/syncDatabase';
 
 const getUserDevice = async (
   req: Request,
   res: Response,
   next: NextFunction
 ) => {
+  if (isDBSyncing) {
+    res.status(503).send();
+    return;
+  }
+
   try {
     // Get IP address from request
     const clientIp = req.clientIp;
@@ -34,7 +40,6 @@ const getUserDevice = async (
         throw new ApiError('ERR_IP_UNINIT');
       }
     } catch (error) {
-      console.error(error); // TODO remove in production
       throw new ApiError('ERR_IP_PARSE');
     }
 
