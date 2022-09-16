@@ -1,9 +1,10 @@
 import db from '../models';
 import UserGroup from '../models/UserGroup';
 
-const forceSync = false;
+const forceSync = true;
 
 const syncDatabase = () => {
+  console.log('Starting database sync...');
   db.sequelize
     .sync({ force: forceSync, logging: false })
     .then(() => {

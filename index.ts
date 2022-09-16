@@ -13,11 +13,7 @@ import setupErrorHandlers from './src/loaders/setupErrorHandlers';
 const app = express();
 setupExpress(app);
 setupRoutes(app);
-
-if (process.env.NODE_ENV === 'development') {
-  syncDatabase();
-}
-
+syncDatabase();
 setupErrorHandlers(app);
 
 app.listen(app.get('port'), () => {

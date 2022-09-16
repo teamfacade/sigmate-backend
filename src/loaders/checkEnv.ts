@@ -4,31 +4,38 @@
 
 import * as fs from 'fs';
 
+const envVarNames = [
+  'NODE_ENV',
+  'PORT',
+  'DB_DATABASE',
+  'DB_USERNAME',
+  'DB_AWS_USERNAME',
+  'DB_PASSWORD',
+  'DB_AWS_PASSWORD',
+  'DB_HOST',
+  'DB_AWS_HOST',
+  'DB_PORT',
+  'AWS_ACCESS_KEY',
+  'AWS_SECRET_ACCESS_KEY',
+  'AWS_BUCKET_NAME',
+  'GOOGLE_CLIENT_ID',
+  'GOOGLE_CLIENT_SECRET',
+  'PATH_PUBLIC_KEY',
+  'PATH_PRIVATE_KEY',
+];
+
 const checkEnv = () => {
-  const missingEnv =
-    !process.env.NODE_ENV ||
-    !process.env.PORT ||
-    !process.env.DB_DATABASE ||
-    !process.env.DB_USERNAME ||
-    !process.env.DB_PASSWORD ||
-    !process.env.DB_HOST ||
-    !process.env.GOOGLE_CLIENT_ID ||
-    !process.env.GOOGLE_CLIENT_SECRET ||
-    !process.env.PATH_PUBLIC_KEY ||
-    !process.env.PATH_PRIVATE_KEY;
+  const missingEnv = envVarNames.reduce((p, c) => {
+    return p || !process.env[c];
+  }, false);
 
   if (missingEnv) {
     console.log('❌ Following Environment variables are not set.');
-    !process.env.NODE_ENV && console.log('NODE_ENV');
-    !process.env.PORT && console.log('PORT');
-    !process.env.DB_DATABASE && console.log('DB_DATABASE');
-    !process.env.DB_USERNAME && console.log('DB_USERNAME');
-    !process.env.DB_PASSWORD && console.log('DB_PASSWORD');
-    !process.env.DB_HOST && console.log('DB_HOST');
-    !process.env.GOOGLE_CLIENT_ID && console.log('GOOGLE_CLIENT_ID');
-    !process.env.GOOGLE_CLIENT_SECRET && console.log('GOOGLE_CLIENT_SECRET');
-    !process.env.PATH_PUBLIC_KEY && console.log('PATH_PUBLIC_KEY');
-    !process.env.PATH_PRIVATE_KEY && console.log('PATH_PRIVATE_KEY');
+    envVarNames.forEach((v) => {
+      if (!process.env[v]) {
+        console.log(`- ${v}`);
+      }
+    });
     throw new Error('Environment variables not set.');
   }
 

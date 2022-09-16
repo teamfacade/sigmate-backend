@@ -36,10 +36,10 @@ const databaseConfig: DBConfigs = {
     },
   },
   production: {
-    username: process.env.DB_USERNAME,
-    password: process.env.DB_PASSWORD,
+    username: process.env.DB_AWS_USERNAME,
+    password: process.env.DB_AWS_PASSWORD,
     database: process.env.DB_DATABASE,
-    host: process.env.DB_HOST,
+    host: process.env.DB_AWS_HOST,
     port: process.env.DB_PORT,
     dialect: 'mysql',
     timezone: '+09:00',
