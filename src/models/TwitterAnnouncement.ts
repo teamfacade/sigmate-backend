@@ -9,7 +9,7 @@ import { Optional } from 'sequelize/types';
 import Collection from './Collection';
 export interface TwitterAnnouncementAttributes {
   id: number;
-  collection: number;
+  collectionId: number;
   twitterChannel: string;
   contentId: string;
   content: string;
@@ -33,7 +33,7 @@ export default class TwitterAnnouncement extends Model<
   TwitterAnnouncementCreationAttributes
 > {
   @BelongsTo(() => Collection, { foreignKey: 'collectionId' })
-  collection!: TwitterAnnouncementAttributes['collection'];
+  collectionId!: TwitterAnnouncementAttributes['collectionId'];
 
   @Column(DataType.STRING(150))
   twitterChannel!: string;

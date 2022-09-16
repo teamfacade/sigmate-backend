@@ -9,7 +9,7 @@ import { Optional } from 'sequelize/types';
 import Collection from './Collection';
 export interface ChannelAttributes {
   id: number;
-  collection: number;
+  collectionId: number;
   discordChannel: string;
   twitterChannel: string;
 }
@@ -28,7 +28,7 @@ export default class Channel extends Model<
   ChannelCreationAttributes
 > {
   @BelongsTo(() => Collection, { foreignKey: 'collectionId' })
-  collection!: ChannelAttributes['collection'];
+  collectionId!: ChannelAttributes['collectionId'];
   @Column(DataType.STRING(150))
   discordChannel!: string;
   @Column(DataType.STRING(150))
