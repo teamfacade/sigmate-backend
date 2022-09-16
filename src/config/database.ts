@@ -46,6 +46,7 @@ const databaseConfig: DBConfigs = {
     dialectOptions: {
       timezone: '+09:00',
     },
+    logging: false,
   },
 };
 
