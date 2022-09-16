@@ -12,4 +12,5 @@ announcementRouter.route('/channels').get(getAllChannelsController);
 announcementRouter.route('/latest').get(getLatestAnnouncementController);
 
 announcementRouter.route('/announcement').post(postAnnouncementController);
+
 export default announcementRouter;
