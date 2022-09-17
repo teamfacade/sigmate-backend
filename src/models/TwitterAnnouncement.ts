@@ -33,7 +33,7 @@ export default class TwitterAnnouncement extends Model<
   TwitterAnnouncementCreationAttributes
 > {
   @BelongsTo(() => Collection, { foreignKey: 'collectionId' })
-  collectionId!: TwitterAnnouncementAttributes['collection'];
+  collection!: TwitterAnnouncementAttributes['collection'];
 
   @Column(DataType.STRING(150))
   twitterChannel!: string;
