@@ -9,15 +9,21 @@ import {
   Table,
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
-import NestedArray from '../types/NestedArray';
-import Block, { BlockIdType } from './Block';
+import Block, { BlockAttributes } from './Block';
 import DocumentAudit from './DocumentAudit';
 import Category from './Category';
-import User from './User';
-import UserDevice from './UserDevice';
-import Collection from './Collection';
+import User, { UserAttributes, UserPublicResponse } from './User';
+import UserDevice, { UserDeviceAttributes } from './UserDevice';
+import Collection, {
+  CollectionAttributes,
+  CollectionResponse,
+  CollectionResponseConcise,
+} from './Collection';
 import Opinion from './Opinion';
 import DocumentCategory from './DocumentCategory';
+import Nft, { NftAttributes, NftResponse, NftResponseConcise } from './Nft';
+import { BlockResponse } from './Block';
+import { userPublicInfoToJSON } from '../services/user';
 
 export type DocumentIdType = number;
 export const documentIdDataTypes = DataType.INTEGER;
@@ -27,27 +33,80 @@ export interface DocumentAttributes {
   title: string;
   isTemplate: boolean;
   textContent?: string; // text content of all the blocks in a document
-  structure?: string;
+  structure?: BlockAttributes['id'][];
   template?: Document;
+  parentId?: DocumentAttributes['id'];
   parent?: Document;
   children?: Document[];
   blocks?: Block[];
   opinions?: Opinion[];
   categories?: Category[];
   audits?: DocumentAudit[];
+  collectionId?: CollectionAttributes['id'];
   collection?: Collection;
-  createdByDevice: UserDevice;
-  createdBy: User;
+  nftId?: NftAttributes['id'];
+  nft?: Nft;
+  createdByDeviceId?: UserDeviceAttributes['id'];
+  createdByDevice?: UserDevice;
+  createdById?: UserAttributes['id'];
+  createdBy?: User;
+  createdAt?: Date;
   updatedByDevice?: UserDevice;
   updatedBy?: User;
+  updatedAt?: Date;
   deletedByDevice?: UserDevice;
   deletedBy?: User;
+  deletedAt?: Date;
 }
 
 export type DocumentCreationAttributes = Optional<
   DocumentAttributes,
   'id' | 'isTemplate'
 >;
+
+export type DocumentCreationDTO = Pick<
+  DocumentCreationAttributes,
+  | 'title'
+  | 'parentId'
+  | 'parent'
+  | 'collectionId'
+  | 'collection'
+  | 'nftId'
+  | 'nft'
+  | 'createdByDeviceId'
+  | 'createdByDevice'
+  | 'createdById'
+  | 'createdBy'
+>;
+
+const documentConciseAttributes = [
+  'id',
+  'title',
+  'collection',
+  'nft',
+  'createdAt',
+  'updatedAt',
+];
+export interface DocumentResponseConcise
+  extends Pick<DocumentAttributes, 'id' | 'title' | 'createdAt' | 'updatedAt'> {
+  collection?: CollectionResponseConcise;
+  nft?: NftResponseConcise;
+}
+
+type DocumentResponseBase = DocumentResponseConcise &
+  Pick<DocumentAttributes, 'structure'>;
+export interface DocumentResponse extends DocumentResponseBase {
+  parent?: DocumentResponseConcise;
+  children?: DocumentResponseConcise[]; // limit 50
+  blocks?: BlockResponse[];
+  // TODO opinions
+  // TODO categories
+  // TODO audits
+  collection?: CollectionResponse;
+  nft?: NftResponse;
+  createdBy?: UserPublicResponse;
+  updatedBy?: UserPublicResponse;
+}
 
 @Table({
   tableName: 'documents',
@@ -69,20 +128,8 @@ export default class Document extends Model<
   @Column(DataType.TEXT)
   textContent?: DocumentAttributes['textContent'];
 
-  @Column(DataType.TEXT)
-  get structure() {
-    const stringified = this.getDataValue('structure');
-    if (!stringified) return [];
-    return JSON.parse(stringified);
-  }
-  set structure(value: NestedArray<BlockIdType>) {
-    try {
-      this.setDataValue('structure', JSON.stringify(value));
-    } catch (error) {
-      console.error(error);
-      throw new Error('ERR_MODEL_DOCUMENT_SET_STRUCTURE');
-    }
-  }
+  @Column(DataType.JSON)
+  structure: DocumentAttributes['structure'];
 
   @BelongsTo(() => Document, 'parentId')
   parent: DocumentAttributes['parent'];
@@ -109,11 +156,14 @@ export default class Document extends Model<
   @BelongsTo(() => Collection, 'collectionId')
   collection: DocumentAttributes['collection'];
 
+  @BelongsTo(() => Nft, 'nftId')
+  nft: DocumentAttributes['nft'];
+
   @BelongsTo(() => UserDevice, 'createdByDeviceId')
-  createdByDevice!: DocumentAttributes['createdByDevice'];
+  createdByDevice: DocumentAttributes['createdByDevice'];
 
   @BelongsTo(() => User, 'createdById')
-  createdBy!: DocumentAttributes['createdBy'];
+  createdBy: DocumentAttributes['createdBy'];
 
   @BelongsTo(() => UserDevice, 'updatedByDeviceId')
   updatedByDevice: DocumentAttributes['updatedByDevice'];
@@ -126,4 +176,69 @@ export default class Document extends Model<
 
   @BelongsTo(() => User, 'deletedById')
   deletedBy: DocumentAttributes['deletedBy'];
+
+  async toResponseJSONBase() {
+    const collection =
+      this.collection || (await this.$get('collection')) || undefined;
+    const nft = this.nft || (await this.$get('nft')) || undefined;
+
+    return {
+      id: this.id,
+      title: this.title,
+      collection,
+      nft,
+      createdAt: this.createdAt,
+      updatedAt: this.updatedAt,
+    };
+  }
+
+  async toResponseJSONConcise(): Promise<DocumentResponseConcise> {
+    const base = await this.toResponseJSONBase();
+    const { collection, nft } = base;
+
+    const res: DocumentResponseConcise = {
+      ...base,
+      collection: collection ? collection.toResponseJSONConcise() : undefined,
+      nft: nft ? nft.toResponseJSONConcise() : undefined,
+    };
+
+    return res;
+  }
+
+  async toResponseJSON(myself: User | null = null): Promise<DocumentResponse> {
+    const base = await this.toResponseJSONBase();
+    const { collection, nft } = base;
+
+    const parent =
+      this.parent ||
+      (await this.$get('parent', { attributes: documentConciseAttributes }));
+    const children =
+      this.children ||
+      (await this.$get('children', { attributes: documentConciseAttributes }));
+    const childrenResponse = children
+      ? await Promise.all(children.map((d) => d.toResponseJSONConcise()))
+      : undefined;
+    const blocks = await this.$get('blocks');
+    const blocksResponse = blocks
+      ? await Promise.all(blocks.map((b) => b.toResponseJSON(myself)))
+      : undefined;
+    const createdBy = this.createdBy || (await this.$get('createdBy'));
+    const updatedBy = this.updatedBy || (await this.$get('updatedBy'));
+
+    const res: DocumentResponse = {
+      ...base,
+      collection: collection
+        ? await collection.toResponseJSON(myself)
+        : undefined,
+      nft: nft ? await nft.toResponseJSON(myself) : undefined,
+      structure: this.structure,
+      parent: parent ? await parent.toResponseJSONConcise() : undefined,
+      children: childrenResponse,
+      blocks: blocksResponse,
+      createdBy: createdBy ? await userPublicInfoToJSON(createdBy) : undefined,
+      updatedBy: updatedBy ? await userPublicInfoToJSON(updatedBy) : undefined,
+    };
+
+    return res;
+  }
 }
