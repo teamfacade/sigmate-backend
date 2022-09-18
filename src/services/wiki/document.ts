@@ -21,7 +21,7 @@ import {
 
 type CreateWikiDocumentReqBody = {
   title: string;
-  parent: DocumentAttributes['id'];
+  parent?: DocumentAttributes['id'];
   collection?: {
     slug: string;
     marketplace: string;
@@ -43,7 +43,7 @@ type CreateWikiDocumentFailRes = {
 
 type CreateWikiResSuccess = {
   success: true;
-  document: DocumentResponse;
+  document?: DocumentResponse;
 };
 
 export const createWikiDocumentController = async (
@@ -144,7 +144,7 @@ export const createWikiDocumentController = async (
     // Create the document and associate the collection with it
     doc = await createWikiDocument({
       title,
-      parentId,
+      parentId: parentId || undefined,
       collection: collectionReq ? cl || undefined : undefined,
       nft: nftReq ? nft || undefined : undefined,
       createdBy: u,

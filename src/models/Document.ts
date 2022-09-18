@@ -23,7 +23,6 @@ import Opinion from './Opinion';
 import DocumentCategory from './DocumentCategory';
 import Nft, { NftAttributes, NftResponse, NftResponseConcise } from './Nft';
 import { BlockResponse } from './Block';
-import { userPublicInfoToJSON } from '../services/user';
 
 export type DocumentIdType = number;
 export const documentIdDataTypes = DataType.INTEGER;
@@ -31,10 +30,8 @@ export const documentIdDataTypes = DataType.INTEGER;
 export interface DocumentAttributes {
   id: DocumentIdType;
   title: string;
-  isTemplate: boolean;
   textContent?: string; // text content of all the blocks in a document
   structure?: BlockAttributes['id'][];
-  template?: Document;
   parentId?: DocumentAttributes['id'];
   parent?: Document;
   children?: Document[];
@@ -59,10 +56,7 @@ export interface DocumentAttributes {
   deletedAt?: Date;
 }
 
-export type DocumentCreationAttributes = Optional<
-  DocumentAttributes,
-  'id' | 'isTemplate'
->;
+export type DocumentCreationAttributes = Optional<DocumentAttributes, 'id'>;
 
 export type DocumentCreationDTO = Pick<
   DocumentCreationAttributes,
@@ -79,14 +73,7 @@ export type DocumentCreationDTO = Pick<
   | 'createdBy'
 >;
 
-const documentConciseAttributes = [
-  'id',
-  'title',
-  'collection',
-  'nft',
-  'createdAt',
-  'updatedAt',
-];
+const documentConciseAttributes = ['id', 'title', 'createdAt', 'updatedAt'];
 export interface DocumentResponseConcise
   extends Pick<DocumentAttributes, 'id' | 'title' | 'createdAt' | 'updatedAt'> {
   collection?: CollectionResponseConcise;
@@ -133,10 +120,6 @@ export default class Document extends Model<
 
   @BelongsTo(() => Document, 'parentId')
   parent: DocumentAttributes['parent'];
-
-  // Not used. Used for association with DocumentAudit model
-  @HasMany(() => DocumentAudit, 'auditParentId')
-  auditParent!: DocumentAttributes['parent'];
 
   @HasMany(() => Document, 'parentId')
   children?: DocumentAttributes['children'];
@@ -211,10 +194,34 @@ export default class Document extends Model<
 
     const parent =
       this.parent ||
-      (await this.$get('parent', { attributes: documentConciseAttributes }));
+      (await this.$get('parent', {
+        attributes: documentConciseAttributes,
+        include: [
+          {
+            model: Collection,
+            attributes: ['id', 'slug', 'name', 'imageUrl', 'bannerImageUrl'],
+          },
+          {
+            model: Nft,
+            attributes: ['id', 'contractAddress', 'tokenId', 'imageUrl'],
+          },
+        ],
+      }));
     const children =
       this.children ||
-      (await this.$get('children', { attributes: documentConciseAttributes }));
+      (await this.$get('children', {
+        attributes: documentConciseAttributes,
+        include: [
+          {
+            model: Collection,
+            attributes: ['id', 'slug', 'name', 'imageUrl', 'bannerImageUrl'],
+          },
+          {
+            model: Nft,
+            attributes: ['id', 'contractAddress', 'tokenId', 'imageUrl'],
+          },
+        ],
+      }));
     const childrenResponse = children
       ? await Promise.all(children.map((d) => d.toResponseJSONConcise()))
       : undefined;
@@ -235,8 +242,8 @@ export default class Document extends Model<
       parent: parent ? await parent.toResponseJSONConcise() : undefined,
       children: childrenResponse,
       blocks: blocksResponse,
-      createdBy: createdBy ? await userPublicInfoToJSON(createdBy) : undefined,
-      updatedBy: updatedBy ? await userPublicInfoToJSON(updatedBy) : undefined,
+      createdBy: createdBy ? await createdBy.toResponseJSONPublic() : undefined,
+      updatedBy: updatedBy ? await updatedBy.toResponseJSONPublic() : undefined,
     };
 
     return res;

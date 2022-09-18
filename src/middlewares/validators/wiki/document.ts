@@ -12,7 +12,7 @@ export const validateCreateWikiDocument = [
     .isLength({ max: 191 })
     .withMessage('TOO_LONG')
     .bail(),
-  body('parent').isInt().withMessage('NOT_INT').toInt(),
+  body('parent').optional().isInt().withMessage('NOT_INT').toInt(),
   body('collection')
     .optional()
     .isObject()

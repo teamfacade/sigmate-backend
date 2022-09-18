@@ -3,6 +3,7 @@ import {
   BelongsTo,
   Column,
   DataType,
+  HasOne,
   Model,
   Table,
   Unique,
@@ -12,6 +13,7 @@ import Collection, {
   CollectionAttributes,
   CollectionResponse,
 } from './Collection';
+import Document from './Document';
 import User from './User';
 import UserDevice from './UserDevice';
 
@@ -22,6 +24,7 @@ export interface NftAttributes {
   contractAddress: string;
   tokenId: number;
   imageUrl?: string;
+  document?: Document;
   createdBy?: User;
   createdByDevice?: UserDevice;
 }
@@ -60,6 +63,9 @@ export default class Nft extends Model<NftAttributes, NftCreationAttributes> {
 
   @Column(DataType.STRING(1024))
   imageUrl: NftAttributes['imageUrl'];
+
+  @HasOne(() => Document, 'nftId')
+  document: NftAttributes['document'];
 
   @BelongsTo(() => User, 'createdById')
   createdBy: NftAttributes['createdBy'];
