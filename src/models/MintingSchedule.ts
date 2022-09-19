@@ -9,9 +9,12 @@ import {
   Table,
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
-import Collection from './Collection';
-import User from './User';
-import UserDevice from './UserDevice';
+import Collection, {
+  CollectionAttributes,
+  CollectionResponse,
+} from './Collection';
+import User, { UserAttributes } from './User';
+import UserDevice, { UserDeviceAttributes } from './UserDevice';
 import UserSavedMintingSchedule from './UserSavedMintingSchedule';
 
 export interface MintingScheduleAttributes {
@@ -21,11 +24,14 @@ export interface MintingScheduleAttributes {
   mintingTime: Date;
   mintingUrl?: string;
   description?: string;
-  collection: Collection;
+  collectionId?: CollectionAttributes['id'];
+  collection?: Collection;
   mintingPrice?: string;
   mintingPriceSymbol?: string; // ETH/KLAYTN/SOL/Matic
-  createdBy: User;
-  createdByDevice: UserDevice;
+  createdById?: UserAttributes['id'];
+  createdBy?: User;
+  createdByDeviceId?: UserDeviceAttributes['id'];
+  createdByDevice?: UserDevice;
   updatedBy?: User;
   updatedByDevice?: UserDevice;
   savedUsers?: User[]; // "add to my calendar"
@@ -36,6 +42,22 @@ export type MintingScheduleCreationAttributes = Optional<
   'id'
 >;
 
+export type MintingScheduleResponseConcise = Pick<
+  MintingScheduleAttributes,
+  | 'id'
+  | 'name'
+  | 'tier'
+  | 'mintingTime'
+  | 'mintingUrl'
+  | 'description'
+  | 'mintingPrice'
+  | 'mintingPriceSymbol'
+>;
+
+export interface MintingScheduleResponse
+  extends MintingScheduleResponseConcise {
+  collection?: CollectionResponse;
+}
 @Table({
   tableName: 'minting_schedules',
   modelName: 'MintingSchedule',
@@ -68,12 +90,12 @@ export default class MintingSchedule extends Model<
   description: MintingScheduleAttributes['description'];
 
   @BelongsTo(() => Collection, 'collectionId')
-  collection!: MintingScheduleAttributes['collection'];
+  collection: MintingScheduleAttributes['collection'];
 
   @Column(DataType.STRING(191))
   mintingPrice: MintingScheduleAttributes['mintingPrice'];
 
-  @Column(DataType.STRING(10))
+  @Column(DataType.STRING(16))
   mintingPriceSymbol: MintingScheduleAttributes['mintingPriceSymbol'];
 
   @BelongsTo(() => User, 'createdById')
@@ -90,4 +112,26 @@ export default class MintingSchedule extends Model<
 
   @BelongsToMany(() => User, () => UserSavedMintingSchedule)
   savedUsers: MintingScheduleAttributes['savedUsers'];
+
+  toResponseJSONConcise(): MintingScheduleResponseConcise {
+    return {
+      id: this.id,
+      name: this.name,
+      tier: this.tier,
+      mintingTime: this.mintingTime,
+      description: this.description,
+      mintingPrice: this.mintingPrice,
+      mintingPriceSymbol: this.mintingPriceSymbol,
+    };
+  }
+
+  async toResponseJSON() {
+    const cl = this.collection || (await this.$get('collection'));
+    const clr = await cl?.toResponseJSON();
+    const response: MintingScheduleResponse = {
+      ...this.toResponseJSONConcise(),
+      collection: clr,
+    };
+    return response;
+  }
 }

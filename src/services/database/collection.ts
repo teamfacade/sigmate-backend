@@ -175,6 +175,14 @@ export const findOrCreateCollectionUtility = async (
   }
 };
 
+export const getCollectionById = async (id: CollectionAttributes['id']) => {
+  try {
+    return await Collection.findByPk(id);
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
 export const getCollectionBySlug = async (slug: string) => {
   try {
     return await Collection.findOne({ where: { slug } });
