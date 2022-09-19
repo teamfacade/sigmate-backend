@@ -8,10 +8,12 @@ import handlePagination from '../../../../middlewares/handlePagination';
 import {
   validateCreateMintingSchedule,
   validateGetMintingSchedules,
+  validateUpdateMintingSchedule,
 } from '../../../../middlewares/validators/calendar';
 import {
   createMintingScheduleController,
   getMintingSchedulesController,
+  updateMintingScheduleController,
 } from '../../../../services/calendar';
 
 const mintingRouter = express.Router();
@@ -30,6 +32,15 @@ mintingRouter
     validateCreateMintingSchedule,
     handleBadRequest,
     createMintingScheduleController
+  );
+
+mintingRouter
+  .route('/:id')
+  .patch(
+    passportJwtAuth,
+    validateUpdateMintingSchedule,
+    handleBadRequest,
+    updateMintingScheduleController
   );
 
 export default mintingRouter;

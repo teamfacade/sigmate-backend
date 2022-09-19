@@ -2,7 +2,9 @@ import { Op } from 'sequelize';
 import { DateTime } from 'luxon';
 import { PaginationOptions } from '../../middlewares/handlePagination';
 import MintingSchedule, {
+  MintingScheduleAttributes,
   MintingScheduleCreationAttributes,
+  MintingScheduleUpdateDTO,
 } from '../../models/MintingSchedule';
 import SequelizeError from '../../utils/errors/SequelizeError';
 import { CollectionAttributes } from '../../models/Collection';
@@ -53,6 +55,40 @@ export const createMintingSchedule = async (
       createdById,
       createdByDeviceId,
     });
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+export const updateMintingScheduleById = async (
+  id: MintingScheduleAttributes['id'],
+  dto: MintingScheduleUpdateDTO
+) => {
+  try {
+    const collectionId: CollectionAttributes['id'] | undefined =
+      dto.collectionId || dto.collection?.id || undefined;
+    const updatedById: UserAttributes['id'] | undefined =
+      dto.updatedById || dto.updatedBy?.id || undefined;
+    const updatedByDeviceId: UserDeviceAttributes['id'] | undefined =
+      dto.updatedByDeviceId || dto.updatedByDevice?.id || undefined;
+
+    await MintingSchedule.update(
+      {
+        name: dto.name,
+        tier: dto.tier,
+        mintingTime: dto.mintingTime,
+        mintingUrl: dto.mintingUrl,
+        description: dto.description,
+        collectionId,
+        mintingPrice: dto.mintingPrice,
+        mintingPriceSymbol: dto.mintingPriceSymbol,
+        updatedById,
+        updatedByDeviceId,
+      },
+      { where: { id } }
+    );
+
+    return await MintingSchedule.findByPk(id);
   } catch (error) {
     throw new SequelizeError(error as Error);
   }

@@ -5,12 +5,17 @@ import {
   PaginatedResponse,
   PaginationOptions,
 } from '../../middlewares/handlePagination';
-import { MintingScheduleResponse } from '../../models/MintingSchedule';
+import {
+  MintingScheduleAttributes,
+  MintingScheduleResponse,
+} from '../../models/MintingSchedule';
+import ApiError from '../../utils/errors/ApiError';
 import NotFoundError from '../../utils/errors/NotFoundError';
 import UnauthenticatedError from '../../utils/errors/UnauthenticatedError';
 import {
   createMintingSchedule,
   getMintingScheduleWithinPeriod,
+  updateMintingScheduleById,
 } from '../database/calendar';
 import { getCollectionById } from '../database/collection';
 import { groupMintingScheduleResponseByDay } from './utils';
@@ -115,6 +120,66 @@ export const createMintingScheduleController = async (
     };
 
     res.status(201).json(response);
+  } catch (error) {
+    next(error);
+  }
+};
+
+type UpdateMintingScheduleReqParams = { id: MintingScheduleAttributes['id'] };
+type UpdateMintingScheduleReqBody = Partial<CreateMintingScheduleReqBody>;
+
+type UpdateMintingScheduleRes = {
+  success: boolean;
+  data: MintingScheduleResponse;
+};
+
+export const updateMintingScheduleController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const u = req.user;
+    if (!u) throw new UnauthenticatedError();
+    const d = req.device;
+
+    const { id } = req.params as unknown as UpdateMintingScheduleReqParams;
+    const {
+      name,
+      tier,
+      mintingTime,
+      mintingUrl,
+      description,
+      collection: collectionId,
+      mintingPrice,
+      mintingPriceSymbol,
+    } = req.body as UpdateMintingScheduleReqBody;
+
+    if (collectionId) {
+      const cl = await getCollectionById(collectionId);
+      if (!cl) throw new NotFoundError();
+    }
+
+    const ms = await updateMintingScheduleById(id, {
+      name,
+      tier,
+      mintingTime: mintingTime ? new Date(mintingTime) : undefined,
+      mintingUrl,
+      description,
+      collectionId,
+      mintingPrice,
+      mintingPriceSymbol,
+      updatedBy: u,
+      updatedByDevice: d,
+    });
+
+    if (!ms) throw new ApiError('ERR_UPDATE_SCHEDULE_MINTING_FAILED');
+
+    const response: UpdateMintingScheduleRes = {
+      success: true,
+      data: await ms.toResponseJSON(),
+    };
+    res.status(200).json(response);
   } catch (error) {
     next(error);
   }

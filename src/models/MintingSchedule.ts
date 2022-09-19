@@ -32,7 +32,9 @@ export interface MintingScheduleAttributes {
   createdBy?: User;
   createdByDeviceId?: UserDeviceAttributes['id'];
   createdByDevice?: UserDevice;
+  updatedById?: UserAttributes['id'];
   updatedBy?: User;
+  updatedByDeviceId?: UserDeviceAttributes['id'];
   updatedByDevice?: UserDevice;
   savedUsers?: User[]; // "add to my calendar"
 }
@@ -41,6 +43,8 @@ export type MintingScheduleCreationAttributes = Optional<
   MintingScheduleAttributes,
   'id'
 >;
+
+export type MintingScheduleUpdateDTO = Partial<MintingScheduleAttributes>;
 
 export type MintingScheduleResponseConcise = Pick<
   MintingScheduleAttributes,
