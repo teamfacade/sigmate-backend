@@ -19,7 +19,7 @@ export const getLatestDiscordAnnouncement = async (discordChannel: any) => {
     return await DiscordAnnouncement.findOne({
       where: { discordChannel },
       limit: 1,
-      order: [[sequelize.cast(sequelize.col('contentId'), 'BIGINT'), 'DESC']],
+      order: [[sequelize.cast(sequelize.col('contentId'), 'UNSIGNED'), 'DESC']],
     });
   } catch (error) {
     throw new SequelizeError(error as Error);
@@ -31,7 +31,7 @@ export const getLatestTwitterAnnouncement = async (twitterChannel: any) => {
     return await TwitterAnnouncement.findOne({
       where: { twitterChannel },
       limit: 1,
-      order: [[sequelize.cast(sequelize.col('contentId'), 'BIGINT'), 'DESC']],
+      order: [[sequelize.cast(sequelize.col('contentId'), 'UNSIGNED'), 'DESC']],
     });
   } catch (error) {
     throw new SequelizeError(error as Error);
