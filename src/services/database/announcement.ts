@@ -18,7 +18,7 @@ export const getLatestDiscordAnnouncement = async (discordChannel: string) => {
     return await DiscordAnnouncement.findOne({
       where: { discordChannel },
       limit: 1,
-      order: [['contentId', 'DESC']],
+      order: [['contentId+0', 'DESC']],
     });
   } catch (error) {
     throw new SequelizeError(error as Error);
