@@ -15,6 +15,7 @@ import UnauthenticatedError from '../../utils/errors/UnauthenticatedError';
 import {
   createMintingSchedule,
   getMintingScheduleWithinPeriod,
+  getMintingScheudleById,
   updateMintingScheduleById,
 } from '../database/calendar';
 import { getCollectionById } from '../database/collection';
@@ -179,6 +180,32 @@ export const updateMintingScheduleController = async (
       success: true,
       data: await ms.toResponseJSON(),
     };
+    res.status(200).json(response);
+  } catch (error) {
+    next(error);
+  }
+};
+
+type GetMintingScheduleByIdReqParams = {
+  id: number;
+};
+
+export const getMintingScheduleByIdController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { id: mintingScheduleId } =
+      req.params as unknown as GetMintingScheduleByIdReqParams;
+
+    const ms = await getMintingScheudleById(mintingScheduleId);
+    if (!ms) throw new NotFoundError();
+    const response = {
+      success: true,
+      data: await ms.toResponseJSON(),
+    };
+
     res.status(200).json(response);
   } catch (error) {
     next(error);

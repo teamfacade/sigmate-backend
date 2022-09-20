@@ -8,8 +8,19 @@ import MintingSchedule, {
 } from '../../models/MintingSchedule';
 import SequelizeError from '../../utils/errors/SequelizeError';
 import { CollectionAttributes } from '../../models/Collection';
-import { UserAttributes } from '../../models/User';
+import User, { UserAttributes } from '../../models/User';
 import { UserDeviceAttributes } from '../../models/UserDevice';
+import UnauthenticatedError from '../../utils/errors/UnauthenticatedError';
+
+export const getMintingScheudleById = async (
+  id: MintingScheduleAttributes['id']
+) => {
+  try {
+    return await MintingSchedule.findByPk(id);
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
 
 export const getMintingScheduleWithinPeriod = async (
   start: DateTime,
@@ -89,6 +100,46 @@ export const updateMintingScheduleById = async (
     );
 
     return await MintingSchedule.findByPk(id);
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+export const getMyMintingSchedulesWithinPeriod = async (
+  start: DateTime,
+  end: DateTime,
+  user: User | null,
+  pg: PaginationOptions | undefined = undefined
+) => {
+  try {
+    if (!user) throw new UnauthenticatedError();
+    const mss = await user.$get('savedMintingSchedules', {
+      where: {
+        mintingTime: {
+          [Op.between]: [start.toJSDate(), end.toJSDate()],
+        },
+      },
+      order: [['mintingTime', 'ASC']],
+      limit: pg?.limit,
+      offset: pg?.offset,
+    });
+    const count = await user.$count('savedMintingSchedules');
+    return { rows: mss, count };
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+export const saveMintingScheduleById = async (
+  id: MintingScheduleAttributes['id'],
+  user: User | null
+) => {
+  if (!user) throw new UnauthenticatedError();
+  try {
+    const ms = await getMintingScheudleById(id);
+    if (!ms) return null;
+    await ms.$add('savedUsers', user);
+    return ms;
   } catch (error) {
     throw new SequelizeError(error as Error);
   }

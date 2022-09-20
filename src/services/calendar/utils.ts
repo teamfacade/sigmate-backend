@@ -1,10 +1,16 @@
 import { DateTime } from 'luxon';
-import { MintingScheduleResponse } from '../../models/MintingSchedule';
+import {
+  MintingScheduleResponse,
+  MintingScheduleResponseConcise,
+} from '../../models/MintingSchedule';
 
 export const groupMintingScheduleResponseByDay = (
-  msrs: MintingScheduleResponse[]
+  msrs: MintingScheduleResponse[] | MintingScheduleResponseConcise[]
 ) => {
-  const grouped: Record<number, MintingScheduleResponse[]> = {};
+  const grouped: Record<
+    number,
+    MintingScheduleResponse[] | MintingScheduleResponseConcise[]
+  > = {};
   msrs.forEach((msr) => {
     if (msr.mintingTime) {
       // Minting Time
@@ -13,6 +19,5 @@ export const groupMintingScheduleResponseByDay = (
       grouped[mt].push(msr);
     }
   });
-  console.log(grouped);
   return grouped;
 };

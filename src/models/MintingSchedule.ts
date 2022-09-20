@@ -53,13 +53,13 @@ export type MintingScheduleResponseConcise = Pick<
   | 'tier'
   | 'mintingTime'
   | 'mintingUrl'
-  | 'description'
   | 'mintingPrice'
   | 'mintingPriceSymbol'
 >;
 
 export interface MintingScheduleResponse
   extends MintingScheduleResponseConcise {
+  description?: MintingScheduleAttributes['description'];
   collection?: CollectionResponse;
 }
 @Table({
@@ -123,7 +123,6 @@ export default class MintingSchedule extends Model<
       name: this.name,
       tier: this.tier,
       mintingTime: this.mintingTime,
-      description: this.description,
       mintingPrice: this.mintingPrice,
       mintingPriceSymbol: this.mintingPriceSymbol,
     };
@@ -134,6 +133,7 @@ export default class MintingSchedule extends Model<
     const clr = await cl?.toResponseJSON();
     const response: MintingScheduleResponse = {
       ...this.toResponseJSONConcise(),
+      description: this.description,
       collection: clr,
     };
     return response;

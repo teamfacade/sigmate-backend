@@ -6,7 +6,7 @@ export const validateGetMintingSchedules = [
     .notEmpty()
     .withMessage('REQUIRED')
     .bail()
-    .isInt()
+    .isInt({ min: 0 })
     .withMessage('NOT_INT')
     .toInt(),
   query('end').optional().isInt().withMessage('NOT_INT').toInt(),
@@ -133,3 +133,36 @@ export const validateUpdateMintingSchedule = [
     .isLength({ max: 16 })
     .withMessage('TOO_LONG'),
 ];
+
+export const validateGetMyMintingSchedules = [
+  query('start')
+    .notEmpty()
+    .withMessage('REQUIRED')
+    .bail()
+    .isInt({ min: 0 })
+    .withMessage('NOT_INT')
+    .toInt(),
+  query('end').optional().isInt().withMessage('NOT_INT').toInt(),
+];
+
+export const validateGetMintingScheduleById = param('id')
+  .trim()
+  .stripLow()
+  .notEmpty()
+  .withMessage('REQUIRED')
+  .bail()
+  .isInt({ min: 1 })
+  .withMessage('NOT_INT')
+  .bail()
+  .toInt();
+
+export const validateSaveMintingSchedule = body('id')
+  .trim()
+  .stripLow()
+  .notEmpty()
+  .withMessage('REQUIRED')
+  .bail()
+  .isInt({ min: 1 })
+  .withMessage('NOT_INT')
+  .bail()
+  .toInt();
