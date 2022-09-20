@@ -1,4 +1,4 @@
-import db from '../../models/index';
+import sequelize from 'sequelize';
 import DiscordAnnouncement from '../../models/DiscordAnnouncement';
 import TwitterAnnouncement from '../../models/TwitterAnnouncement';
 import SequelizeError from '../../utils/errors/SequelizeError';
@@ -19,9 +19,7 @@ export const getLatestDiscordAnnouncement = async (discordChannel: any) => {
     return await DiscordAnnouncement.findOne({
       where: { discordChannel },
       limit: 1,
-      order: [
-        [db.sequelize.cast(db.sequelize.col('contentId'), 'BIGINT'), 'DESC'],
-      ],
+      order: [[sequelize.cast(sequelize.col('contentId'), 'BIGINT'), 'DESC']],
     });
   } catch (error) {
     throw new SequelizeError(error as Error);
@@ -33,7 +31,7 @@ export const getLatestTwitterAnnouncement = async (twitterChannel: any) => {
     return await TwitterAnnouncement.findOne({
       where: { twitterChannel },
       limit: 1,
-      order: [['contentId', 'DESC']],
+      order: [[sequelize.cast(sequelize.col('contentId'), 'BIGINT'), 'DESC']],
     });
   } catch (error) {
     throw new SequelizeError(error as Error);
