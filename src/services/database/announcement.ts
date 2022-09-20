@@ -13,7 +13,7 @@ type TA = {
   created_at: string;
 };
 
-export const getLatestDiscordAnnouncement = async (discordChannel: string) => {
+export const getLatestDiscordAnnouncement = async (discordChannel: any) => {
   try {
     return await DiscordAnnouncement.findOne({
       where: { discordChannel },
@@ -25,7 +25,7 @@ export const getLatestDiscordAnnouncement = async (discordChannel: string) => {
   }
 };
 
-export const getLatestTwitterAnnouncement = async (twitterChannel: string) => {
+export const getLatestTwitterAnnouncement = async (twitterChannel: any) => {
   try {
     return await TwitterAnnouncement.findOne({
       where: { twitterChannel },

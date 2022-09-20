@@ -28,7 +28,7 @@ export default class Channel extends Model<
   ChannelCreationAttributes
 > {
   @BelongsTo(() => Collection, { foreignKey: 'collectionId' })
-  collectionId!: ChannelAttributes['collection'];
+  collection!: ChannelAttributes['collection'];
   @Column(DataType.STRING(150))
   discordChannel!: string;
   @Column(DataType.STRING(150))

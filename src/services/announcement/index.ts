@@ -29,14 +29,14 @@ export const getLatestAnnouncementController = async (
   next: NextFunction
 ) => {
   try {
-    if (req.body.option == 'discord') {
-      const latest = await getLatestDiscordAnnouncement(req.body.channel);
+    if (req.query.option == 'discord') {
+      const latest = await getLatestDiscordAnnouncement(req.query.channel);
       res.status(200).json({
         success: true,
         latest: latest,
       });
-    } else if (req.body.option == 'twitter') {
-      const latest = await getLatestTwitterAnnouncement(req.body.channel);
+    } else if (req.query.option == 'twitter') {
+      const latest = await getLatestTwitterAnnouncement(req.query.channel);
       res.status(200).json({
         success: true,
         latest: latest,
