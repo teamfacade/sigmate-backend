@@ -11,6 +11,7 @@ import { CollectionAttributes } from '../../models/Collection';
 import User, { UserAttributes } from '../../models/User';
 import { UserDeviceAttributes } from '../../models/UserDevice';
 import UnauthenticatedError from '../../utils/errors/UnauthenticatedError';
+import NotFoundError from '../../utils/errors/NotFoundError';
 
 export const getMintingScheudleById = async (
   id: MintingScheduleAttributes['id']
@@ -140,6 +141,20 @@ export const saveMintingScheduleById = async (
     if (!ms) return null;
     await ms.$add('savedUsers', user);
     return ms;
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+export const unsaveMintingScheduleById = async (
+  id: MintingScheduleAttributes['id'],
+  user: User | null
+) => {
+  if (!user) throw new UnauthenticatedError();
+  try {
+    const ms = await getMintingScheudleById(id);
+    if (!ms) throw new NotFoundError();
+    await user.$remove('savedMintingSchedules', ms);
   } catch (error) {
     throw new SequelizeError(error as Error);
   }

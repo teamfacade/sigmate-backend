@@ -12,6 +12,7 @@ import UnauthenticatedError from '../../utils/errors/UnauthenticatedError';
 import {
   getMyMintingSchedulesWithinPeriod,
   saveMintingScheduleById,
+  unsaveMintingScheduleById,
 } from '../database/calendar';
 import { groupMintingScheduleResponseByDay } from './utils';
 
@@ -92,6 +93,22 @@ export const saveMintingScheduleController = async (
 
     // Send response
     res.status(200).json(response);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const unsaveMintingScheduleController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const u = req.user;
+    if (!u) throw new UnauthenticatedError();
+    const id = req.params.id as unknown as number;
+    await unsaveMintingScheduleById(id, u);
+    res.status(200).json({ success: true });
   } catch (error) {
     next(error);
   }

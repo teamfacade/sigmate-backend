@@ -1,4 +1,5 @@
 import { body, query, param } from 'express-validator';
+import isInt from 'validator/lib/isInt';
 import { inMySQLIntRange } from './utils';
 
 export const validateGetMintingSchedules = [
@@ -166,3 +167,29 @@ export const validateSaveMintingSchedule = body('id')
   .withMessage('NOT_INT')
   .bail()
   .toInt();
+
+export const validateUnsaveMintingSchedule = param('id')
+  .trim()
+  .stripLow()
+  .notEmpty()
+  .withMessage('REQUIRED')
+  .bail()
+  .isInt({ min: 1 })
+  .withMessage('NOT_INT')
+  .toInt();
+
+export const validateUnsaveMintingScheduleBulk = body('id')
+  .notEmpty()
+  .withMessage('REQUIRED')
+  .bail()
+  .isArray()
+  .withMessage('NOT_ARRAY')
+  .bail()
+  .custom((ids: any[]) => {
+    if (!ids.forEach) throw new Error('NOT_ARRAY');
+    ids.forEach((id) => {
+      if (!isInt(id)) throw new Error('ARRAY_ITEMS_NOT_INT');
+    });
+    return true;
+  })
+  .toArray();
