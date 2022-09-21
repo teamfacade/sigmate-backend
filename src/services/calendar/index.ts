@@ -41,6 +41,7 @@ export const getMintingSchedulesController = async (
     const { limit, offset } = req.pg as PaginationOptions;
     const startDt = DateTime.fromMillis(start);
     const endDt = end ? DateTime.fromMillis(end) : startDt.plus({ month: 1 });
+    const u = req.user || null;
 
     // Query DB
     const { count, rows } = await getMintingScheduleWithinPeriod(
@@ -49,7 +50,7 @@ export const getMintingSchedulesController = async (
     );
 
     // Prepare response
-    const msrs = await Promise.all(rows.map((ms) => ms.toResponseJSON()));
+    const msrs = await Promise.all(rows.map((ms) => ms.toResponseJSON(u)));
     const data = groupMintingScheduleResponseByDay(msrs);
 
     // Send response

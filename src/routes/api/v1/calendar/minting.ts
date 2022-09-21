@@ -39,6 +39,7 @@ mintingRouter
 mintingRouter
   .route('/:id')
   .get(
+    passportJwtAuthOptional,
     validateGetMintingScheduleById,
     handleBadRequest,
     getMintingScheduleByIdController

@@ -32,10 +32,12 @@ export interface MintingScheduleAttributes {
   createdBy?: User;
   createdByDeviceId?: UserDeviceAttributes['id'];
   createdByDevice?: UserDevice;
+  createdAt?: Date;
   updatedById?: UserAttributes['id'];
   updatedBy?: User;
   updatedByDeviceId?: UserDeviceAttributes['id'];
   updatedByDevice?: UserDevice;
+  updatedAt?: Date;
   savedUsers?: User[]; // "add to my calendar"
 }
 
@@ -55,12 +57,15 @@ export type MintingScheduleResponseConcise = Pick<
   | 'mintingUrl'
   | 'mintingPrice'
   | 'mintingPriceSymbol'
+  | 'createdAt'
+  | 'updatedAt'
 >;
 
 export interface MintingScheduleResponse
   extends MintingScheduleResponseConcise {
   description?: MintingScheduleAttributes['description'];
   collection?: CollectionResponse;
+  saved?: boolean;
 }
 @Table({
   tableName: 'minting_schedules',
@@ -125,16 +130,28 @@ export default class MintingSchedule extends Model<
       mintingTime: this.mintingTime,
       mintingPrice: this.mintingPrice,
       mintingPriceSymbol: this.mintingPriceSymbol,
+      createdAt: this.createdAt,
+      updatedAt: this.updatedAt,
     };
   }
 
-  async toResponseJSON() {
+  async toResponseJSON(myself: User | null = null) {
     const cl = this.collection || (await this.$get('collection'));
     const clr = await cl?.toResponseJSON();
+    let saved = false;
+    if (myself) {
+      const uid = myself.id;
+      const u = await this.$count('savedUsers', {
+        where: { id: uid },
+        attributes: ['id'],
+      });
+      if (u === 1) saved = true;
+    }
     const response: MintingScheduleResponse = {
       ...this.toResponseJSONConcise(),
       description: this.description,
       collection: clr,
+      saved,
     };
     return response;
   }
