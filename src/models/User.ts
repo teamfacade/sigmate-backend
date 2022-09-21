@@ -502,4 +502,39 @@ export default class User extends Model<
 
   @HasMany(() => UserAttendance, 'createdById')
   userAttendanceRecords: UserAttributes['userAttendanceRecords'];
+
+  async toResponseJSONPublic(): Promise<UserPublicResponse> {
+    const p =
+      this.primaryProfile ||
+      (await this.$get('primaryProfile', {
+        attributes: ['id', 'displayName', 'bio', 'profileImageUrl'],
+        include: [
+          {
+            model: Image,
+          },
+        ],
+      }));
+    const primaryProfile = {
+      id: p.id,
+      displayName: p.displayName,
+      bio: p.bio,
+      profileImageUrl: p.profileImageUrl,
+      profileImage: p.profileImage,
+    };
+    const response: UserPublicResponse = {
+      id: this.id,
+      userName: this.userName,
+      metamaskWallet: this.isMetamaskWalletPublic
+        ? this.metamaskWallet
+        : undefined,
+      twitterHandle: this.isTwitterHandlePublic
+        ? this.twitterHandle
+        : undefined,
+      discordAccount: this.isDiscordAccountPublic
+        ? this.discordAccount
+        : undefined,
+      primaryProfile,
+    };
+    return response;
+  }
 }

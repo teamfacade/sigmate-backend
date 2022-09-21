@@ -61,8 +61,12 @@ export interface CollectionAttributes {
   document?: Document;
   createdBy?: User;
   createdByDevice?: UserDevice;
+  createdAt?: Date;
   updatedBy?: User;
   updatedByDevice?: UserDevice;
+  updatedAt?: Date;
+  deletedBy?: User;
+  deletedByDevice?: UserDevice;
   mintingSchedules?: MintingSchedule[];
   category?: CollectionCategory;
   utility?: CollectionUtility;
@@ -92,6 +96,11 @@ export type BlockCollectionAttrib =
   | 'paymentTokens'
   | 'marketplace'
   | '';
+
+export type CollectionResponseConcise = Pick<
+  CollectionAttributes,
+  'id' | 'slug' | 'name' | 'imageUrl' | 'bannerImageUrl'
+>;
 
 export interface CollectionResponse
   extends Pick<
@@ -180,6 +189,12 @@ export interface CollectionUpdateDTO
   > {
   updatedBy?: User;
   updatedByDevice?: UserDevice;
+}
+
+export interface CollectionDeletionDTO
+  extends Pick<CollectionAttributes, 'slug'> {
+  deletedBy?: User;
+  deletedByDevice?: UserDevice;
 }
 
 export const OPENSEA_METADATA_UPDATE_PERIOD = 24 * 60 * 60 * 1000;
@@ -293,6 +308,12 @@ export default class Collection extends Model<
   @BelongsTo(() => UserDevice, 'updatedByDeviceId')
   updatedByDevice: CollectionAttributes['updatedByDevice'];
 
+  @BelongsTo(() => User, 'deletedById')
+  deletedBy: CollectionAttributes['deletedBy'];
+
+  @BelongsTo(() => UserDevice, 'deletedByDeviceId')
+  deletedByDevice: CollectionAttributes['deletedByDevice'];
+
   @HasMany(() => MintingSchedule, 'collectionId')
   mintingSchedules: CollectionAttributes['mintingSchedules'];
 
@@ -317,6 +338,16 @@ export default class Collection extends Model<
 
   @HasMany(() => Block, 'collectionId')
   blocks: CollectionAttributes['blocks'];
+
+  toResponseJSONConcise(): CollectionResponseConcise {
+    return {
+      id: this.id,
+      slug: this.slug,
+      name: this.name,
+      imageUrl: this.imageUrl,
+      bannerImageUrl: this.bannerImageUrl,
+    };
+  }
 
   async toResponseJSON(
     myself: User | null = null

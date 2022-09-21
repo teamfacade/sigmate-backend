@@ -1,3 +1,4 @@
+import { Op } from 'sequelize';
 import { Transaction } from 'sequelize/types';
 import db from '../../models';
 import BcToken, { BcTokenCreationAttributes } from '../../models/BcToken';
@@ -6,19 +7,33 @@ import Collection, {
   BlockCollectionAttrib,
   CollectionAttributes,
   CollectionCreationDTO,
+  CollectionDeletionDTO,
   CollectionUpdateDTO,
 } from '../../models/Collection';
 import CollectionDeployer from '../../models/CollectionDeployer';
 import CollectionCategory, {
+  CollectionCategoryAttributes,
+  CollectionCategoryCreationDTO,
   CollectionCategoryFindOrCreateDTO,
+  CollectionCategoryUpdateDTO,
 } from '../../models/CollectionCategory';
 import CollectionUtility, {
+  CollectionUtilityAttributes,
+  CollectionUtilityCreationDTO,
   CollectionUtilityFindOrCreateDTO,
+  CollectionUtilityUpdateDTO,
 } from '../../models/CollectionUtility';
 import ApiError from '../../utils/errors/ApiError';
 import NotFoundError from '../../utils/errors/NotFoundError';
 import SequelizeError from '../../utils/errors/SequelizeError';
-import { auditTextBlock, createCollectionAttribBlock } from './wiki/block';
+import {
+  auditTextBlock,
+  createCollectionAttribBlock,
+  deleteCollectionAttribBlocks,
+} from './wiki/block';
+import ConflictError from '../../utils/errors/ConflictError';
+import UnauthenticatedError from '../../utils/errors/UnauthenticatedError';
+import BadRequestError from '../../utils/errors/BadRequestError';
 
 export const setCollectionDeployerAddresses = async (
   collection: Collection | null,
@@ -124,17 +139,30 @@ export const findOrCreateCollectionUtility = async (
     });
     const ps: Promise<unknown>[] = []; // promises
     if (created) {
-      collectionUtilityDTO.createdBy &&
+      if (!collectionUtilityDTO.category) {
+        // All utilities must belong to a collection category
+        throw new ConflictError('ERR_COLLECTION_UTILITY_CREATE_NO_CATEGORY');
+      }
+
+      ps.push(
+        cu.$set('category', collectionUtilityDTO.category, { transaction })
+      );
+
+      if (collectionUtilityDTO.createdBy) {
         ps.push(
           cu.$set('createdBy', collectionUtilityDTO.createdBy, { transaction })
         );
-      collectionUtilityDTO.createdByDevice &&
+      }
+
+      if (collectionUtilityDTO.createdByDevice) {
         ps.push(
           cu.$set('createdByDevice', collectionUtilityDTO.createdByDevice, {
             transaction,
           })
         );
+      }
     }
+
     if (collectionUtilityDTO.collection) {
       ps.push(
         collectionUtilityDTO.collection.$set('utility', cu, { transaction })
@@ -142,6 +170,14 @@ export const findOrCreateCollectionUtility = async (
     }
     await Promise.all(ps);
     return cu;
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+export const getCollectionById = async (id: CollectionAttributes['id']) => {
+  try {
+    return await Collection.findByPk(id);
   } catch (error) {
     throw new SequelizeError(error as Error);
   }
@@ -376,28 +412,6 @@ export const createCollection = async (
         },
         transaction
       ),
-      // Find or create the collection category
-      collectionDTO.category &&
-        findOrCreateCollectionCategory(
-          {
-            name: collectionDTO.category,
-            collection: cl,
-            createdBy: collectionDTO.createdBy,
-            createdByDevice: collectionDTO.createdByDevice,
-          },
-          transaction
-        ),
-      // Find or create the collection utility
-      collectionDTO.utility &&
-        findOrCreateCollectionUtility(
-          {
-            name: collectionDTO.utility,
-            collection: cl,
-            createdBy: collectionDTO.createdBy,
-            createdByDevice: collectionDTO.createdByDevice,
-          },
-          transaction
-        ),
       // Link the document
       collectionDTO.document &&
         cl.$set('document', collectionDTO.document, { transaction }),
@@ -445,6 +459,37 @@ export const createCollection = async (
         { transaction }
       )
     );
+
+    // Find or create the collection category
+    let cc: CollectionCategory | undefined = undefined;
+    if (collectionDTO.category) {
+      cc = await findOrCreateCollectionCategory(
+        {
+          name: collectionDTO.category,
+          collection: cl,
+          createdBy: collectionDTO.createdBy,
+          createdByDevice: collectionDTO.createdByDevice,
+        },
+        transaction
+      );
+    }
+
+    // Find or create the collection utility
+    if (collectionDTO.utility) {
+      ps.push(
+        findOrCreateCollectionUtility(
+          {
+            name: collectionDTO.utility,
+            collection: cl,
+            category: cc || undefined,
+            createdBy: collectionDTO.createdBy,
+            createdByDevice: collectionDTO.createdByDevice,
+          },
+          transaction
+        )
+      );
+    }
+
     await Promise.all(ps);
 
     return cl;
@@ -696,36 +741,6 @@ export const updateCollectionBySlug = async (
       );
     }
 
-    // Find or create collection category
-    if (collectionDTO.category !== undefined) {
-      ps.push(
-        findOrCreateCollectionCategory(
-          {
-            name: collectionDTO.category,
-            collection: cl,
-            createdBy: collectionDTO.updatedBy,
-            createdByDevice: collectionDTO.updatedByDevice,
-          },
-          transaction
-        )
-      );
-    }
-
-    // Find or create collection utility
-    if (collectionDTO.utility !== undefined) {
-      ps.push(
-        findOrCreateCollectionUtility(
-          {
-            name: collectionDTO.utility,
-            collection: cl,
-            createdBy: collectionDTO.updatedBy,
-            createdByDevice: collectionDTO.updatedByDevice,
-          },
-          transaction
-        )
-      );
-    }
-
     // Update the document
     if (collectionDTO.document) {
       ps.push(cl.$set('document', collectionDTO.document, { transaction }));
@@ -749,6 +764,38 @@ export const updateCollectionBySlug = async (
       );
     }
 
+    // Find or create collection category
+    let cc: CollectionCategory | undefined = undefined;
+    if (collectionDTO.category !== undefined) {
+      cc = await findOrCreateCollectionCategory(
+        {
+          name: collectionDTO.category,
+          collection: cl,
+          createdBy: collectionDTO.updatedBy,
+          createdByDevice: collectionDTO.updatedByDevice,
+        },
+        transaction
+      );
+    } else {
+      cc = cl.category || (await cl.$get('category')) || undefined;
+    }
+
+    // Find or create collection utility
+    if (collectionDTO.utility !== undefined) {
+      ps.push(
+        findOrCreateCollectionUtility(
+          {
+            name: collectionDTO.utility,
+            collection: cl,
+            category: cc || undefined,
+            createdBy: collectionDTO.updatedBy,
+            createdByDevice: collectionDTO.updatedByDevice,
+          },
+          transaction
+        )
+      );
+    }
+
     await Promise.all(ps);
 
     return cl;
@@ -768,3 +815,184 @@ export const updateCollectionBySlugWithTx = async (
     throw new SequelizeError(error as Error);
   }
 };
+
+export const deleteCollectionBySlug = async (dto: CollectionDeletionDTO) => {
+  try {
+    await db.sequelize.transaction(async (transaction) => {
+      const cl = await Collection.findOne({
+        where: { slug: dto.slug },
+        transaction,
+      });
+      if (!cl) throw new NotFoundError();
+      const u = dto.deletedBy;
+      if (!u) throw new UnauthenticatedError();
+      const d = dto.deletedByDevice;
+
+      // Delete associated blocks
+      await deleteCollectionAttribBlocks(
+        cl,
+        {
+          deletedBy: u,
+          deletedByDevice: d,
+        },
+        transaction
+      );
+      // TODO delete associated document
+      // TODO delete associated NFTs
+      // TODO delete associated minting schedules
+
+      // Mark who deleted this collection
+      await cl.$set('deletedBy', u, { transaction });
+      d && (await cl.$set('deletedByDevice', d, { transaction }));
+
+      // Finally, delete collection
+      await cl.destroy({ transaction });
+    });
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+export const getCollectionCategoryById = async (
+  id: CollectionCategoryAttributes['id']
+) => {
+  try {
+    return await CollectionCategory.findByPk(id);
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+export const getCollectionCategories = async (
+  query: CollectionCategoryAttributes['name'] = ''
+) => {
+  try {
+    if (!query) {
+      return await CollectionCategory.findAll({ attributes: ['id', 'name'] });
+    } else {
+      // Search for categories that start with query
+      return await CollectionCategory.findAll({
+        where: {
+          name: {
+            [Op.startsWith]: query,
+          },
+        },
+        attributes: ['id', 'name'],
+      });
+    }
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+export const createCollectionCategory = async (
+  dto: CollectionCategoryCreationDTO
+) => {
+  try {
+    return await db.sequelize.transaction(async (transaction) => {
+      const cc = await CollectionCategory.create(
+        {
+          name: dto.name,
+          createdById: dto.createdBy?.id,
+          createdByDeviceId: dto.createdByDevice?.id,
+        },
+        { transaction }
+      );
+      return cc;
+    });
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+export const updateCollectionCategory = async (
+  dto: CollectionCategoryUpdateDTO
+) => {
+  try {
+    if (!dto.id) throw new BadRequestError();
+    const cc = await CollectionCategory.findByPk(dto.id);
+    if (!cc) throw new NotFoundError();
+    return await cc.update({
+      name: dto.name,
+      updatedById: dto.updatedBy?.id,
+      updatedByDeviceId: dto.updatedByDevice?.id,
+    });
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+// TODO Delete Collection Category
+
+export const getCollectionUtilitiesByCollectionCategoryId = async (
+  collectionCategoryId: CollectionCategoryAttributes['id'],
+  query: CollectionUtilityAttributes['name'] | undefined = ''
+) => {
+  try {
+    const cc = await CollectionCategory.findByPk(collectionCategoryId);
+    if (!cc) throw new NotFoundError();
+    if (!query) {
+      // TODO pagination
+      return await cc.$get('utilities', { attributes: ['id', 'name'] });
+    } else {
+      // Look for utilities that starts with query
+      return await cc.$get('utilities', {
+        where: {
+          name: {
+            [Op.startsWith]: query,
+          },
+        },
+        attributes: ['id', 'name'],
+      });
+    }
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+export const createCollectionUtility = async (
+  dto: CollectionUtilityCreationDTO
+) => {
+  try {
+    // Check if CollectionCategory exists first
+    if (dto.collectionCategoryId) {
+      const cu = await CollectionCategory.findByPk(dto.collectionCategoryId);
+      if (!cu) throw new ConflictError();
+    }
+
+    const cu = await CollectionUtility.create({
+      name: dto.name,
+      createdById: dto.createdById,
+      createdByDeviceId: dto.createdByDeviceId,
+      collectionCategoryId: dto.collectionCategoryId,
+    });
+
+    await Promise.all([
+      dto.createdBy && cu.$set('createdBy', dto.createdBy),
+      dto.createdByDevice && cu.$set('createdByDevice', dto.createdByDevice),
+      dto.category && cu.$set('category', dto.category),
+    ]);
+
+    return cu;
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+export const updateCollectionUtility = async (
+  dto: CollectionUtilityUpdateDTO
+) => {
+  try {
+    const cu = await CollectionUtility.findByPk(dto.id);
+    if (!cu) throw new NotFoundError();
+    return await cu.update({
+      name: dto.name,
+      updatedById: dto.updatedBy?.id || dto.updatedById,
+      updatedByDeviceId: dto.updatedByDevice?.id || dto.updatedByDeviceId,
+    });
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+// TODO Delete collection utility
