@@ -61,8 +61,8 @@ export interface CollectionAttributes {
   nfts: Nft[];
   openseaUpdatedAt?: Date;
   channel?: Channel;
-  discordAnnouncement?: DiscordAnnouncement[];
-  twitterAnnouncement?: TwitterAnnouncement[];
+  discordAnnouncements?: DiscordAnnouncement[];
+  twitterAnnouncements?: TwitterAnnouncement[];
 }
 
 export type CollectionCreationAttributes = Optional<CollectionAttributes, 'id'>;
@@ -188,8 +188,8 @@ export default class Collection extends Model<
   channel: CollectionAttributes['channel'];
 
   @HasMany(() => DiscordAnnouncement, 'collectionId')
-  discordAnnouncement: CollectionAttributes['discordAnnouncement'];
+  discordAnnouncements: CollectionAttributes['discordAnnouncements'];
 
   @HasMany(() => TwitterAnnouncement, 'collectionId')
-  twitterAnnouncement: CollectionAttributes['twitterAnnouncement'];
+  twitterAnnouncements: CollectionAttributes['twitterAnnouncements'];
 }
