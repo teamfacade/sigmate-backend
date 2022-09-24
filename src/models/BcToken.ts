@@ -24,6 +24,14 @@ export interface BcTokenAttributes {
 
 export type BcTokenCreationAttributes = Optional<BcTokenAttributes, 'id'>;
 
+export type BcTokenRequest = Omit<BcTokenResponse, 'symbol'> &
+  Required<Pick<BcTokenResponse, 'symbol'>>;
+
+export type BcTokenResponse = Pick<
+  BcTokenAttributes,
+  'id' | 'name' | 'symbol' | 'address' | 'imageUrl' | 'decimals'
+>;
+
 @Table({
   tableName: 'bc_tokens',
   modelName: 'BcToken',

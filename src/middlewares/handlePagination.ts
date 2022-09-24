@@ -8,6 +8,43 @@ export interface PaginationOptions {
   offset: number;
 }
 
+export interface PaginatedResponse<T = any> {
+  success: boolean;
+  page: {
+    current: number;
+    total: number;
+  };
+  count: number; // total number of data
+  offset: number;
+  limit: number;
+  data: T;
+  queriedAt: Date;
+}
+
+export interface PgResParams<T = any> {
+  limit: number;
+  offset: number;
+  count: number;
+  data: T;
+}
+
+export const createPgRes = <T = any>(pgArgs: PgResParams) => {
+  const { limit, offset, count, data } = pgArgs;
+  const response: PaginatedResponse<T> = {
+    success: true,
+    page: {
+      current: offset / limit + 1,
+      total: Math.ceil(count / limit),
+    },
+    count,
+    limit,
+    offset,
+    data,
+    queriedAt: new Date(),
+  };
+  return response;
+};
+
 const validatePagination = [
   query('limit')
     .optional()

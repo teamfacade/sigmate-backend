@@ -7,21 +7,19 @@ import {
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
 import Collection from './Collection';
-
 export interface TwitterAnnouncementAttributes {
   id: number;
-  collection: Collection;
+  collectionId?: number;
+  collection?: Collection;
   twitterChannel: string;
   contentId: string;
   content: string;
   timestamp: string;
 }
-
 export type TwitterAnnouncementCreationAttributes = Optional<
   TwitterAnnouncementAttributes,
   'id'
 >;
-
 @Table({
   tableName: 'twitter_announcements',
   modelName: 'TwitterAnnouncement',
@@ -36,7 +34,7 @@ export default class TwitterAnnouncement extends Model<
   TwitterAnnouncementCreationAttributes
 > {
   @BelongsTo(() => Collection, { foreignKey: 'collectionId' })
-  collection!: TwitterAnnouncementAttributes['collection'];
+  collection: TwitterAnnouncementAttributes['collection'];
 
   @Column(DataType.STRING(150))
   twitterChannel!: string;

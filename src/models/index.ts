@@ -11,7 +11,7 @@ import Collection from './Collection';
 import CollectionDeployer from './CollectionDeployer';
 import CollectionDocumentTable from './CollectionDocumentTable';
 import CollectionPaymentToken from './CollectionPaymentToken';
-import CollectionType from './CollectionType';
+import CollectionCategory from './CollectionCategory';
 import CollectionUtility from './CollectionUtility';
 import DiscordAnnouncement from './DiscordAnnouncement';
 import Document from './Document';
@@ -84,7 +84,7 @@ const initDatabase = () => {
     CollectionDeployer,
     CollectionDocumentTable,
     CollectionPaymentToken,
-    CollectionType,
+    CollectionCategory,
     CollectionUtility,
     DiscordAnnouncement,
     Document,
@@ -119,48 +119,12 @@ const initDatabase = () => {
     UserProfile,
     UserSavedMintingSchedule,
     VerificationType,
+    Channel,
+    DiscordAnnouncement,
+    TwitterAnnouncement,
   ]);
 
-  const db = {
-    sequelize,
-    AdminUser,
-    Block,
-    BlockAudit,
-    BlockVerification,
-    Category,
-    Channel,
-    Collection,
-    CollectionDocumentTable,
-    CollectionType,
-    CollectionUtility,
-    DiscordAnnouncement,
-    Document,
-    DocumentAudit,
-    DocumentCategory,
-    ForumComment,
-    ForumCommentVote,
-    ForumPost,
-    ForumPostView,
-    ForumPostVote,
-    ForumReport,
-    ForumTag,
-    Image,
-    MintingSchedule,
-    Nft,
-    Opinion,
-    OpinionVerification,
-    TwitterAnnouncement,
-    Url,
-    UrlVerification,
-    User,
-    UserAgent,
-    UserAttendance,
-    UserAuth,
-    UserDevice,
-    UserGroup,
-    UserProfile,
-    VerificationType,
-  };
+  const db = { sequelize };
 
   return db;
 };

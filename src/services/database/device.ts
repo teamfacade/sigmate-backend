@@ -15,17 +15,14 @@ export const findOrCreateUserAgent = async (
     userAgentDTO.deviceVendor = uaParsed.device.vendor || '';
     userAgentDTO.deviceModel = uaParsed.device.model || '';
     userAgentDTO.deviceType = uaParsed.device.type || '';
+  }
 
-    // Generate hash
-    if (!userAgentDTO.uaHash) {
-      userAgentDTO.uaHash = crypto
-        .createHash('md5')
-        .update(userAgentDTO.uaText)
-        .digest('hex');
-    }
-  } else {
-    // If empty, empty hash as well
-    userAgentDTO.uaHash = '';
+  // Generate hash
+  if (!userAgentDTO.uaHash) {
+    userAgentDTO.uaHash = crypto
+      .createHash('md5')
+      .update(userAgentDTO.uaText || '')
+      .digest('hex');
   }
 
   try {

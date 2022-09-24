@@ -7,21 +7,19 @@ import {
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
 import Collection from './Collection';
-
 export interface DiscordAnnouncementAttributes {
   id: number;
-  collection: Collection;
+  collectionId?: number;
+  collection?: Collection;
   discordChannel: string;
   contentId: string;
   content: string;
   timestamp: string;
 }
-
 export type DiscordAnnouncementCreationAttributes = Optional<
   DiscordAnnouncementAttributes,
   'id'
 >;
-
 @Table({
   tableName: 'discord_announcements',
   modelName: 'DiscordAnnouncement',
@@ -36,7 +34,7 @@ export default class DiscordAnnouncement extends Model<
   DiscordAnnouncementCreationAttributes
 > {
   @BelongsTo(() => Collection, { foreignKey: 'collectionId' })
-  collection!: DiscordAnnouncementAttributes['collection'];
+  collection: DiscordAnnouncementAttributes['collection'];
 
   @Column(DataType.STRING(150))
   discordChannel!: string;

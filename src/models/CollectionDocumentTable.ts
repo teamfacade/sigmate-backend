@@ -10,7 +10,7 @@ export interface CollectionDocumentTableAttributes {
   rugpoolBlock: Block;
   typeBlock: Block;
   utilityBlock: Block;
-  mintingPriceWLBlock: Block;
+  mintingPriceWlBlock: Block;
   mintingPricePublicBlock: Block;
   currentPriceBlock: Block;
   discordUrlBlock: Block;
@@ -53,8 +53,8 @@ export default class CollectionDocumentTable extends Model<
   @BelongsTo(() => Block, 'utilityBlockId')
   utilityBlock!: CollectionDocumentTableAttributes['utilityBlock'];
 
-  @BelongsTo(() => Block, 'mintingPriceWLBlockId')
-  mintingPriceWLBlock!: CollectionDocumentTableAttributes['mintingPriceWLBlock'];
+  @BelongsTo(() => Block, 'mintingPriceWlBlockId')
+  mintingPriceWlBlock!: CollectionDocumentTableAttributes['mintingPriceWlBlock'];
 
   @BelongsTo(() => Block, 'mintingPricePublicBlockId')
   mintingPricePublicBlock!: CollectionDocumentTableAttributes['mintingPricePublicBlock'];

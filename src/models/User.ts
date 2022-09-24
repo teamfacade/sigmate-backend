@@ -22,7 +22,7 @@ import BlockVerification from './BlockVerification';
 import Category from './Category';
 import Collection from './Collection';
 import CollectionDocumentTable from './CollectionDocumentTable';
-import CollectionType from './CollectionType';
+import CollectionCategory from './CollectionCategory';
 import CollectionUtility from './CollectionUtility';
 import Document from './Document';
 import DocumentAudit from './DocumentAudit';
@@ -100,8 +100,8 @@ export interface UserAttributes {
   updatedCollections?: Collection[];
   createdCollectionDocumentTables?: CollectionDocumentTable[];
   updatedCollectionDocumentTables?: CollectionDocumentTable[];
-  createdCollectionTypes?: CollectionType[];
-  updatedCollectionTypes?: CollectionType[];
+  createdCollectionCategories?: CollectionCategory[];
+  updatedCollectionCategories?: CollectionCategory[];
   createdCollectionUtilities?: CollectionUtility[];
   updatedCollectionUtilities?: CollectionUtility[];
   createdDocuments?: Document[];
@@ -395,11 +395,11 @@ export default class User extends Model<
   @HasMany(() => CollectionDocumentTable, 'updatedByDeviceId')
   updatedCollectionDocumentTable: UserAttributes['updatedCollectionDocumentTables'];
 
-  @HasMany(() => CollectionType, 'createdById')
-  createdCollectionTypes: UserAttributes['createdCollectionTypes'];
+  @HasMany(() => CollectionCategory, 'createdById')
+  createdCollectionCategories: UserAttributes['createdCollectionCategories'];
 
-  @HasMany(() => CollectionType, 'updatedById')
-  updatedCollectionTypes: UserAttributes['updatedCollectionTypes'];
+  @HasMany(() => CollectionCategory, 'updatedById')
+  updatedCollectionCategories: UserAttributes['updatedCollectionCategories'];
 
   @HasMany(() => CollectionUtility, 'createdById')
   createdCollectionUtilities: UserAttributes['createdCollectionUtilities'];
@@ -502,4 +502,39 @@ export default class User extends Model<
 
   @HasMany(() => UserAttendance, 'createdById')
   userAttendanceRecords: UserAttributes['userAttendanceRecords'];
+
+  async toResponseJSONPublic(): Promise<UserPublicResponse> {
+    const p =
+      this.primaryProfile ||
+      (await this.$get('primaryProfile', {
+        attributes: ['id', 'displayName', 'bio', 'profileImageUrl'],
+        include: [
+          {
+            model: Image,
+          },
+        ],
+      }));
+    const primaryProfile = {
+      id: p.id,
+      displayName: p.displayName,
+      bio: p.bio,
+      profileImageUrl: p.profileImageUrl,
+      profileImage: p.profileImage,
+    };
+    const response: UserPublicResponse = {
+      id: this.id,
+      userName: this.userName,
+      metamaskWallet: this.isMetamaskWalletPublic
+        ? this.metamaskWallet
+        : undefined,
+      twitterHandle: this.isTwitterHandlePublic
+        ? this.twitterHandle
+        : undefined,
+      discordAccount: this.isDiscordAccountPublic
+        ? this.discordAccount
+        : undefined,
+      primaryProfile,
+    };
+    return response;
+  }
 }

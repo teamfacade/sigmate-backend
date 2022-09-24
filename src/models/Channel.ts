@@ -7,16 +7,13 @@ import {
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
 import Collection from './Collection';
-
 export interface ChannelAttributes {
   id: number;
-  collection: Collection;
+  collection: number;
   discordChannel: string;
   twitterChannel: string;
 }
-
 export type ChannelCreationAttributes = Optional<ChannelAttributes, 'id'>;
-
 @Table({
   tableName: 'channels',
   modelName: 'Channel',
@@ -32,10 +29,8 @@ export default class Channel extends Model<
 > {
   @BelongsTo(() => Collection, { foreignKey: 'collectionId' })
   collection!: ChannelAttributes['collection'];
-
   @Column(DataType.STRING(150))
   discordChannel!: string;
-
   @Column(DataType.STRING(150))
   twitterChannel!: string;
 }
