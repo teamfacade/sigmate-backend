@@ -9,7 +9,8 @@ import { Optional } from 'sequelize/types';
 import Collection from './Collection';
 export interface DiscordAnnouncementAttributes {
   id: number;
-  collection: number;
+  collectionId?: number;
+  collection?: Collection;
   discordChannel: string;
   contentId: string;
   content: string;
@@ -33,7 +34,7 @@ export default class DiscordAnnouncement extends Model<
   DiscordAnnouncementCreationAttributes
 > {
   @BelongsTo(() => Collection, { foreignKey: 'collectionId' })
-  collection!: DiscordAnnouncementAttributes['collection'];
+  collection: DiscordAnnouncementAttributes['collection'];
 
   @Column(DataType.STRING(150))
   discordChannel!: string;

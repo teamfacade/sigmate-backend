@@ -49,7 +49,7 @@ export const postDiscordAnnouncement = async (
       contentId: announcement.id,
       content: announcement.content,
       timestamp: announcement.timestamp,
-      collection: collectionId,
+      collectionId: collectionId,
     });
   } catch (error) {
     throw new SequelizeError(error as Error);
@@ -67,7 +67,7 @@ export const postTwitterAnnouncement = async (
       contentId: announcement.id,
       content: announcement.text,
       timestamp: announcement.created_at,
-      collection: collectionId,
+      collectionId: collectionId,
     });
   } catch (error) {
     throw new SequelizeError(error as Error);
