@@ -12,6 +12,7 @@ import CollectionDocumentTable from './CollectionDocumentTable';
 import CollectionPaymentToken from './CollectionPaymentToken';
 import CollectionCategory from './CollectionCategory';
 import CollectionUtility from './CollectionUtility';
+import DiscordAnnouncement from './DiscordAnnouncement';
 import Document from './Document';
 import DocumentAudit from './DocumentAudit';
 import DocumentAuditCategory from './DocumentAuditCategory';
@@ -43,6 +44,8 @@ import UserOwnedDevice from './UserOwnedDevice';
 import UserProfile from './UserProfile';
 import UserSavedMintingSchedule from './UserSavedMintingSchedule';
 import VerificationType from './VerificationType';
+import Channel from './Channel';
+import TwitterAnnouncement from './TwitterAnnouncement';
 
 const config = databaseConfig[process.env.NODE_ENV];
 
@@ -113,6 +116,9 @@ const initDatabase = () => {
     UserProfile,
     UserSavedMintingSchedule,
     VerificationType,
+    Channel,
+    DiscordAnnouncement,
+    TwitterAnnouncement,
   ]);
 
   const db = { sequelize };
