@@ -119,9 +119,6 @@ const initDatabase = () => {
     UserProfile,
     UserSavedMintingSchedule,
     VerificationType,
-    Channel,
-    DiscordAnnouncement,
-    TwitterAnnouncement,
   ]);
 
   const db = { sequelize };

@@ -6,10 +6,11 @@ import {
   Table,
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
-import Collection from './Collection';
+import Collection, { CollectionAttributes } from './Collection';
 export interface ChannelAttributes {
   id: number;
-  collection: number;
+  collectionId?: CollectionAttributes['id'];
+  collection?: Collection;
   discordChannel: string;
   twitterChannel: string;
 }
@@ -28,7 +29,7 @@ export default class Channel extends Model<
   ChannelCreationAttributes
 > {
   @BelongsTo(() => Collection, { foreignKey: 'collectionId' })
-  collection!: ChannelAttributes['collection'];
+  collection: ChannelAttributes['collection'];
   @Column(DataType.STRING(150))
   discordChannel!: string;
   @Column(DataType.STRING(150))
