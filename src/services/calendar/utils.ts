@@ -14,7 +14,9 @@ export const groupMintingScheduleResponseByDay = (
   msrs.forEach((msr) => {
     if (msr.mintingTime) {
       // Minting Time
-      const mt = DateTime.fromJSDate(msr.mintingTime).startOf('day').toMillis();
+      const mt = DateTime.fromJSDate(msr.mintingTime, { zone: 'utc' })
+        .startOf('day')
+        .toMillis();
       if (!grouped[mt]) grouped[mt] = [];
       grouped[mt].push(msr);
     }
