@@ -253,19 +253,12 @@ export const deleteCategoryController = async (
 ) => {
   try {
     const id = (req.body.id as number) || undefined;
-    const name = (req.body.name as string) || undefined;
-
     const categoryDeleteDTO: CategoryDeleteDTO = {};
 
     if (id) {
       categoryDeleteDTO.id = id;
     }
-
-    if (name) {
-      categoryDeleteDTO.name = name;
-    }
-
-    if (!id && !name) throw new BadRequestError();
+    if (!id) throw new BadRequestError();
 
     await deleteCategory(categoryDeleteDTO);
 

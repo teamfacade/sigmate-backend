@@ -77,7 +77,7 @@ export const updateCategory = async (
 
 export const deleteCategory = async (categoryDTO: CategoryDeleteDTO) => {
   try {
-    if (!categoryDTO.id && !categoryDTO.name) throw new BadRequestError();
+    if (!categoryDTO.id) throw new BadRequestError();
 
     return await db.sequelize.transaction(async (transaction) => {
       const affectedRowCount = await Category.destroy({

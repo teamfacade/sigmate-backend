@@ -54,16 +54,6 @@ export const validateDeleteCategory = [
     .withMessage('NOT_INT')
     .bail()
     .toInt(),
-  body('name')
-    .optional()
-    .trim()
-    .stripLow()
-    .escape()
-    .notEmpty()
-    .withMessage('REQUIRED')
-    .bail()
-    .isLength({ min: 1, max: 191 })
-    .withMessage('LENGTH'),
 ];
 
 export const validateGetForumPostsByCategory = [
