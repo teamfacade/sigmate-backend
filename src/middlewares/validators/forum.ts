@@ -1,4 +1,4 @@
-import { body, param, query } from 'express-validator';
+import { body, param } from 'express-validator';
 import { isArrayItemsLength } from './utils';
 
 export const validateCreateCategory = [
@@ -42,7 +42,7 @@ export const validateUpdateCategory = [
 ];
 
 export const validateDeleteCategory = [
-  query('id')
+  param('id')
     .optional()
     .trim()
     .notEmpty()

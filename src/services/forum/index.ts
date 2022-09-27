@@ -252,7 +252,7 @@ export const deleteCategoryController = async (
   next: NextFunction
 ) => {
   try {
-    const id = req.query.id as unknown as number;
+    const id = req.params.id as unknown as number;
     const categoryDeleteDTO: CategoryDeleteDTO = {};
 
     if (id) {
