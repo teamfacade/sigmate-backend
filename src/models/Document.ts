@@ -9,9 +9,9 @@ import {
   Table,
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
-import Block, { BlockAttributes } from './Block';
+import Block, { BlockAttributes, BlockRequest } from './Block';
 import DocumentAudit from './DocumentAudit';
-import Category from './Category';
+import Category, { CategoryAttributes } from './Category';
 import User, { UserAttributes, UserPublicResponse } from './User';
 import UserDevice, { UserDeviceAttributes } from './UserDevice';
 import Collection, {
@@ -23,6 +23,7 @@ import Opinion from './Opinion';
 import DocumentCategory from './DocumentCategory';
 import Nft, { NftAttributes, NftResponse, NftResponseConcise } from './Nft';
 import { BlockResponse } from './Block';
+import { UpdateCollectionReqBody } from '../services/wiki/collection';
 
 export type DocumentIdType = number;
 export const documentIdDataTypes = DataType.INTEGER;
@@ -72,6 +73,16 @@ export type DocumentCreationDTO = Pick<
   | 'createdById'
   | 'createdBy'
 >;
+
+export interface DocumentAuditDTO {
+  document: {
+    title?: DocumentAttributes['title'];
+    parent?: DocumentAttributes['id'];
+    blocks?: BlockRequest[];
+    categories?: CategoryAttributes['id'][];
+  };
+  collection?: UpdateCollectionReqBody;
+}
 
 const documentConciseAttributes = ['id', 'title', 'createdAt', 'updatedAt'];
 export interface DocumentResponseConcise

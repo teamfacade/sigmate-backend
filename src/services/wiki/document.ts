@@ -161,3 +161,28 @@ export const createWikiDocumentController = async (
     next(error);
   }
 };
+
+// type UpdateWikiDocumentReqBody = {
+//   document: {
+//     title?: string;
+//     structure?: BlockAttributes['id'][];
+//     parent?: DocumentAttributes['id'];
+//     blocks: BlockRequest[];
+//     categories?: CategoryAttributes['id'][];
+//   };
+//   collection?: UpdateCollectionReqBody;
+//   // TODO Update NFT information
+// };
+
+// export const updateWikiDocumentController = async (
+//   req: Request,
+//   res: Response,
+//   next: NextFunction
+// ) => {
+//   try {
+//     const id = req.params.id as unknown as number;
+//     const { document, collection } = req.body as UpdateWikiDocumentReqBody;
+//   } catch (error) {
+//     next(error);
+//   }
+// };

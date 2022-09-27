@@ -248,7 +248,9 @@ export const createCollectionController = async (
 };
 
 type UpdateCollectionReqQuery = { slug: string };
-type UpdateCollectionReqBody = Partial<Omit<CreateCollectionReqBody, 'slug'>>;
+export type UpdateCollectionReqBody = Partial<
+  Omit<CreateCollectionReqBody, 'slug'>
+>;
 
 export const updateCollectionController = async (
   req: Request,

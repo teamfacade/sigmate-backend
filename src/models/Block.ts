@@ -18,25 +18,48 @@ import Collection, {
   CollectionAttributes,
 } from './Collection';
 import Document, { DocumentAttributes } from './Document';
+import DocumentAudit, { DocumentAuditAttributes } from './DocumentAudit';
 import Image from './Image';
 import Opinion from './Opinion';
 import Url from './Url';
-import User from './User';
-import UserDevice from './UserDevice';
+import User, { UserAttributes } from './User';
+import UserDevice, { UserDeviceAttributes } from './UserDevice';
 import VerificationType from './VerificationType';
 
 export type BlockIdType = number;
 export interface BlockAttributes {
   id: BlockIdType;
+  documentId?: DocumentAttributes['id'];
   document?: Document;
   opinions?: Opinion[];
+
+  // Attributes that we keep audit records
   element: string;
   style?: { [key: string]: string };
   textContent?: string;
+  structure?: BlockIdType[];
+  parentId?: BlockAttributes['id'];
+  parent?: Block;
+
+  // What DocuemtAudit was the last BlockAudit part of?
+  lastDocumentAuditId?: DocumentAuditAttributes['id'];
+  lastDocumentAudit?: DocumentAudit;
+
+  // Last approved audits of each field
+  // to be added to each BlockAudit entry
+  lastElementAuditId?: BlockAuditAttributes['id'];
+  lastElementAudit?: BlockAudit;
+  lastStyleAuditId?: BlockAuditAttributes['id'];
+  lastStyleAudit?: BlockAudit;
+  lastTextContentAuditId?: BlockAuditAttributes['id'];
+  lastTextContentAudit?: BlockAudit;
+  lastStructureAuditId?: BlockAuditAttributes['id'];
+  lastStructureAudit?: BlockAudit;
+  lastParentAuditId?: BlockAuditAttributes['id'];
+  lastParentAudit?: BlockAudit;
+
   image?: Image;
   url?: Url;
-  structure?: BlockIdType[];
-  parent?: Block;
   children?: Block[];
   audits?: BlockAudit[];
   verifications?: BlockVerification[];
@@ -46,12 +69,21 @@ export interface BlockAttributes {
   collectionId?: CollectionAttributes['id'];
   collectionAttrib?: BlockCollectionAttrib;
 
+  createdByDeviceId?: UserDeviceAttributes['id'];
   createdByDevice?: UserDevice;
+  createdById?: UserAttributes['id'];
   createdBy?: User;
+  updatedByDeviceId?: UserDeviceAttributes['id'];
   updatedByDevice?: UserDevice;
+  updatedById?: UserAttributes['id'];
   updatedBy?: User;
   deletedByDevice?: UserDevice;
   deletedBy?: User;
+
+  // -------------------------
+  // Not saved to DB. Just used in JS
+  // Temporary ID from the frontend before actual block creation
+  temporaryId?: number;
 }
 
 export type BlockCreationAttributes = Optional<BlockAttributes, 'id'>;
@@ -62,29 +94,44 @@ export type TextBlockCreationAttribs = Required<
   Pick<
     BlockAttributes,
     | 'element'
+    | 'documentId'
     | 'document'
     | 'style'
+    | 'parentId'
     | 'parent'
     | 'collectionAttrib'
+    | 'createdByDeviceId'
     | 'createdByDevice'
+    | 'createdById'
     | 'createdBy'
   >;
 
 export interface TextBlockCreationDTO extends TextBlockCreationAttribs {
+  documentAuditId?: DocumentAuditAttributes['id'];
+  documentAudit?: DocumentAudit | null;
   approved: boolean;
 }
 export interface TextBlockAuditDTO
   extends Partial<
     Pick<
       BlockAttributes,
+      | 'id'
       | 'textContent'
       | 'element'
       | 'style'
+      | 'lastDocumentAuditId'
+      | 'lastDocumentAudit'
+      | 'parentId'
       | 'parent'
+      | 'structure'
+      | 'updatedById'
       | 'updatedBy'
+      | 'updatedByDeviceId'
       | 'updatedByDevice'
     >
   > {
+  documentAuditId?: DocumentAuditAttributes['id'];
+  documentAudit?: DocumentAudit | null;
   approved: boolean;
 }
 
@@ -94,6 +141,17 @@ export type CollectionAttribBlockCreationDTO = TextBlockCreationDTO &
 export interface CollectionAttribBlockDeletionDTO {
   deletedBy?: BlockAttributes['deletedBy'];
   deletedByDevice?: BlockAttributes['deletedByDevice'];
+}
+
+export interface BlockRequest {
+  id: BlockAttributes['id'];
+  element?: BlockAttributes['element'];
+  textContent?: BlockAttributes['element'];
+  structure?: BlockAttributes['id'][];
+  style?: BlockAttributes['style'];
+  parent?: BlockAttributes['id'];
+  children?: BlockRequest[];
+  depth?: number;
 }
 
 export interface BlockResponse
@@ -152,6 +210,33 @@ export default class Block extends Model<
   @Column(DataType.TEXT)
   textContent!: BlockAttributes['textContent'];
 
+  @Column(DataType.JSON)
+  structure: BlockAttributes['structure'];
+
+  @BelongsTo(() => Block, 'parentId')
+  parent: BlockAttributes['parent'];
+
+  @BelongsTo(() => DocumentAudit, {
+    as: 'lastDocumentAudit',
+    foreignKey: 'lastDocumentAuditId',
+  })
+  lastDocumentAudit: BlockAttributes['lastDocumentAudit'];
+
+  @BelongsTo(() => BlockAudit, { foreignKey: 'lastElementAuditId' })
+  lastElementAudit: BlockAttributes['lastElementAudit'];
+
+  @BelongsTo(() => BlockAudit, { foreignKey: 'lastStyleAuditId' })
+  lastStyleAudit: BlockAttributes['lastStyleAudit'];
+
+  @BelongsTo(() => BlockAudit, { foreignKey: 'lastTextContentAuditId' })
+  lastTextContentAudit: BlockAttributes['lastTextContentAudit'];
+
+  @BelongsTo(() => BlockAudit, { foreignKey: 'lastStructureAuditId' })
+  lastStructureAudit: BlockAttributes['lastStructureAudit'];
+
+  @BelongsTo(() => BlockAudit, { foreignKey: 'lastParentAuditId' })
+  lastParentAudit: BlockAttributes['lastParentAudit'];
+
   // An image block (no children)
   @BelongsTo(() => Image, 'imageId')
   image!: BlockAttributes['image'];
@@ -159,12 +244,6 @@ export default class Block extends Model<
   // An url block (no children)
   @BelongsTo(() => Url, 'urlId')
   url!: BlockAttributes['url'];
-
-  @Column(DataType.JSON)
-  structure: BlockAttributes['structure'];
-
-  @BelongsTo(() => Block, 'parentId')
-  parent: BlockAttributes['parent'];
 
   @HasMany(() => Block, 'parentId')
   children: BlockAttributes['children'];
@@ -207,6 +286,11 @@ export default class Block extends Model<
 
   @BelongsTo(() => User, { as: 'deletedBy', foreignKey: 'deletedById' })
   deletedBy: BlockAttributes['deletedBy'];
+
+  // -------------------------
+  // From here, not saved to DB. Just used in JS
+  // Temporary ID from the frontend before actual block creation
+  temporaryId: BlockAttributes['temporaryId'];
 
   async getMyVerification(
     myself: User | null = null

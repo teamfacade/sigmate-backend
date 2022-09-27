@@ -9,6 +9,7 @@ import {
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
 import Block, { BlockAttributes } from './Block';
+import DocumentAudit, { DocumentAuditAttributes } from './DocumentAudit';
 import User, { UserAttributes } from './User';
 import UserDevice, { UserDeviceAttributes } from './UserDevice';
 
@@ -17,11 +18,32 @@ export interface BlockAuditAttributes {
   action: 'c' | 'u' | 'd'; // create, update, delete
   block?: Block;
   blockId?: BlockAttributes['id'];
+
+  // Multiple block audits can be a part of one document audit
+  documentAuditId?: DocumentAuditAttributes['id'];
+  documentAudit?: DocumentAudit;
+
+  // Attributes that we keep track of
   element?: string;
   style?: { [key: string]: string };
   textContent?: string;
   structure?: number[];
   parentId?: number;
+
+  // Pointer to the last audit of each field
+  // if it was not audited on this version
+  // -- for quick reconstruction of versions
+  lastElementAuditId?: BlockAuditAttributes['id'];
+  lastElementAudit?: BlockAudit;
+  lastStyleAuditId?: BlockAuditAttributes['id'];
+  lastStyleAudit?: BlockAudit;
+  lastTextContentAuditId?: BlockAuditAttributes['id'];
+  lastTextContentAudit?: BlockAudit;
+  lastStructureAuditId?: BlockAuditAttributes['id'];
+  lastStructureAudit?: BlockAudit;
+  lastParentAuditId?: BlockAuditAttributes['id'];
+  lastParentAudit?: BlockAudit;
+
   createdByDeviceId?: UserDeviceAttributes['id'];
   createdByDevice?: UserDevice;
   createdById?: UserAttributes['id'];
@@ -63,6 +85,12 @@ export default class BlockAudit extends Model<
 
   @BelongsTo(() => Block, 'blockId')
   block: BlockAuditAttributes['block'];
+
+  @BelongsTo(() => DocumentAudit, {
+    as: 'documentAudit',
+    foreignKey: 'documentAuditId',
+  })
+  documentAudit: BlockAuditAttributes['documentAudit'];
 
   @Column(DataType.STRING(16))
   element: BlockAuditAttributes['element'];
