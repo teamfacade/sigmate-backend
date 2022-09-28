@@ -17,9 +17,10 @@ type TA = {
 
 export const getAllAnnouncements = async (id: any) => {
   try {
-    const pool = mysql.createPool(dbConfig.production);
+    const config = dbConfig.test;
+    const pool = mysql.createPool(config);
     const promisePool = pool.promise();
-    const union = `SELECT 'd' as opt, content, timestamp, content_id FROM ${dbConfig.production.database}.discord_announcements WHERE collection_id = ${id} UNION SELECT 't' as opt, content, timestamp, content_id FROM ${dbConfig.production.database}.twitter_announcements WHERE collection_id = ${id} ORDER BY timestamp DESC, content_id+0 ASC;`;
+    const union = `SELECT 'd' as opt, content, timestamp, content_id FROM ${config.database}.discord_announcements WHERE collection_id = ${id} UNION SELECT 't' as opt, content, timestamp, content_id FROM ${config.database}.twitter_announcements WHERE collection_id = ${id} ORDER BY timestamp DESC, content_id+0 ASC;`;
     const res = await promisePool.query(union);
     return res[0];
   } catch (err) {
