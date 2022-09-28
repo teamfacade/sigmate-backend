@@ -20,6 +20,14 @@ export type TwitterAnnouncementCreationAttributes = Optional<
   TwitterAnnouncementAttributes,
   'id'
 >;
+
+export type TwitterAnnoucemenetResponse = {
+  opt: 't';
+  content: string;
+  timestamp: string;
+  content_id: number;
+};
+
 @Table({
   tableName: 'twitter_announcements',
   modelName: 'TwitterAnnouncement',

@@ -1,6 +1,10 @@
 import sequelize from 'sequelize';
-import DiscordAnnouncement from '../../models/DiscordAnnouncement';
-import TwitterAnnouncement from '../../models/TwitterAnnouncement';
+import DiscordAnnouncement, {
+  DiscordAnnoucemenetResponse,
+} from '../../models/DiscordAnnouncement';
+import TwitterAnnouncement, {
+  TwitterAnnoucemenetResponse,
+} from '../../models/TwitterAnnouncement';
 import SequelizeError from '../../utils/errors/SequelizeError';
 import mysql from 'mysql2';
 import dbConfig from '../../config/dbConfig';
@@ -15,16 +19,35 @@ type TA = {
   created_at: string;
 };
 
-export const getAllAnnouncements = async (id: any) => {
+export const getAllAnnouncements = async (
+  id: number,
+  limit = 50,
+  offset = 0
+) => {
   try {
-    const config = dbConfig.test;
+    const config = dbConfig[process.env.NODE_ENV];
     const pool = mysql.createPool(config);
     const promisePool = pool.promise();
-    const union = `SELECT 'd' as opt, content, timestamp, content_id FROM ${config.database}.discord_announcements WHERE collection_id = ${id} UNION SELECT 't' as opt, content, timestamp, content_id FROM ${config.database}.twitter_announcements WHERE collection_id = ${id} ORDER BY timestamp DESC, content_id+0 ASC;`;
+    const union = `
+      SELECT 'd' AS opt, content, timestamp, content_id AS contentId
+      FROM ${config.database}.discord_announcements 
+      WHERE collection_id = ${id} 
+      UNION 
+      SELECT 't' AS opt, content, timestamp, content_id AS contentId
+      FROM ${config.database}.twitter_announcements 
+      WHERE collection_id = ${id} 
+      ORDER BY timestamp DESC, contentId+0 ASC
+      LIMIT ${limit} OFFSET ${offset};`;
     const res = await promisePool.query(union);
-    return res[0];
+    if (!res || !res.length) {
+      return res[0] as (
+        | DiscordAnnoucemenetResponse
+        | TwitterAnnoucemenetResponse
+      )[];
+    }
+    return [] as (DiscordAnnoucemenetResponse | TwitterAnnoucemenetResponse)[];
   } catch (err) {
-    console.log(err);
+    throw new SequelizeError(err as Error);
   }
 };
 

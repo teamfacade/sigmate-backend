@@ -1,5 +1,9 @@
 import { NextFunction, Request, Response } from 'express';
 import {
+  createPgRes,
+  PaginationOptions,
+} from '../../middlewares/handlePagination';
+import {
   getAllAnnouncements,
   getLatestDiscordAnnouncement,
   getLatestTwitterAnnouncement,
@@ -14,11 +18,17 @@ export const getAllAnnouncementsController = async (
   next: NextFunction
 ) => {
   try {
-    const anns = await getAllAnnouncements(req.query.cid);
-    res.status(200).json({
-      success: true,
-      anns: anns,
+    const { limit, offset } = req.pg as PaginationOptions;
+    const cid = req.query.cid as unknown as number;
+    const anns = await getAllAnnouncements(cid, limit, offset);
+
+    const response = createPgRes<typeof anns>({
+      limit,
+      offset,
+      count: 0,
+      data: anns,
     });
+    res.status(200).json(response);
   } catch (error) {
     next(error);
   }
