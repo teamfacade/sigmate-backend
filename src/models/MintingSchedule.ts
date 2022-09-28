@@ -130,6 +130,7 @@ export default class MintingSchedule extends Model<
       mintingTime: this.mintingTime,
       mintingPrice: this.mintingPrice,
       mintingPriceSymbol: this.mintingPriceSymbol,
+      mintingUrl: this.mintingUrl,
       createdAt: this.createdAt,
       updatedAt: this.updatedAt,
     };

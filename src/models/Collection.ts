@@ -30,6 +30,9 @@ import MintingSchedule from './MintingSchedule';
 import Nft from './Nft';
 import User from './User';
 import UserDevice from './UserDevice';
+import Channel from './Channel';
+import DiscordAnnouncement from './DiscordAnnouncement';
+import TwitterAnnouncement from './TwitterAnnouncement';
 
 export interface CollectionAttributes {
   id: number;
@@ -78,6 +81,9 @@ export interface CollectionAttributes {
   // Blocks
   // For verifying collection data
   blocks?: Block[];
+  channel?: Channel;
+  discordAnnouncements?: DiscordAnnouncement[];
+  twitterAnnouncements?: TwitterAnnouncement[];
 }
 
 export type CollectionCreationAttributes = Optional<CollectionAttributes, 'id'>;
@@ -441,4 +447,13 @@ export default class Collection extends Model<
 
     return response;
   }
+
+  @HasOne(() => Channel, 'collectionId')
+  channel: CollectionAttributes['channel'];
+
+  @HasMany(() => DiscordAnnouncement, 'collectionId')
+  discordAnnouncements: CollectionAttributes['discordAnnouncements'];
+
+  @HasMany(() => TwitterAnnouncement, 'collectionId')
+  twitterAnnouncements: CollectionAttributes['twitterAnnouncements'];
 }

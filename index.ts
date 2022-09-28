@@ -13,8 +13,8 @@ import setupErrorHandlers from './src/loaders/setupErrorHandlers';
 const app = express();
 setupExpress(app);
 setupRoutes(app);
-syncDatabase();
 setupErrorHandlers(app);
+syncDatabase();
 
 app.listen(app.get('port'), () => {
   console.log(`✅ Server listening on port ${app.get('port')}...`);

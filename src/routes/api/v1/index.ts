@@ -1,4 +1,5 @@
 import express from 'express';
+import announcementRouter from './announcement';
 import authRouter from './auth';
 import calendarRouter from './calendar';
 import forumRouter from './forum';
@@ -14,5 +15,6 @@ v1Router.use('/profile', profileRouter);
 v1Router.use('/forum', forumRouter);
 v1Router.use('/wiki', wikiRouter);
 v1Router.use('/calendar', calendarRouter);
+v1Router.use('/wh', announcementRouter);
 
 export default v1Router;
