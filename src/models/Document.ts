@@ -8,6 +8,7 @@ import {
   Model,
   Table,
 } from 'sequelize-typescript';
+import { Op } from 'sequelize';
 import { Optional } from 'sequelize/types';
 import Block, { BlockAttributes, BlockRequest } from './Block';
 import DocumentAudit from './DocumentAudit';
@@ -27,6 +28,7 @@ import { UpdateCollectionReqBody } from '../services/wiki/collection';
 
 export type DocumentIdType = number;
 export const documentIdDataTypes = DataType.INTEGER;
+export const TEXTCONTENT_SEPARATOR = ' ';
 
 export interface DocumentAttributes {
   id: DocumentIdType;
@@ -102,6 +104,8 @@ export interface DocumentResponse extends DocumentResponseBase {
   // TODO audits
   collection?: CollectionResponse;
   nft?: NftResponse;
+  lastApprovedAudit?: DocumentAudit | null;
+  lastAudit?: DocumentAudit | null;
   createdBy?: UserPublicResponse;
   updatedBy?: UserPublicResponse;
 }
@@ -243,6 +247,27 @@ export default class Document extends Model<
     const createdBy = this.createdBy || (await this.$get('createdBy'));
     const updatedBy = this.updatedBy || (await this.$get('updatedBy'));
 
+    // Get the last audit information
+    const lastAuditGet = await this.$get('audits', {
+      attributes: ['id', 'createdAt', 'approvedAt'],
+      limit: 1,
+      order: [['createdBy', 'DESC']],
+    });
+    const lastApprovedAuditGet = await this.$get('audits', {
+      attributes: ['id', 'createdAt', 'approvedAt'],
+      where: { approvedAt: { [Op.not]: null } },
+      limit: 1,
+      order: [['createdBy', 'DESC']],
+    });
+    const lastAudit =
+      lastAuditGet && lastAuditGet.length
+        ? (lastAuditGet[0] as DocumentAudit)
+        : null;
+    const lastApprovedAudit =
+      lastApprovedAuditGet && lastApprovedAuditGet.length
+        ? (lastApprovedAuditGet[0] as DocumentAudit)
+        : null;
+
     const res: DocumentResponse = {
       ...base,
       collection: collection
@@ -253,6 +278,8 @@ export default class Document extends Model<
       parent: parent ? await parent.toResponseJSONConcise() : undefined,
       children: childrenResponse,
       blocks: blocksResponse,
+      lastAudit,
+      lastApprovedAudit,
       createdBy: createdBy ? await createdBy.toResponseJSONPublic() : undefined,
       updatedBy: updatedBy ? await updatedBy.toResponseJSONPublic() : undefined,
     };

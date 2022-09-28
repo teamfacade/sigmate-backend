@@ -56,3 +56,15 @@ export const validateCreateWikiDocument = [
       return true;
     }),
 ];
+
+export const validateUpdateWikiDocument = [
+  body('document').isObject().bail(),
+  body('document.title')
+    .optional()
+    .trim()
+    .stripLow()
+    .notEmpty()
+    .withMessage('REQUIRED')
+    .isLength({ max: 191 })
+    .withMessage('TOO_LONG'),
+];

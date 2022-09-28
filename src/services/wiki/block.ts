@@ -1,8 +1,16 @@
 import _ from 'lodash';
 import { Transaction } from 'sequelize/types';
-import Block, { BlockAttributes, BlockRequest } from '../../models/Block';
+import Block, {
+  BlockAttributes,
+  BlockRequest,
+  BlockResponse,
+} from '../../models/Block';
 import BlockAudit from '../../models/BlockAudit';
-import { DocumentAttributes } from '../../models/Document';
+import Document, {
+  DocumentAttributes,
+  DocumentResponse,
+  TEXTCONTENT_SEPARATOR,
+} from '../../models/Document';
 import DocumentAudit from '../../models/DocumentAudit';
 import User from '../../models/User';
 import UserDevice from '../../models/UserDevice';
@@ -256,4 +264,66 @@ export const auditBlocksInRequest = async (
 
   // Only the audited blocks. Later to be added to a DocumentAudit entry
   return [blocks, blockAudits];
+};
+
+/**
+ * Map the blockId with the block object for quick search
+ * @param blocks An array of Block model objects
+ * @returns blockId mapped to the block object
+ */
+export const constructBlockMap = (blocks: Block[]) => {
+  const blockMap: { [key: number]: Block } = {};
+  blocks.forEach((block) => {
+    if (block.id) {
+      blockMap[block.id] = block;
+    }
+  });
+  return blockMap;
+};
+
+/**
+ * Map the blockId with the BlockResponse object for quick search
+ * @param blockResponses An array of BlockResponse objects
+ * @returns blockId mapped to the block object
+ */
+export const constructBlockResMap = (blockResponses: BlockResponse[]) => {
+  const blockResMap: { [key: number]: BlockResponse } = {};
+  blockResponses.forEach((blockRes) => {
+    if (blockRes.id) {
+      blockResMap[blockRes.id] = blockRes;
+    }
+  });
+  return blockResMap;
+};
+
+export const getBlockTextContentFromRes = (
+  block: BlockResponse | null | undefined
+) => {
+  if (block?.children) {
+    const blockTextContents: string[] = block.children.map((block) =>
+      getBlockTextContentFromRes(block)
+    );
+    const blockTextContent: string = blockTextContents.join(
+      TEXTCONTENT_SEPARATOR
+    );
+    return blockTextContent;
+  } else if (block?.textContent !== undefined && block?.textContent !== null) {
+    return block.textContent;
+  }
+  return '';
+};
+
+export const getDocumentTextContent = (
+  document: Document | null,
+  blocks: DocumentResponse['blocks'] | undefined
+) => {
+  if (!document)
+    throw new ApiError('ERR_GET_DOCUMENT_TEXTCONTENT_DOCUMENT_NOT_FOUND');
+  if (!blocks || !blocks.length) return;
+
+  const blockResMap = constructBlockResMap(blocks);
+  const documentTextContent = document.structure
+    ?.map((blockId) => getBlockTextContentFromRes(blockResMap[blockId]))
+    .join(TEXTCONTENT_SEPARATOR);
+  return documentTextContent;
 };

@@ -5,6 +5,7 @@ import Document, {
   DocumentAttributes,
   DocumentAuditDTO,
   DocumentCreationDTO,
+  DocumentResponse,
 } from '../../../models/Document';
 import DocumentAudit from '../../../models/DocumentAudit';
 import User from '../../../models/User';
@@ -18,9 +19,26 @@ import {
   auditBlocksInRequest,
   createNewBlocksInRequest,
   flattenBlockRequests,
+  getDocumentTextContent,
   updateCreatedBlockIds,
 } from '../../wiki/block';
 import { updateCollectionBySlug } from '../collection';
+
+export const updateDocumentTextContent = async (
+  document: Document | null,
+  blocks: DocumentResponse['blocks'] | undefined
+) => {
+  if (!document)
+    throw new ApiError('ERR_UPDATE_DOCUMENT_TEXTCONTENT_DOCUMENT_NOT_FOUND');
+  if (!blocks || !blocks.length) return;
+
+  try {
+    const textContent = getDocumentTextContent(document, blocks);
+    return await document.update({ textContent });
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
 
 export const getCollectionDocument = (cl: Collection) => {
   try {

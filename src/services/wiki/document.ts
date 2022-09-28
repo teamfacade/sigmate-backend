@@ -20,6 +20,7 @@ import {
   auditWikiDocumentById,
   createWikiDocument,
   getCollectionDocument,
+  updateDocumentTextContent,
 } from '../database/wiki/document';
 import { UpdateCollectionReqBody } from './collection';
 
@@ -237,6 +238,9 @@ export const updateWikiDocumentController = async (
       u,
       d
     );
+
+    const documentResponse = await doc.toResponseJSON();
+    await updateDocumentTextContent(doc, documentResponse.blocks);
 
     res.status(200).json({
       success: true,
