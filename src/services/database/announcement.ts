@@ -2,7 +2,8 @@ import sequelize from 'sequelize';
 import DiscordAnnouncement from '../../models/DiscordAnnouncement';
 import TwitterAnnouncement from '../../models/TwitterAnnouncement';
 import SequelizeError from '../../utils/errors/SequelizeError';
-
+import mysql from 'mysql2';
+import dbConfig from '../../config/dbConfig';
 type DA = {
   id: string;
   content: string;
@@ -12,6 +13,18 @@ type TA = {
   id: string;
   text: string;
   created_at: string;
+};
+
+export const getAllAnnouncements = async (id: any) => {
+  try {
+    const pool = mysql.createPool(dbConfig.development);
+    const promisePool = pool.promise();
+    const union = `SELECT 'd' as opt, content, timestamp, content_id FROM sigmate_dev.discord_announcements WHERE collection_id = ${id} UNION SELECT 't' as opt, content, timestamp, content_id FROM sigmate_dev.twitter_announcements WHERE collection_id = ${id} ORDER BY timestamp DESC, content_id+0 ASC;`;
+    const res = await promisePool.query(union);
+    return res[0];
+  } catch (err) {
+    console.log(err);
+  }
 };
 
 export const getLatestDiscordAnnouncement = async (discordChannel: any) => {

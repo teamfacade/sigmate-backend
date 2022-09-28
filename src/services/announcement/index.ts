@@ -1,11 +1,28 @@
 import { NextFunction, Request, Response } from 'express';
 import {
+  getAllAnnouncements,
   getLatestDiscordAnnouncement,
   getLatestTwitterAnnouncement,
   postDiscordAnnouncement,
   postTwitterAnnouncement,
 } from '../../services/database/announcement';
 import { getAllChannels } from '../../services/database/channel';
+
+export const getAllAnnouncementsController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const anns = await getAllAnnouncements(req.query.cid);
+    res.status(200).json({
+      success: true,
+      anns: anns,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
 
 export const getAllChannelsController = async (
   req: Request,
