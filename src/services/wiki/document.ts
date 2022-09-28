@@ -1,4 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
+import { BlockAttributes, BlockRequest } from '../../models/Block';
+import { CategoryAttributes } from '../../models/Category';
 import Collection from '../../models/Collection';
 import Document, {
   DocumentAttributes,
@@ -15,9 +17,11 @@ import {
 } from '../database/collection';
 import { createNft, getNftByAdressAndId } from '../database/nft';
 import {
+  auditWikiDocumentById,
   createWikiDocument,
   getCollectionDocument,
 } from '../database/wiki/document';
+import { UpdateCollectionReqBody } from './collection';
 
 type CreateWikiDocumentReqBody = {
   title: string;
@@ -162,27 +166,83 @@ export const createWikiDocumentController = async (
   }
 };
 
-// type UpdateWikiDocumentReqBody = {
-//   document: {
-//     title?: string;
-//     structure?: BlockAttributes['id'][];
-//     parent?: DocumentAttributes['id'];
-//     blocks: BlockRequest[];
-//     categories?: CategoryAttributes['id'][];
-//   };
-//   collection?: UpdateCollectionReqBody;
-//   // TODO Update NFT information
-// };
+type UpdateWikiDocumentReqBody = {
+  document: {
+    title?: string;
+    structure?: BlockAttributes['id'][];
+    parent?: DocumentAttributes['id'];
+    blocks: BlockRequest[];
+    categories?: CategoryAttributes['id'][];
+  };
+  collection?: UpdateCollectionReqBody;
+  // TODO Update NFT information
+};
 
-// export const updateWikiDocumentController = async (
-//   req: Request,
-//   res: Response,
-//   next: NextFunction
-// ) => {
-//   try {
-//     const id = req.params.id as unknown as number;
-//     const { document, collection } = req.body as UpdateWikiDocumentReqBody;
-//   } catch (error) {
-//     next(error);
-//   }
-// };
+export const updateWikiDocumentController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const documentId = req.params.id as unknown as number;
+    const { document, collection } = req.body as UpdateWikiDocumentReqBody;
+    const u = req.user;
+    if (!u) throw new UnauthenticatedError();
+    const d = req.device;
+    if (!d) throw new ApiError('ERR_UPDATE_DOCUMENT_DEVICE');
+
+    const auditWikiDocumentDTO = {
+      document: {
+        title: document.title,
+        parent: document.parent,
+        blocks: document.blocks,
+        categories: document.categories,
+      },
+      collection: {
+        contractAddress: collection?.contractAddress,
+        collectionDeployers: collection?.collectionDeployers,
+        name: collection?.name,
+        description: collection?.description,
+        paymentTokens: collection?.paymentTokens,
+        contractSchema: collection?.contractSchema,
+        email: collection?.email,
+        blogUrl: collection?.blogUrl,
+        redditUrl: collection?.redditUrl,
+        facebookUrl: collection?.facebookUrl,
+        twitterHandle: collection?.twitterHandle,
+        discordUrl: collection?.discordUrl,
+        websiteUrl: collection?.websiteUrl,
+        telegramUrl: collection?.telegramUrl,
+        bitcointalkUrl: collection?.bitcointalkUrl,
+        githubUrl: collection?.githubUrl,
+        wechatUrl: collection?.wechatUrl,
+        linkedInUrl: collection?.linkedInUrl,
+        whitepaperUrl: collection?.whitepaperUrl,
+        imageUrl: collection?.imageUrl,
+        bannerImageUrl: collection?.bannerImageUrl,
+        mintingPriceWl: collection?.mintingPriceWl,
+        mintingPricePublic: collection?.mintingPricePublic,
+        floorPrice: collection?.floorPrice,
+        marketplace: collection?.marketplace,
+        category: collection?.category,
+        utility: collection?.utility,
+        team: collection?.team,
+        history: collection?.history,
+      },
+    };
+
+    const doc = await auditWikiDocumentById(
+      documentId,
+      auditWikiDocumentDTO,
+      u,
+      d
+    );
+
+    res.status(200).json({
+      success: true,
+      document: await doc.toResponseJSON(),
+    });
+  } catch (error) {
+    next(error);
+  }
+};

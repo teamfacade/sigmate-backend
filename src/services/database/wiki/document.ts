@@ -10,6 +10,7 @@ import DocumentAudit from '../../../models/DocumentAudit';
 import User from '../../../models/User';
 import UserDevice from '../../../models/UserDevice';
 import ApiError from '../../../utils/errors/ApiError';
+import BadRequestError from '../../../utils/errors/BadRequestError';
 import NotFoundError from '../../../utils/errors/NotFoundError';
 import SequelizeError from '../../../utils/errors/SequelizeError';
 import UnauthenticatedError from '../../../utils/errors/UnauthenticatedError';
@@ -19,6 +20,7 @@ import {
   flattenBlockRequests,
   updateCreatedBlockIds,
 } from '../../wiki/block';
+import { updateCollectionBySlug } from '../collection';
 
 export const getCollectionDocument = (cl: Collection) => {
   try {
@@ -116,6 +118,35 @@ export const auditWikiDocumentById = async (
         },
         { transaction }
       );
+
+      if (dto.collection) {
+        // Update the collection information
+        const cl = await doc.$get('collection', { transaction });
+
+        if (!cl) {
+          throw new BadRequestError({
+            validationErrors: [
+              {
+                location: 'body',
+                param: 'collection',
+                msg: 'ERR_DOCUMENT_HAS_NO_COLLECTION',
+              },
+            ],
+          });
+        }
+
+        await updateCollectionBySlug(
+          cl.slug,
+          {
+            ...dto.collection,
+            document: undefined,
+          },
+          documentAudit,
+          transaction
+        );
+      }
+
+      return doc;
     });
   } catch (error) {
     throw new SequelizeError(error as Error);

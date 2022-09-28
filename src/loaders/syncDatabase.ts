@@ -1,7 +1,7 @@
 import db from '../models';
 import UserGroup from '../models/UserGroup';
 
-const forceSync = true;
+const forceSync = false;
 export let isDBSyncing = false;
 
 const syncDatabase = () => {
