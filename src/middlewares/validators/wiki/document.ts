@@ -58,7 +58,7 @@ export const validateCreateWikiDocument = [
 ];
 
 export const validateUpdateWikiDocument = [
-  body('document').isObject().bail(),
+  body('document').isObject(),
   body('document.title')
     .optional()
     .trim()
@@ -67,4 +67,27 @@ export const validateUpdateWikiDocument = [
     .withMessage('REQUIRED')
     .isLength({ max: 191 })
     .withMessage('TOO_LONG'),
+  body('document.structure.*').optional().isInt().toInt(),
+  body('document.structure').optional().isArray().toArray(),
+  body('document.parent').optional().trim().isInt().toInt(),
+  body('document.blocks').optional().isArray().toArray(),
+  body('document.blocks.*.id').optional().notEmpty().isInt().toInt(),
+  body('document.blocks.*.element')
+    .optional()
+    .trim()
+    .stripLow()
+    .notEmpty()
+    .isString()
+    .isLength({ max: 16 }),
+  body('document.blocks.*.textContent')
+    .optional()
+    .trim()
+    .stripLow(true)
+    .notEmpty()
+    .isString()
+    .isLength({ max: 16383 }),
+  body('document.blocks.*.structure.*').optional().isInt().toInt(),
+  body('document.blocks.*.structure').optional().isArray().toArray(),
+  body('document.blocks.*.style').optional().trim().stripLow().isString(),
+  body('document.blocks.*.parent').optional().isInt().toInt(),
 ];
