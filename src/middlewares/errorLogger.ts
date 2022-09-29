@@ -9,7 +9,8 @@ const errorLogger = (
 ) => {
   // Log only unexpected errors
   if (err instanceof ApiError) {
-    if (err.status === 500) console.error(err);
+    if (err.status === 500 || process.env.NODE_ENV === 'development')
+      console.error(err);
   } else {
     console.error(err);
   }
