@@ -35,6 +35,7 @@ export const createTextBlock = async (
         {
           element: blockDTO.element,
           textContent: blockDTO.textContent,
+          documentId: blockDTO.documentId || blockDTO.document?.id,
           parentId: blockDTO.parentId || blockDTO.parent?.id,
           lastDocumentAuditId:
             blockDTO.documentAuditId || blockDTO.documentAudit?.id,
@@ -87,11 +88,11 @@ export const createTextBlock = async (
     }
 
     // Link last audit pointers
-    ps.push(b.$set('lastElementAudit', ba));
-    ps.push(b.$set('lastStyleAudit', ba));
-    ps.push(b.$set('lastTextContentAudit', ba));
-    ps.push(b.$set('lastStructureAudit', ba));
-    ps.push(b.$set('lastParentAudit', ba));
+    ps.push(b.$set('lastElementAudit', ba, { transaction }));
+    ps.push(b.$set('lastStyleAudit', ba, { transaction }));
+    ps.push(b.$set('lastTextContentAudit', ba, { transaction }));
+    ps.push(b.$set('lastStructureAudit', ba, { transaction }));
+    ps.push(b.$set('lastParentAudit', ba, { transaction }));
 
     await Promise.all(ps);
 
@@ -144,7 +145,7 @@ export const auditTextBlock = async (
   block: Block | null,
   blockDTO: TextBlockAuditDTO,
   transaction: Transaction | undefined = undefined
-): Promise<[Block, BlockAudit]> => {
+): Promise<[Block, BlockAudit | null]> => {
   try {
     // Look for block
     if (!block) throw new NotFoundError();
@@ -152,26 +153,75 @@ export const auditTextBlock = async (
     const u = blockDTO.updatedBy; // user
     const d = blockDTO.updatedByDevice; // device
 
-    // Promises. Things to do
-    const ps: Promise<unknown>[] = [];
+    let isAudited = false;
+
+    // Check if the block actually changed
+    if (block.textContent === blockDTO.textContent) {
+      blockDTO.textContent = undefined;
+    }
+
+    if (blockDTO.textContent) {
+      isAudited = true;
+    }
+
+    if (block.element === blockDTO.element) {
+      blockDTO.element = undefined;
+    }
+
+    if (blockDTO.element) {
+      isAudited = true;
+    }
+
+    if (block.style === blockDTO.style) {
+      blockDTO.style = undefined;
+    }
+
+    if (blockDTO.style) {
+      isAudited = true;
+    }
+
+    if (_.isEqual(block.structure, blockDTO.structure)) {
+      blockDTO.structure = undefined;
+    }
+
+    if (blockDTO.structure) {
+      isAudited = true;
+    }
+
+    if (blockDTO.parentId !== undefined || blockDTO.parent) {
+      const oldParent =
+        block.parent || (await block.$get('parent', { attributes: ['id'] }));
+      const oldParentId = oldParent?.id;
+      const newParentId = blockDTO.parentId || blockDTO.parent?.id;
+
+      if (oldParentId === newParentId) {
+        blockDTO.parentId = undefined;
+        blockDTO.parent = undefined;
+      }
+    }
+
+    if (blockDTO.parent || blockDTO.parentId) {
+      isAudited = true;
+    }
+
+    // Nothing actually changed. No need to audit
+    if (!isAudited) {
+      return [block, null];
+    }
 
     // Update the block
-    if (blockDTO.textContent || blockDTO.element || blockDTO.style) {
-      ps.push(
-        block.update(
-          _.pick(blockDTO, ['textContent', 'element', 'style', 'structure']),
-          {
-            transaction,
-          }
-        )
-      );
-    }
-    if (blockDTO.parent) {
-      // Set parent
-      ps.push(block.$set('parent', blockDTO.parent, { transaction }));
-    }
-    u && ps.push(block.$set('updatedBy', u, { transaction }));
-    d && ps.push(block.$set('updatedByDevice', d, { transaction }));
+    block.update(
+      {
+        textContent: blockDTO.textContent,
+        element: blockDTO.element,
+        style: blockDTO.style,
+        structure: blockDTO.structure,
+        parentId: blockDTO.parentId || blockDTO.parent?.id,
+        updatedById: u?.id,
+        updatedByDeviceId: d?.id,
+      },
+      { transaction }
+    );
 
     // Create new audit entry
     const bla = await BlockAudit.create(
@@ -183,46 +233,54 @@ export const auditTextBlock = async (
         structure: blockDTO.structure,
         documentAuditId: blockDTO.documentAuditId || blockDTO.documentAudit?.id,
         parentId: blockDTO.parent?.id || undefined,
-        // lastElementAuditId: block.lastElementAuditId,
+        blockId: block.id,
+        createdById: u?.id,
+        createdByDeviceId: d?.id,
       },
       { transaction }
     );
-    ps.push(bla.$set('block', block, { transaction }));
-    u && ps.push(bla.$set('createdBy', u, { transaction }));
-    d && ps.push(bla.$set('createdByDevice', d, { transaction }));
 
     // For automatically approved block audits, set approvedBy to myself
     if (blockDTO.approved) {
-      ps.push(bla.update({ approvedAt: bla.createdAt }, { transaction }));
-      u && ps.push(bla.$set('approvedBy', u, { transaction }));
-      d && ps.push(bla.$set('approvedByDevice', d, { transaction }));
+      await bla.update(
+        {
+          approvedAt: bla.createdAt,
+          approvedById: u?.id,
+          approvedByDeviceId: d?.id,
+        },
+        { transaction }
+      );
     }
 
     // Update last audit pointers, if necessary
-    if (blockDTO.element !== undefined) {
-      ps.push(block.$set('lastElementAudit', bla, { transaction }));
-    }
-
-    if (blockDTO.style !== undefined) {
-      ps.push(block.$set('lastStyleAudit', bla, { transaction }));
-    }
-
-    if (blockDTO.textContent !== undefined) {
-      ps.push(block.$set('lastTextContentAudit', bla, { transaction }));
-    }
-
-    if (blockDTO.structure !== undefined) {
-      ps.push(block.$set('lastStructureAudit', bla, { transaction }));
-    }
-
-    if (blockDTO.parent || blockDTO.parentId) {
-      ps.push(block.$set('lastParentAudit', bla, { transaction }));
-    }
-
-    // Wait for all operations to finish
-    await Promise.all(ps);
+    await block.update(
+      {
+        lastElementAuditId: blockDTO.element !== undefined ? bla.id : undefined,
+        lastStyleAuditId: blockDTO.style !== undefined ? bla.id : undefined,
+        lastTextContentAuditId:
+          blockDTO.textContent !== undefined ? bla.id : undefined,
+        lastStructureAuditId:
+          blockDTO.structure !== undefined ? bla.id : undefined,
+        lastParentAuditId:
+          blockDTO.parent || blockDTO.parentId ? bla.id : undefined,
+      },
+      { transaction }
+    );
 
     return [block, bla];
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+export const auditTextBlockWithTx = async (
+  block: Block | null,
+  blockDTO: TextBlockAuditDTO
+): Promise<[Block, BlockAudit | null]> => {
+  try {
+    return await db.sequelize.transaction(async (transaction) => {
+      return await auditTextBlock(block, blockDTO, transaction);
+    });
   } catch (error) {
     throw new SequelizeError(error as Error);
   }

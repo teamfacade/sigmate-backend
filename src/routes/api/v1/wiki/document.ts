@@ -1,12 +1,17 @@
 import express from 'express';
-import { passportJwtAuth } from '../../../../middlewares/authMiddlewares';
+import {
+  passportJwtAuth,
+  passportJwtAuthOptional,
+} from '../../../../middlewares/authMiddlewares';
 import handleBadRequest from '../../../../middlewares/handleBadRequest';
 import {
   validateCreateWikiDocument,
+  validateGetWikiDocumentById,
   validateUpdateWikiDocument,
 } from '../../../../middlewares/validators/wiki/document';
 import {
   createWikiDocumentController,
+  getWikiDocumentByIdController,
   updateWikiDocumentController,
 } from '../../../../services/wiki/document';
 
@@ -19,6 +24,14 @@ docRouter
     validateCreateWikiDocument,
     handleBadRequest,
     createWikiDocumentController
+  );
+docRouter
+  .route('/:id')
+  .get(
+    passportJwtAuthOptional,
+    validateGetWikiDocumentById,
+    handleBadRequest,
+    getWikiDocumentByIdController
   )
   .patch(
     passportJwtAuth,

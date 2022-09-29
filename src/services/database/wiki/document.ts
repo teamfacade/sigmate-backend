@@ -1,4 +1,6 @@
+import _ from 'lodash';
 import db from '../../../models';
+import { BlockRequest } from '../../../models/Block';
 import Category from '../../../models/Category';
 import Collection from '../../../models/Collection';
 import Document, {
@@ -12,6 +14,7 @@ import User from '../../../models/User';
 import UserDevice from '../../../models/UserDevice';
 import ApiError from '../../../utils/errors/ApiError';
 import BadRequestError from '../../../utils/errors/BadRequestError';
+import ConflictError from '../../../utils/errors/ConflictError';
 import NotFoundError from '../../../utils/errors/NotFoundError';
 import SequelizeError from '../../../utils/errors/SequelizeError';
 import UnauthenticatedError from '../../../utils/errors/UnauthenticatedError';
@@ -48,6 +51,14 @@ export const getCollectionDocument = (cl: Collection) => {
   }
 };
 
+export const getDocumentById = async (documentId: number) => {
+  try {
+    return await Document.findByPk(documentId);
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
 export const createWikiDocument = async (dto: DocumentCreationDTO) => {
   try {
     const d = await Document.create({
@@ -75,8 +86,34 @@ export const auditWikiDocumentById = async (
   if (!updatedByDevice) throw new ApiError('ERR_AUDIT_DOCUMENT_DEVICE');
   try {
     return await db.sequelize.transaction(async (transaction) => {
-      const doc = await Document.findByPk(documentId);
-      if (!doc) throw new NotFoundError();
+      let isAudited = false;
+
+      const doc = await Document.findByPk(documentId, {
+        include: [
+          { model: Document, as: 'parent', attributes: ['id'] },
+          { model: Category, attributes: ['id'], through: { attributes: [] } },
+        ],
+        transaction,
+      });
+
+      if (!doc)
+        throw new NotFoundError('ERR_DOCUMENT_AUDIT_DOCUMENT_NOT_FOUND');
+
+      // Check simple attributes to see if they actually changed
+      if (dto.document.title === doc.title) {
+        dto.document.title = undefined;
+      }
+      if (dto.document.title) {
+        isAudited = true;
+      }
+
+      if (dto.document.parent === doc.parent?.id) {
+        dto.document.parent = undefined;
+      }
+
+      if (dto.document.parent) {
+        isAudited = true;
+      }
 
       const documentAudit = await DocumentAudit.create({
         documentId: doc.id,
@@ -89,23 +126,36 @@ export const auditWikiDocumentById = async (
       // Update complex parameters (Document)
       // Categories
       if (dto.document.categories) {
-        const categoryIds = dto.document.categories;
-        const categoryPs = categoryIds.map((id) =>
-          Category.findByPk(id, { transaction })
-        );
-        const categories = await Promise.all(categoryPs);
-        categories.forEach((category) => {
-          if (!category) {
-            throw new NotFoundError();
-          }
-        });
-        await doc.$set('categories', categories as Category[], { transaction });
+        // Check if anything actually changed
+        const originalCategoryIds =
+          doc.categories?.map((c) => c.id as number) || [];
+        const xor = _.xor(dto.document.categories, originalCategoryIds);
+        if (xor.length > 0) {
+          isAudited = true;
+          const categoryIds = dto.document.categories;
+          const categoryPs = categoryIds.map((id) =>
+            Category.findByPk(id, { transaction })
+          );
+          const categories = await Promise.all(categoryPs);
+          categories.forEach((category) => {
+            if (!category) {
+              throw new NotFoundError('ERR_DOCUMENT_AUDIT_CATEGORY_NOT_FOUND');
+            }
+          });
+          await doc.$set('categories', categories as Category[], {
+            transaction,
+          });
+        }
       }
 
       // Update Blocks
+      let flattened: BlockRequest[] = [];
       if (dto.document.blocks) {
+        // TODO check if blocks actually changed
+
+        isAudited = true;
         const blockReqs = dto.document.blocks;
-        let flattened = flattenBlockRequests(blockReqs);
+        flattened = flattenBlockRequests(blockReqs);
         const [createdBlocks] = await createNewBlocksInRequest(
           flattened,
           documentId,
@@ -121,47 +171,96 @@ export const auditWikiDocumentById = async (
           documentAudit,
           transaction
         );
-        flattened = updateCreatedBlockIds(flattened, createdBlocks);
+
+        // For newly created blocks, replace the temporary Id (from frontend)
+        // to the new, real Ids created in the database
+        let newBlockIdDict: { [key: number]: number } = {};
+        [newBlockIdDict, flattened] = updateCreatedBlockIds(
+          flattened,
+          createdBlocks
+        );
+
+        dto.document.blocks.forEach((block, idx) => {
+          const tempId = block.id;
+          const newId = newBlockIdDict[tempId];
+          const dtoBlocks = dto.document.blocks as BlockRequest[];
+          dtoBlocks[idx].id = newId;
+        });
       }
 
       // If blocks were updated, update the structure
-      const documentStructure = dto.document.blocks?.map((block) => block.id);
-
-      // Update simple paremeters (Document)
-      await doc.update(
-        {
-          title: dto.document.title,
-          parentId: dto.document.parent,
-          structure: documentStructure,
-        },
-        { transaction }
+      let documentStructure: number[] | undefined = dto.document.blocks?.map(
+        (block) => block.id
       );
 
-      if (dto.collection) {
-        // Update the collection information
-        const cl = await doc.$get('collection', { transaction });
+      if (_.isEqual(doc.structure, documentStructure)) {
+        documentStructure = undefined;
+      }
+      if (documentStructure) {
+        isAudited = true;
+      }
 
-        if (!cl) {
-          throw new BadRequestError({
-            validationErrors: [
-              {
-                location: 'body',
-                param: 'collection',
-                msg: 'ERR_DOCUMENT_HAS_NO_COLLECTION',
-              },
-            ],
-          });
-        }
-
-        await updateCollectionBySlug(
-          cl.slug,
+      // Update simple paremeters (Document)
+      if (
+        dto.document.title !== undefined ||
+        dto.document.parent !== undefined ||
+        documentStructure !== undefined
+      ) {
+        await doc.update(
           {
-            ...dto.collection,
-            document: undefined,
+            title: dto.document.title,
+            parentId: dto.document.parent,
+            structure: documentStructure,
           },
-          documentAudit,
-          transaction
+          { transaction }
         );
+      }
+
+      // If structure changed, add it in the documentAudit
+      if (documentStructure) {
+        await documentAudit.update(
+          { structure: documentStructure },
+          { transaction }
+        );
+      }
+
+      // Update collection information
+      if (dto.collection) {
+        const clEntries = Object.entries(dto.collection);
+        const nonEmptyEntries = clEntries.filter((e) => Boolean(e[1]));
+        if (nonEmptyEntries.length > 0) {
+          isAudited = true;
+
+          // Update the collection information
+          const cl = await doc.$get('collection', { transaction });
+
+          if (!cl) {
+            throw new BadRequestError({
+              validationErrors: [
+                {
+                  location: 'body',
+                  param: 'collection',
+                  msg: 'ERR_DOCUMENT_HAS_NO_COLLECTION',
+                },
+              ],
+            });
+          }
+
+          await updateCollectionBySlug(
+            cl.slug,
+            {
+              ...dto.collection,
+              document: undefined,
+            },
+            documentAudit,
+            transaction
+          );
+        }
+      }
+
+      if (!isAudited) {
+        // Nothing actually changed
+        throw new ConflictError();
       }
 
       return doc;

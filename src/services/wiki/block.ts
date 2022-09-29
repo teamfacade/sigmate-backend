@@ -108,8 +108,8 @@ export const createNewBlocksInRequest = async (
   const createdBlocks: Block[] = [];
   const createdBlockAudits: BlockAudit[] = [];
 
-  blocksToCreate.forEach((blocks) => {
-    blocks.forEach(async (block) => {
+  for (const blocks of blocksToCreate) {
+    for (const block of blocks) {
       // Only create blocks for requests that have a negative ID.
       // That is, a temporary block ID provided by the frontend.
       if (block.id < 0) {
@@ -120,7 +120,7 @@ export const createNewBlocksInRequest = async (
               {
                 location: 'body',
                 param: 'blocks',
-                msg: `BLOCK_ELEMENT_REQUIRED in block of id: ${block.id}`,
+                msg: `BLOCK_ELEMENT_REQUIRED in Block (Block.id=${block.id})`,
               },
             ],
           });
@@ -152,9 +152,8 @@ export const createNewBlocksInRequest = async (
         createdBlocks.push(blk);
         createdBlockAudits.push(bla);
       }
-    });
-  });
-
+    }
+  }
   // After creating all the blocks, return the ID map.
   return [createdBlocks, createdBlockAudits];
 };
@@ -162,12 +161,12 @@ export const createNewBlocksInRequest = async (
 /**
  * Replace the temporary block IDs (from FE) with real IDs (from DB)
  * @param blocks Flattened array of block requests
- * @param blockIdDict Map of temporay blockId: real blockId
+ * @param createdBlocks Array of newly created Block objects
  */
 export const updateCreatedBlockIds = (
   blocks: BlockRequest[],
   createdBlocks: Block[]
-) => {
+): [{ [key: number]: number }, BlockRequest[]] => {
   // Map the temporary Ids with the new ones
   const blockIdDict: { [key: number]: number } = {};
   createdBlocks.forEach((block) => {
@@ -176,10 +175,12 @@ export const updateCreatedBlockIds = (
     }
   });
 
-  return blocks.map((block) => ({
+  const newBlocks = blocks.map((block) => ({
     ...block,
     id: blockIdDict[block.id],
   }));
+
+  return [blockIdDict, newBlocks];
 };
 
 export const auditBlocksInRequest = async (
@@ -256,8 +257,8 @@ export const auditBlocksInRequest = async (
           transaction
         );
 
-        blocks.push(blk);
-        blockAudits.push(bla);
+        bla && blocks.push(blk);
+        bla && blockAudits.push(bla);
       }
     }
   });

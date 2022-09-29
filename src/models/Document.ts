@@ -12,7 +12,10 @@ import { Op } from 'sequelize';
 import { Optional } from 'sequelize/types';
 import Block, { BlockAttributes, BlockRequest } from './Block';
 import DocumentAudit from './DocumentAudit';
-import Category, { CategoryAttributes } from './Category';
+import Category, {
+  CategoryAttributes,
+  CategoryResponseConcise,
+} from './Category';
 import User, { UserAttributes, UserPublicResponse } from './User';
 import UserDevice, { UserDeviceAttributes } from './UserDevice';
 import Collection, {
@@ -100,7 +103,7 @@ export interface DocumentResponse extends DocumentResponseBase {
   children?: DocumentResponseConcise[]; // limit 50
   blocks?: BlockResponse[];
   // TODO opinions
-  // TODO categories
+  categories: CategoryResponseConcise[];
   // TODO audits
   collection?: CollectionResponse;
   nft?: NftResponse;
@@ -133,7 +136,7 @@ export default class Document extends Model<
   @Column(DataType.JSON)
   structure: DocumentAttributes['structure'];
 
-  @BelongsTo(() => Document, 'parentId')
+  @BelongsTo(() => Document, { foreignKey: 'parentId', as: 'parent' })
   parent: DocumentAttributes['parent'];
 
   @HasMany(() => Document, 'parentId')
@@ -244,6 +247,12 @@ export default class Document extends Model<
     const blocksResponse = blocks
       ? await Promise.all(blocks.map((b) => b.toResponseJSON(myself)))
       : undefined;
+    const categoriesGet = await this.$get('categories', {
+      attributes: ['id', 'name'],
+    });
+    const categories = categoriesGet
+      ? categoriesGet.map((c) => c.toResponseJSONConcise())
+      : [];
     const createdBy = this.createdBy || (await this.$get('createdBy'));
     const updatedBy = this.updatedBy || (await this.$get('updatedBy'));
 
@@ -251,13 +260,13 @@ export default class Document extends Model<
     const lastAuditGet = await this.$get('audits', {
       attributes: ['id', 'createdAt', 'approvedAt'],
       limit: 1,
-      order: [['createdBy', 'DESC']],
+      order: [['createdAt', 'DESC']],
     });
     const lastApprovedAuditGet = await this.$get('audits', {
       attributes: ['id', 'createdAt', 'approvedAt'],
       where: { approvedAt: { [Op.not]: null } },
       limit: 1,
-      order: [['createdBy', 'DESC']],
+      order: [['createdAt', 'DESC']],
     });
     const lastAudit =
       lastAuditGet && lastAuditGet.length
@@ -278,6 +287,7 @@ export default class Document extends Model<
       parent: parent ? await parent.toResponseJSONConcise() : undefined,
       children: childrenResponse,
       blocks: blocksResponse,
+      categories,
       lastAudit,
       lastApprovedAudit,
       createdBy: createdBy ? await createdBy.toResponseJSONPublic() : undefined,

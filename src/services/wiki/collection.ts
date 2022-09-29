@@ -109,7 +109,7 @@ export const getCollectionBySlugController = async (
   }
 };
 
-interface CreateCollectionReqBody
+export interface CreateCollectionReqBody
   extends Pick<
     CollectionResponse,
     | 'contractAddress'

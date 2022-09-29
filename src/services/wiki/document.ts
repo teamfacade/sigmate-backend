@@ -9,6 +9,7 @@ import Document, {
 import Nft from '../../models/Nft';
 import ApiError from '../../utils/errors/ApiError';
 import BadRequestError from '../../utils/errors/BadRequestError';
+import NotFoundError from '../../utils/errors/NotFoundError';
 import UnauthenticatedError from '../../utils/errors/UnauthenticatedError';
 import { fetchCollectionBySlug } from '../3p/collection';
 import {
@@ -20,9 +21,29 @@ import {
   auditWikiDocumentById,
   createWikiDocument,
   getCollectionDocument,
+  getDocumentById,
   updateDocumentTextContent,
 } from '../database/wiki/document';
-import { UpdateCollectionReqBody } from './collection';
+import { CreateCollectionReqBody } from './collection';
+
+export const getWikiDocumentByIdController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const documentId = req.params.id as unknown as number;
+    const doc = await getDocumentById(documentId);
+    if (!doc) throw new NotFoundError();
+    const response = {
+      success: true,
+      data: await doc.toResponseJSON(),
+    };
+    res.status(200).json(response);
+  } catch (error) {
+    next(error);
+  }
+};
 
 type CreateWikiDocumentReqBody = {
   title: string;
@@ -175,7 +196,27 @@ type UpdateWikiDocumentReqBody = {
     blocks: BlockRequest[];
     categories?: CategoryAttributes['id'][];
   };
-  collection?: UpdateCollectionReqBody;
+  collection?: Partial<
+    Pick<
+      CreateCollectionReqBody,
+      | 'name'
+      | 'description'
+      | 'paymentTokens'
+      | 'twitterHandle'
+      | 'discordUrl'
+      | 'websiteUrl'
+      | 'imageUrl'
+      | 'bannerImageUrl'
+      | 'mintingPriceWl'
+      | 'mintingPricePublic'
+      | 'floorPrice'
+      | 'marketplace'
+      | 'category'
+      | 'utility'
+      | 'team'
+      | 'history'
+    >
+  >;
   // TODO Update NFT information
 };
 
@@ -200,25 +241,12 @@ export const updateWikiDocumentController = async (
         categories: document.categories,
       },
       collection: {
-        contractAddress: collection?.contractAddress,
-        collectionDeployers: collection?.collectionDeployers,
         name: collection?.name,
         description: collection?.description,
         paymentTokens: collection?.paymentTokens,
-        contractSchema: collection?.contractSchema,
-        email: collection?.email,
-        blogUrl: collection?.blogUrl,
-        redditUrl: collection?.redditUrl,
-        facebookUrl: collection?.facebookUrl,
         twitterHandle: collection?.twitterHandle,
         discordUrl: collection?.discordUrl,
         websiteUrl: collection?.websiteUrl,
-        telegramUrl: collection?.telegramUrl,
-        bitcointalkUrl: collection?.bitcointalkUrl,
-        githubUrl: collection?.githubUrl,
-        wechatUrl: collection?.wechatUrl,
-        linkedInUrl: collection?.linkedInUrl,
-        whitepaperUrl: collection?.whitepaperUrl,
         imageUrl: collection?.imageUrl,
         bannerImageUrl: collection?.bannerImageUrl,
         mintingPriceWl: collection?.mintingPriceWl,

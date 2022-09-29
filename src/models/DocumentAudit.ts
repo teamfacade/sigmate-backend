@@ -48,6 +48,7 @@ export type DocumentAuditCreationAttributes = Optional<
 @Table({
   tableName: 'document_audits',
   modelName: 'DocumentAudit',
+  underscored: true,
   timestamps: true,
   paranoid: true,
   charset: 'utf8mb4',

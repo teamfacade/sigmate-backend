@@ -216,7 +216,7 @@ export const validateCreateCollection = [
     .optional()
     .trim()
     .stripLow()
-    .isLength({ min: 1, max: 191 })
+    .isLength({ max: 191 })
     .withMessage('TOO_LONG')
     .bail(),
   body('category')
@@ -450,36 +450,31 @@ export const validateUpdateCollection = [
     .trim()
     .stripLow()
     .isLength({ min: 1, max: 191 })
-    .withMessage('TOO_LONG')
-    .bail(),
+    .withMessage('TOO_LONG'),
   body('category')
     .optional()
     .trim()
     .stripLow()
     .isLength({ min: 1, max: 64 })
-    .withMessage('TOO_LONG')
-    .bail(),
+    .withMessage('TOO_LONG'),
   body('utility')
     .optional()
     .trim()
     .stripLow()
     .isLength({ min: 1, max: 64 })
-    .withMessage('TOO_LONG')
-    .bail(),
+    .withMessage('TOO_LONG'),
   body('team')
     .optional()
     .trim()
     .stripLow()
-    .isLength({ min: 1, max: 16383 })
-    .withMessage('TOO_LONG')
-    .bail(),
+    .isLength({ max: 16383 })
+    .withMessage('TOO_LONG'),
   body('history')
     .optional()
     .trim()
     .stripLow()
-    .isLength({ min: 1, max: 16383 })
-    .withMessage('TOO_LONG')
-    .bail(),
+    .isLength({ max: 16383 })
+    .withMessage('TOO_LONG'),
 ];
 
 export const validateDeleteCollection = param('slug')
