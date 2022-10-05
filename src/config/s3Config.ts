@@ -1,5 +1,7 @@
 import { S3Client } from '@aws-sdk/client-s3';
 import AWS from 'aws-sdk';
+import dotenv from 'dotenv';
+dotenv.config();
 
 AWS.config.update({
   accessKeyId: process.env.AWS_ACCESS_KEY,

@@ -15,7 +15,7 @@ import Block from './Block';
 import Category from './Category';
 import ForumPost from './ForumPost';
 import ForumPostImage from './ForumPostImage';
-import User, { UserAttributes } from './User';
+import User, { UserAttributes, UserPublicResponse } from './User';
 import UserDevice, { UserDeviceAttributes } from './UserDevice';
 import UserProfile from './UserProfile';
 
@@ -36,10 +36,23 @@ export interface ImageAttributes {
   thumbnailCategories?: Category[]; // categories that use this image as the thumbnail
 }
 
+export type ImageCreateRequestBody = Pick<
+  ImageAttributes,
+  'id' | 'folder' | 'originalFilesize'
+>;
+
+export type ImageCreationDTO = ImageCreateRequestBody &
+  Pick<ImageAttributes, 'createdBy' | 'createdByDevice'>;
+
 export type ImageCreationAttributes = Optional<
   ImageAttributes,
   'id' | 'caption' | 'md5'
 >;
+
+export interface ImageResponse {
+  url: string;
+  createdBy?: UserPublicResponse;
+}
 
 @Table({
   tableName: 'images',
@@ -60,6 +73,10 @@ export default class Image extends Model<
   id!: ImageAttributes['id'];
 
   @AllowNull(false)
+  @Column(DataType.STRING(64))
+  folder!: ImageAttributes['folder'];
+
+  @AllowNull(false)
   @Column(DataType.INTEGER)
   originalFilesize!: ImageAttributes['originalFilesize'];
 
@@ -69,14 +86,14 @@ export default class Image extends Model<
   @Column(DataType.STRING(32))
   md5: ImageAttributes['md5'];
 
-  @HasMany(() => Block, 'imageId')
-  blocks: ImageAttributes['blocks'];
-
   @BelongsTo(() => UserDevice, 'createdByDeviceId')
   createdByDevice!: ImageAttributes['createdByDevice'];
 
   @BelongsTo(() => User, 'createdById')
   createdBy!: ImageAttributes['createdBy'];
+
+  @HasMany(() => Block, 'imageId')
+  blocks: ImageAttributes['blocks'];
 
   @BelongsToMany(() => ForumPost, () => ForumPostImage)
   forumPosts: ImageAttributes['forumPosts'];
@@ -86,4 +103,16 @@ export default class Image extends Model<
 
   @HasMany(() => Category, 'thumbnailId')
   thumbnailCategories: ImageAttributes['thumbnailCategories'];
+
+  async toResponseJSON(): Promise<ImageResponse> {
+    const url: string =
+      process.env.AWS_S3_IMAGE_BASEURL + this.folder + '/' + this.id;
+    const createdBy = this.createdBy || (await this.$get('createdBy'));
+    const createdByJSON = await createdBy?.toResponseJSONPublic();
+
+    return {
+      url,
+      createdBy: createdByJSON,
+    };
+  }
 }
