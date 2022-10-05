@@ -1,6 +1,6 @@
-import { body } from 'express-validator';
+import { query } from 'express-validator';
 
-export const validateCreateImage = body('folder')
+export const validateCreateImage = query('folder')
   .trim()
   .stripLow()
   .notEmpty()

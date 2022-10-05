@@ -9,8 +9,9 @@ export const createImageController = async (
   next: NextFunction
 ) => {
   try {
+    const folder = req.query.folder as unknown as string;
     const originalFilesize = req.file?.size || 0;
-    const { id, folder } = req.body as unknown as ImageCreateRequestBody;
+    const { id } = req.body as unknown as ImageCreateRequestBody;
     const createdBy = req.user;
     const createdByDevice = req.device;
     if (!createdBy || !createdByDevice) throw new UnauthenticatedError();

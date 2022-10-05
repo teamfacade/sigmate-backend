@@ -21,35 +21,22 @@ const imageUploader = multer({
     },
     acl: 'public-read-write',
   }),
+  limits: { fileSize: 10485760 },
   fileFilter: (req, file, cb) => {
-    // Check whether or not to continue with upload
-
-    // Check if folder name is valid
-    const dir = req.body.folder;
-    const isDirValid = isIn(dir, [
-      'test',
-      'profile',
-      'category',
-      'forum',
-      'wiki',
+    console.log(file);
+    console.log(file.mimetype, file.size);
+    const isValidType = isIn(file.mimetype, [
+      'image/gif',
+      'image/bmp',
+      'image/jpeg',
+      'image/jpg',
+      'image/png',
+      'image/tiff',
     ]);
-    if (isDirValid) {
-      cb(null, isDirValid);
+    if (isValidType) {
+      cb(null, true);
     } else {
-      // Throw error for error handler to catch
-      // Stops the upload and further middlewares and controllers
-      cb(
-        new BadRequestError({
-          validationErrors: [
-            {
-              location: 'body',
-              param: 'folder',
-              value: dir,
-              msg: 'INVALID_FOLDER_NAME',
-            },
-          ],
-        })
-      );
+      cb(new BadRequestError());
     }
   },
 });
