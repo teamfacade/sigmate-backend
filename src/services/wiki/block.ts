@@ -297,7 +297,7 @@ export const constructBlockResMap = (blockResponses: BlockResponse[]) => {
 export const getBlockTextContentFromRes = (
   block: BlockResponse | null | undefined
 ) => {
-  if (block?.children) {
+  if (block?.children && block.children.length) {
     const blockTextContents: string[] = block.children.map((block) =>
       getBlockTextContentFromRes(block)
     );
@@ -317,11 +317,15 @@ export const getDocumentTextContent = (
 ) => {
   if (!document)
     throw new ApiError('ERR_GET_DOCUMENT_TEXTCONTENT_DOCUMENT_NOT_FOUND');
-  if (!blocks || !blocks.length) return;
+  if (!blocks) {
+    throw new ApiError('ERR_GET_DOCUMENT_TEXTCONTENT_BLOCKS_FALSY');
+  }
 
-  const blockResMap = constructBlockResMap(blocks);
   const documentTextContent = document.structure
-    ?.map((blockId) => getBlockTextContentFromRes(blockResMap[blockId]))
+    ?.map((blockId) => {
+      const blockTextContent = getBlockTextContentFromRes(blocks[blockId]);
+      return blockTextContent;
+    })
     .join(TEXTCONTENT_SEPARATOR);
   return documentTextContent;
 };

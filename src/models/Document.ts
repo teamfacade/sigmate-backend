@@ -100,7 +100,7 @@ type DocumentResponseBase = DocumentResponseConcise &
 export interface DocumentResponse extends DocumentResponseBase {
   parent?: DocumentResponseConcise;
   children?: DocumentResponseConcise[]; // limit 50
-  blocks?: BlockResponse[];
+  blocks?: { [key: BlockAttributes['id']]: BlockResponse };
   // TODO opinions
   categories: CategoryResponseConcise[];
   // TODO audits
@@ -242,9 +242,14 @@ export default class Document extends Model<
       ? await Promise.all(children.map((d) => d.toResponseJSONConcise()))
       : undefined;
     const blocks = await this.$get('blocks');
-    const blocksResponse = blocks
+    const blockResponses = blocks
       ? await Promise.all(blocks.map((b) => b.toResponseJSON(myself)))
       : undefined;
+    const blockResponsesMap: DocumentResponse['blocks'] = {};
+    blockResponses?.forEach((blockResponse) => {
+      const blockId = blockResponse.id;
+      blockResponsesMap[blockId] = blockResponse;
+    });
     const categoriesGet = await this.$get('categories', {
       attributes: ['id', 'name'],
     });
@@ -284,7 +289,7 @@ export default class Document extends Model<
       structure: this.structure,
       parent: parent ? await parent.toResponseJSONConcise() : undefined,
       children: childrenResponse,
-      blocks: blocksResponse,
+      blocks: blockResponsesMap,
       categories,
       lastAudit,
       lastApprovedAudit,

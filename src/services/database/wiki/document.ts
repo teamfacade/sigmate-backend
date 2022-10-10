@@ -52,7 +52,9 @@ export const updateDocumentTextContent = async (
 ) => {
   if (!document)
     throw new ApiError('ERR_UPDATE_DOCUMENT_TEXTCONTENT_DOCUMENT_NOT_FOUND');
-  if (!blocks || !blocks.length) return;
+  if (!blocks) {
+    throw new ApiError('ERR_UPDATE_DOCUMENT_TEXTCONTENT_BLOCKS_FALSY');
+  }
 
   try {
     const textContent = getDocumentTextContent(document, blocks);
