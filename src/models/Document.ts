@@ -200,6 +200,7 @@ export default class Document extends Model<
 
     const res: DocumentResponseConcise = {
       ...base,
+      textContent: this.textContent,
       collection: collection ? collection.toResponseJSONConcise() : undefined,
       nft: nft ? nft.toResponseJSONConcise() : undefined,
     };
