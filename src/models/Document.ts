@@ -90,7 +90,10 @@ export interface DocumentAuditDTO {
 
 const documentConciseAttributes = ['id', 'title', 'createdAt', 'updatedAt'];
 export interface DocumentResponseConcise
-  extends Pick<DocumentAttributes, 'id' | 'title' | 'createdAt' | 'updatedAt'> {
+  extends Pick<
+    DocumentAttributes,
+    'id' | 'title' | 'textContent' | 'createdAt' | 'updatedAt'
+  > {
   collection?: CollectionResponseConcise;
   nft?: NftResponseConcise;
 }
