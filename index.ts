@@ -14,7 +14,7 @@ const app = express();
 setupExpress(app);
 setupRoutes(app);
 setupErrorHandlers(app);
-syncDatabase();
+syncDatabase(); // TODO remove in production
 
 app.listen(app.get('port'), () => {
   console.log(`✅ Server listening on port ${app.get('port')}...`);

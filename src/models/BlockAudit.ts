@@ -9,6 +9,7 @@ import {
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
 import Block, { BlockAttributes } from './Block';
+import { DocumentAttributes } from './Document';
 import DocumentAudit, { DocumentAuditAttributes } from './DocumentAudit';
 import User, { UserAttributes } from './User';
 import UserDevice, { UserDeviceAttributes } from './UserDevice';
@@ -27,8 +28,9 @@ export interface BlockAuditAttributes {
   element?: string;
   style?: { [key: string]: string };
   textContent?: string;
-  structure?: number[];
-  parentId?: number;
+  structure?: BlockAttributes['id'][];
+  parentId?: BlockAttributes['id'];
+  documentId?: DocumentAttributes['id'];
 
   // Pointer to the last audit of each field
   // if it was not audited on this version
@@ -106,6 +108,9 @@ export default class BlockAudit extends Model<
 
   @Column(DataType.INTEGER)
   parentId: BlockAuditAttributes['parentId'];
+
+  @Column(DataType.INTEGER)
+  documentId: BlockAuditAttributes['documentId'];
 
   @BelongsTo(() => UserDevice, 'createdByDeviceId')
   createdByDevice: BlockAuditAttributes['createdByDevice'];

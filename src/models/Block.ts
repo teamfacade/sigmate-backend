@@ -105,6 +105,7 @@ export type TextBlockCreationAttribs = Required<
     | 'createdByDevice'
     | 'createdById'
     | 'createdBy'
+    | 'temporaryId'
   >;
 
 export interface TextBlockCreationDTO extends TextBlockCreationAttribs {
@@ -133,6 +134,7 @@ export interface TextBlockAuditDTO
   > {
   documentAuditId?: DocumentAuditAttributes['id'];
   documentAudit?: DocumentAudit | null;
+  lastAuditId?: BlockAuditAttributes['id'];
   approved: boolean;
 }
 
@@ -152,6 +154,7 @@ export interface BlockRequest {
   style?: BlockAttributes['style'];
   parent?: BlockAttributes['id'];
   children?: BlockRequest[];
+  lastAuditId?: BlockAuditAttributes['id'];
   depth?: number;
 }
 
@@ -292,6 +295,15 @@ export default class Block extends Model<
   // From here, not saved to DB. Just used in JS
   // Temporary ID from the frontend before actual block creation
   temporaryId: BlockAttributes['temporaryId'];
+
+  async getLastAudit() {
+    const audits = await this.$get('audits', {
+      limit: 1,
+      order: [['createdAt', 'DESC']],
+    });
+
+    return audits?.length ? (audits[0] as BlockAudit) : null;
+  }
 
   async getMyVerification(
     myself: User | null = null
