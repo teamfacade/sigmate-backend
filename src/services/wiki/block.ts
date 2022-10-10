@@ -177,7 +177,7 @@ export const updateCreatedBlockIds = (
 
   const newBlocks = blocks.map((block) => ({
     ...block,
-    id: blockIdDict[block.id],
+    id: block.id < 0 ? blockIdDict[block.id] : block.id,
   }));
 
   return [blockIdDict, newBlocks];
@@ -198,7 +198,7 @@ export const auditBlocksInRequest = async (
   const blocks: Block[] = [];
   const blockAudits: BlockAudit[] = [];
 
-  blockReqs.forEach(async (block) => {
+  for (const block of blockReqs) {
     // Blocks to audit have positive integers for IDs
     if (block.id > 0) {
       // Look if the block exists
@@ -207,10 +207,7 @@ export const auditBlocksInRequest = async (
       // If the block in question is not found, rollback and send error
       if (!blk) {
         throw new NotFoundError(
-          'ERR_AUDIT_DOCUMENT_AUDIT_BLOCKS_BLOCK_NOT_FOUND',
-          {
-            clientMessage: `ERR_AUDIT_DOCUMENT_AUDIT_BLOCKS_BLOCK_NOT_FOUND (Block ID: ${block.id})`,
-          }
+          'ERR_AUDIT_DOCUMENT_AUDIT_BLOCKS_BLOCK_NOT_FOUND'
         );
       }
 
@@ -261,7 +258,7 @@ export const auditBlocksInRequest = async (
         bla && blockAudits.push(bla);
       }
     }
-  });
+  }
 
   // Only the audited blocks. Later to be added to a DocumentAudit entry
   return [blocks, blockAudits];

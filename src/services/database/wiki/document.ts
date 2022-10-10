@@ -1,4 +1,5 @@
 import _ from 'lodash';
+import { Transaction } from 'sequelize/types';
 import db from '../../../models';
 import { BlockRequest } from '../../../models/Block';
 import Category from '../../../models/Category';
@@ -26,6 +27,24 @@ import {
   updateCreatedBlockIds,
 } from '../../wiki/block';
 import { updateCollectionBySlug } from '../collection';
+import { deleteBlockById } from './block';
+
+export const getAllBlockIdsFromDocument = async (
+  document: Document,
+  transaction: Transaction | undefined = undefined
+) => {
+  if (!document) throw new NotFoundError();
+  try {
+    const blocks = await document.$get('blocks', {
+      attributes: ['id'],
+      transaction,
+    });
+    const blockIds = blocks.map((block) => block.id as number);
+    return blockIds;
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
 
 export const updateDocumentTextContent = async (
   document: Document | null,
@@ -196,16 +215,20 @@ export const auditWikiDocumentById = async (
         );
 
         dto.document.blocks.forEach((block, idx) => {
-          const tempId = block.id;
-          const newId = newBlockIdDict[tempId];
-          const dtoBlocks = dto.document.blocks as BlockRequest[];
-          dtoBlocks[idx].id = newId;
+          if (block.id < 0) {
+            const tempId = block.id;
+            const newId = newBlockIdDict[tempId];
+            const dtoBlocks = dto.document.blocks as BlockRequest[];
+            dtoBlocks[idx].id = newId;
+          }
         });
       }
 
       // If blocks were updated, update the structure
       let documentStructure: number[] | undefined = dto.document.blocks?.map(
-        (block) => block.id
+        (block) => {
+          return block.id;
+        }
       );
 
       if (_.isEqual(doc.structure, documentStructure)) {
@@ -213,6 +236,16 @@ export const auditWikiDocumentById = async (
       }
       if (documentStructure) {
         isAudited = true;
+      }
+
+      // Delete removed blocks
+      const oldBlockIds = await getAllBlockIdsFromDocument(doc, transaction);
+      const newBlockIds = flattened.map((blockReq) => blockReq.id);
+
+      const blockIdsToDelete = _.difference(oldBlockIds, newBlockIds);
+
+      for (const blockId of blockIdsToDelete) {
+        await deleteBlockById(blockId, updatedBy, updatedByDevice, transaction);
       }
 
       // Update simple paremeters (Document)

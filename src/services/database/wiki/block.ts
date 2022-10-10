@@ -10,6 +10,8 @@ import Block, {
 } from '../../../models/Block';
 import BlockAudit from '../../../models/BlockAudit';
 import Collection from '../../../models/Collection';
+import User from '../../../models/User';
+import UserDevice from '../../../models/UserDevice';
 import ConflictError from '../../../utils/errors/ConflictError';
 import NotFoundError from '../../../utils/errors/NotFoundError';
 import SequelizeError from '../../../utils/errors/SequelizeError';
@@ -330,6 +332,48 @@ export const deleteCollectionAttribBlocks = async (
       where: { collectionId: collection.id },
       transaction,
     });
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+export const deleteBlockById = async (
+  blockId: BlockAttributes['id'],
+  deletedBy: User | null,
+  deletedByDevice: UserDevice | null,
+  transaction: Transaction | undefined = undefined
+) => {
+  try {
+    // Check if the block exists
+    const block = await Block.findByPk(blockId, { transaction });
+    if (!block) throw new NotFoundError();
+
+    // Mark who deleted the block
+    await block.update(
+      {
+        deletedByDeviceId: deletedByDevice?.id,
+        deletedById: deletedBy?.id,
+      },
+      { transaction }
+    );
+
+    // Create audit entry for deletion
+    await BlockAudit.create(
+      {
+        action: 'd',
+        blockId: block.id,
+        createdByDeviceId: deletedByDevice?.id,
+        createdByDevice: deletedBy?.id,
+        // TODO Beta: Auto approval of deletion
+        approvedByDevice: deletedByDevice?.id,
+        approvedBy: deletedBy?.id,
+        approvedAt: new Date(),
+      },
+      { transaction }
+    );
+
+    // Actually delete the block
+    await block.destroy({ transaction });
   } catch (error) {
     throw new SequelizeError(error as Error);
   }

@@ -77,7 +77,9 @@ export interface BlockAttributes {
   updatedByDevice?: UserDevice;
   updatedById?: UserAttributes['id'];
   updatedBy?: User;
+  deletedByDeviceId?: UserDeviceAttributes['id'];
   deletedByDevice?: UserDevice;
+  deletedById?: UserAttributes['id'];
   deletedBy?: User;
 
   // -------------------------
