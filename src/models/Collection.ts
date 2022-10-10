@@ -240,6 +240,7 @@ export default class Collection extends Model<
   @BelongsToMany(() => BcToken, () => CollectionPaymentToken)
   paymentTokens: CollectionAttributes['paymentTokens'];
 
+  @Default('ERC721')
   @AllowNull(false)
   @Column(DataType.STRING(16))
   contractSchema!: CollectionAttributes['contractSchema'];
