@@ -1,5 +1,4 @@
 import {
-  AllowNull,
   BelongsTo,
   BelongsToMany,
   Column,
@@ -126,7 +125,6 @@ export default class Document extends Model<
   DocumentAttributes,
   DocumentCreationAttributes
 > {
-  @AllowNull(false)
   @Column(DataType.STRING(191))
   title!: DocumentAttributes['title'];
 

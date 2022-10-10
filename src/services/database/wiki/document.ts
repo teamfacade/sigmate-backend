@@ -96,8 +96,23 @@ export const auditWikiDocumentById = async (
         transaction,
       });
 
-      if (!doc)
+      if (!doc) {
         throw new NotFoundError('ERR_DOCUMENT_AUDIT_DOCUMENT_NOT_FOUND');
+      }
+
+      // If document title is empty, an audit request must specify a new title
+      if (!doc.title && !dto.document.title) {
+        throw new BadRequestError({
+          validationErrors: [
+            {
+              location: 'body',
+              param: 'document.title',
+              value: dto.document.title,
+              msg: 'REQUIRED',
+            },
+          ],
+        });
+      }
 
       // Check simple attributes to see if they actually changed
       if (dto.document.title === doc.title) {

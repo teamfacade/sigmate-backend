@@ -12,6 +12,7 @@ export const validateGetWikiDocumentById = param('id')
 
 export const validateCreateWikiDocument = [
   body('title')
+    .optional()
     .trim()
     .stripLow()
     .notEmpty()
@@ -81,7 +82,8 @@ export const validateUpdateWikiDocument = [
     .notEmpty()
     .withMessage('REQUIRED')
     .isLength({ max: 191 })
-    .withMessage('TOO_LONG'),
+    .withMessage('TOO_LONG')
+    .bail(),
   body('document.structure.*')
     .optional()
     .isInt()
