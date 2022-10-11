@@ -1,4 +1,4 @@
-import { body, param } from 'express-validator';
+import { body, oneOf, param } from 'express-validator';
 import isInt from 'validator/lib/isInt';
 import isLength from 'validator/lib/isLength';
 
@@ -153,12 +153,17 @@ export const validateUpdateWikiDocument = [
     .stripLow()
     .isString()
     .withMessage('NOT_STRING'),
-  body('document.blocks.*.parent')
-    .optional()
-    .isInt()
-    .withMessage('NOT_INT')
-    .bail()
-    .toInt(),
+  oneOf([
+    body('document.blocks.*.parent')
+      .optional()
+      .isInt()
+      .withMessage('NOT_INT')
+      .bail()
+      .toInt(),
+    body('document.blocks.*.parent')
+      .optional()
+      .custom((value) => value === null),
+  ]),
   body('document.categories')
     .optional()
     .isArray()
