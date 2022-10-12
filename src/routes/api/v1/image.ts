@@ -7,13 +7,14 @@ import { createImageController } from '../../../services/image';
 
 const imageRouter = express.Router();
 
-imageRouter.post(
-  '/upload',
-  validateCreateImage,
-  handleBadRequest,
-  imageUploader.single('image'),
-  passportJwtAuth,
-  createImageController
-);
+imageRouter
+  .route('/upload')
+  .post(
+    validateCreateImage,
+    handleBadRequest,
+    imageUploader.single('image'),
+    passportJwtAuth,
+    createImageController
+  );
 
 export default imageRouter;
