@@ -13,18 +13,16 @@ const imageUploader = multer({
     bucket: process.env.AWS_BUCKET_NAME,
     contentType: multerS3.AUTO_CONTENT_TYPE,
     key: (req: Request, file: Express.Multer.File, cb: FileNameCallback) => {
-      const dir = req.body.folder;
+      const dir = req.query.folder;
       const newFileName = uuidv4();
       req.body.id = newFileName;
       const fullPath = `${dir}/` + newFileName;
       cb(null, fullPath);
     },
-    acl: 'public-read-write',
+    acl: 'public-read',
   }),
   limits: { fileSize: 10485760 },
   fileFilter: (req, file, cb) => {
-    console.log(file);
-    console.log(file.mimetype, file.size);
     const isValidType = isIn(file.mimetype, [
       'image/gif',
       'image/bmp',
