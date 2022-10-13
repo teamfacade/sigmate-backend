@@ -31,15 +31,15 @@ export const getAllAnnouncements = async (
     const union = `
       SELECT 'd' AS opt, content, timestamp, content_id AS contentId
       FROM ${config.database}.discord_announcements 
-      WHERE collection_id = ${id} 
-      UNION 
+      WHERE collection_id = ${id}
+      UNION
       SELECT 't' AS opt, content, timestamp, content_id AS contentId
-      FROM ${config.database}.twitter_announcements 
-      WHERE collection_id = ${id} 
+      FROM ${config.database}.twitter_announcements
+      WHERE collection_id = ${id}
       ORDER BY timestamp DESC, contentId+0 ASC
       LIMIT ${limit} OFFSET ${offset};`;
     const res = await promisePool.query(union);
-    if (!res || !res.length) {
+    if (res && res.length) {
       return res[0] as (
         | DiscordAnnoucemenetResponse
         | TwitterAnnoucemenetResponse

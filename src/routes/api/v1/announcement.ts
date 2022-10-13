@@ -11,10 +11,11 @@ import handlePagination from '../../../middlewares/handlePagination';
 
 const announcementRouter = express.Router();
 
+// api for bot server
 announcementRouter.route('/channels').get(getAllChannelsController);
-
 announcementRouter.route('/latest').get(getLatestAnnouncementController);
 
+// api for frontend (what's happening?)
 announcementRouter
   .route('/ann')
   .get(
@@ -23,6 +24,7 @@ announcementRouter
     handleBadRequest,
     getAllAnnouncementsController
   )
+  // api for bot server
   .post(postAnnouncementController);
 
 export default announcementRouter;
