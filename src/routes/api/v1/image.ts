@@ -10,10 +10,10 @@ const imageRouter = express.Router();
 imageRouter
   .route('/upload')
   .post(
+    passportJwtAuth,
     validateCreateImage,
     handleBadRequest,
     imageUploader.single('image'),
-    passportJwtAuth,
     createImageController
   );
 
