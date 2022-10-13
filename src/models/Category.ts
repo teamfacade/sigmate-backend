@@ -45,9 +45,12 @@ export type CategoryDeleteDTO = {
   name?: CategoryAttributes['name'];
 };
 
-export interface CategoryResponse {
+export interface CategoryResponseConcise {
   id: CategoryAttributes['id'];
   name: CategoryAttributes['name'];
+}
+
+export interface CategoryResponse extends CategoryResponseConcise {
   description?: CategoryAttributes['description'];
   parent?: CategoryAttributes['parent'];
 }
@@ -97,4 +100,11 @@ export default class Category extends Model<
 
   @BelongsToMany(() => ForumPost, () => ForumPostCategory)
   forumPosts: CategoryAttributes['forumPosts'];
+
+  toResponseJSONConcise(): CategoryResponseConcise {
+    return {
+      id: this.id,
+      name: this.name,
+    };
+  }
 }

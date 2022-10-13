@@ -48,7 +48,7 @@ export default class BcToken extends Model<
   name!: BcTokenAttributes['name'];
 
   @AllowNull(false)
-  @Column(DataType.STRING(10))
+  @Column(DataType.STRING(16))
   symbol!: BcTokenAttributes['symbol'];
 
   @AllowNull(false)

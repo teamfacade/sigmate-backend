@@ -6,6 +6,7 @@ import Block from './Block';
 import BlockAudit from './BlockAudit';
 import BlockVerification from './BlockVerification';
 import Category from './Category';
+import Channel from './Channel';
 import Collection from './Collection';
 import CollectionDeployer from './CollectionDeployer';
 import CollectionDocumentTable from './CollectionDocumentTable';
@@ -32,6 +33,7 @@ import MintingSchedule from './MintingSchedule';
 import Nft from './Nft';
 import Opinion from './Opinion';
 import OpinionVerification from './OpinionVerification';
+import TwitterAnnouncement from './TwitterAnnouncement';
 import Url from './Url';
 import UrlVerification from './UrlVerification';
 import User from './User';
@@ -44,8 +46,6 @@ import UserOwnedDevice from './UserOwnedDevice';
 import UserProfile from './UserProfile';
 import UserSavedMintingSchedule from './UserSavedMintingSchedule';
 import VerificationType from './VerificationType';
-import Channel from './Channel';
-import TwitterAnnouncement from './TwitterAnnouncement';
 
 const config = databaseConfig[process.env.NODE_ENV];
 
@@ -79,12 +79,14 @@ const initDatabase = () => {
     BlockAudit,
     BlockVerification,
     Category,
+    Channel,
     Collection,
     CollectionDeployer,
     CollectionDocumentTable,
     CollectionPaymentToken,
     CollectionCategory,
     CollectionUtility,
+    DiscordAnnouncement,
     Document,
     DocumentAudit,
     DocumentAuditCategory,
@@ -104,6 +106,7 @@ const initDatabase = () => {
     Nft,
     Opinion,
     OpinionVerification,
+    TwitterAnnouncement,
     Url,
     UrlVerification,
     User,
@@ -116,9 +119,6 @@ const initDatabase = () => {
     UserProfile,
     UserSavedMintingSchedule,
     VerificationType,
-    Channel,
-    DiscordAnnouncement,
-    TwitterAnnouncement,
   ]);
 
   const db = { sequelize };

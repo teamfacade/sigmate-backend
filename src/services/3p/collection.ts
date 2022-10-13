@@ -99,10 +99,10 @@ export const fetchCollectionBySlug = async (
     'createdBy' | 'createdByDevice'
   > = {
     slug: c.slug,
-    contractAddress: c.primary_asset_contracts[0].address,
+    contractAddress: c.primary_asset_contracts[0]?.address,
     name: c.name,
     description: c.description || undefined,
-    contractSchema: c.primary_asset_contracts[0].schema_name,
+    contractSchema: c.primary_asset_contracts[0]?.schema_name,
     twitterHandle: c.twitter_username || undefined,
     discordUrl: c.discord_url || undefined,
     websiteUrl: c.external_url || undefined,

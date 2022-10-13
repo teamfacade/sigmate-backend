@@ -210,6 +210,8 @@ export const createCategoryController = async (
     const name = req.body.name as string;
     const description = req.body.description as string;
 
+    // image
+
     const category = await createCategory({ name, description }, u, d);
     res.status(201).json({
       success: true,
@@ -252,20 +254,14 @@ export const deleteCategoryController = async (
   next: NextFunction
 ) => {
   try {
-    const id = (req.body.id as number) || undefined;
-    const name = (req.body.name as string) || undefined;
-
+    const id = req.params.id as unknown as number;
     const categoryDeleteDTO: CategoryDeleteDTO = {};
 
     if (id) {
       categoryDeleteDTO.id = id;
+    } else {
+      throw new BadRequestError();
     }
-
-    if (name) {
-      categoryDeleteDTO.name = name;
-    }
-
-    if (!id && !name) throw new BadRequestError();
 
     await deleteCategory(categoryDeleteDTO);
 

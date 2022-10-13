@@ -62,6 +62,8 @@ export interface CollectionAttributes {
   mintingPricePublic?: string;
   floorPrice?: string;
   document?: Document;
+  discordAnnouncement?: DiscordAnnouncement[];
+  twitterAnnouncement?: TwitterAnnouncement[];
   createdBy?: User;
   createdByDevice?: UserDevice;
   createdAt?: Date;
@@ -240,6 +242,7 @@ export default class Collection extends Model<
   @BelongsToMany(() => BcToken, () => CollectionPaymentToken)
   paymentTokens: CollectionAttributes['paymentTokens'];
 
+  @Default('ERC721')
   @AllowNull(false)
   @Column(DataType.STRING(16))
   contractSchema!: CollectionAttributes['contractSchema'];
@@ -338,6 +341,12 @@ export default class Collection extends Model<
 
   @Column(DataType.DATE)
   openseaMetadataUpdatedAt: CollectionAttributes['openseaMetadataUpdatedAt'];
+
+  @HasMany(() => DiscordAnnouncement, 'collectionId')
+  discordAnnouncement: CollectionAttributes['discordAnnouncement'];
+
+  @HasMany(() => TwitterAnnouncement, 'collectionId')
+  twitterAnnouncement: CollectionAttributes['twitterAnnouncement'];
 
   @Column(DataType.DATE)
   openseaPriceUpdatedAt: CollectionAttributes['openseaPriceUpdatedAt'];
