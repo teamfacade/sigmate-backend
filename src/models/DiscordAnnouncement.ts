@@ -20,6 +20,13 @@ export type DiscordAnnouncementCreationAttributes = Optional<
   DiscordAnnouncementAttributes,
   'id'
 >;
+
+export type DiscordAnnoucemenetResponse = {
+  opt: 'd';
+  content: string;
+  timestamp: string;
+  content_id: number;
+};
 @Table({
   tableName: 'discord_announcements',
   modelName: 'DiscordAnnouncement',

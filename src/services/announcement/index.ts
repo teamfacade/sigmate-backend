@@ -1,11 +1,47 @@
 import { NextFunction, Request, Response } from 'express';
 import {
+  createPgRes,
+  PaginationOptions,
+} from '../../middlewares/handlePagination';
+import {
+  getAllAnnouncements,
   getLatestDiscordAnnouncement,
   getLatestTwitterAnnouncement,
   postDiscordAnnouncement,
   postTwitterAnnouncement,
 } from '../../services/database/announcement';
 import { getAllChannels } from '../../services/database/channel';
+import NotFoundError from '../../utils/errors/NotFoundError';
+import { getCollectionById } from '../database/collection';
+
+export const getAllAnnouncementsController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const { limit, offset } = req.pg as PaginationOptions;
+    const cid = req.query.cid as unknown as number;
+    const anns = await getAllAnnouncements(cid, limit, offset);
+
+    // Check if collection exists
+    const cl = await getCollectionById(cid);
+    if (!cl) {
+      // Collection does not exist
+      throw new NotFoundError();
+    }
+
+    const response = createPgRes<typeof anns>({
+      limit,
+      offset,
+      count: 0,
+      data: anns,
+    });
+    res.status(200).json(response);
+  } catch (error) {
+    next(error);
+  }
+};
 
 export const getAllChannelsController = async (
   req: Request,
