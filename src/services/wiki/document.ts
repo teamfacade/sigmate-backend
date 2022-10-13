@@ -1,4 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
+import { BlockAttributes, BlockRequest } from '../../models/Block';
+import { CategoryAttributes } from '../../models/Category';
 import Collection from '../../models/Collection';
 import Document, {
   DocumentAttributes,
@@ -7,6 +9,7 @@ import Document, {
 import Nft from '../../models/Nft';
 import ApiError from '../../utils/errors/ApiError';
 import BadRequestError from '../../utils/errors/BadRequestError';
+import NotFoundError from '../../utils/errors/NotFoundError';
 import UnauthenticatedError from '../../utils/errors/UnauthenticatedError';
 import { fetchCollectionBySlug } from '../3p/collection';
 import {
@@ -15,9 +18,32 @@ import {
 } from '../database/collection';
 import { createNft, getNftByAdressAndId } from '../database/nft';
 import {
+  auditWikiDocumentById,
   createWikiDocument,
   getCollectionDocument,
+  getDocumentById,
+  updateDocumentTextContent,
 } from '../database/wiki/document';
+import { CreateCollectionReqBody } from './collection';
+
+export const getWikiDocumentByIdController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const documentId = req.params.id as unknown as number;
+    const doc = await getDocumentById(documentId);
+    if (!doc) throw new NotFoundError();
+    const response = {
+      success: true,
+      data: await doc.toResponseJSON(),
+    };
+    res.status(200).json(response);
+  } catch (error) {
+    next(error);
+  }
+};
 
 type CreateWikiDocumentReqBody = {
   title: string;
@@ -157,6 +183,97 @@ export const createWikiDocumentController = async (
     };
 
     res.status(201).json(response);
+  } catch (error) {
+    next(error);
+  }
+};
+
+type UpdateWikiDocumentReqBody = {
+  document: {
+    title?: string;
+    structure?: BlockAttributes['id'][];
+    parent?: DocumentAttributes['id'];
+    blocks: BlockRequest[];
+    categories?: CategoryAttributes['id'][];
+  };
+  collection?: Partial<
+    Pick<
+      CreateCollectionReqBody,
+      | 'name'
+      | 'description'
+      | 'paymentTokens'
+      | 'twitterHandle'
+      | 'discordUrl'
+      | 'websiteUrl'
+      | 'imageUrl'
+      | 'bannerImageUrl'
+      | 'mintingPriceWl'
+      | 'mintingPricePublic'
+      | 'floorPrice'
+      | 'marketplace'
+      | 'category'
+      | 'utility'
+      | 'team'
+      | 'history'
+    >
+  >;
+  // TODO Update NFT information
+};
+
+export const updateWikiDocumentController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const documentId = req.params.id as unknown as number;
+    const { document, collection } = req.body as UpdateWikiDocumentReqBody;
+    const u = req.user;
+    if (!u) throw new UnauthenticatedError();
+    const d = req.device;
+    if (!d) throw new ApiError('ERR_UPDATE_DOCUMENT_DEVICE');
+
+    const auditWikiDocumentDTO = {
+      document: {
+        title: document.title,
+        parent: document.parent,
+        blocks: document.blocks,
+        categories: document.categories,
+      },
+      collection: {
+        name: collection?.name,
+        description: collection?.description,
+        paymentTokens: collection?.paymentTokens,
+        twitterHandle: collection?.twitterHandle,
+        discordUrl: collection?.discordUrl,
+        websiteUrl: collection?.websiteUrl,
+        imageUrl: collection?.imageUrl,
+        bannerImageUrl: collection?.bannerImageUrl,
+        mintingPriceWl: collection?.mintingPriceWl,
+        mintingPricePublic: collection?.mintingPricePublic,
+        floorPrice: collection?.floorPrice,
+        marketplace: collection?.marketplace,
+        category: collection?.category,
+        utility: collection?.utility,
+        team: collection?.team,
+        history: collection?.history,
+      },
+    };
+
+    const doc = await auditWikiDocumentById(
+      documentId,
+      auditWikiDocumentDTO,
+      u,
+      d
+    );
+
+    const documentResponse = await doc.toResponseJSON();
+    await updateDocumentTextContent(doc, documentResponse.blocks);
+
+    res.status(200).json({
+      success: true,
+      document: await doc.toResponseJSON(),
+    });
   } catch (error) {
     next(error);
   }

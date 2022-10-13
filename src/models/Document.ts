@@ -1,5 +1,4 @@
 import {
-  AllowNull,
   BelongsTo,
   BelongsToMany,
   Column,
@@ -8,10 +7,14 @@ import {
   Model,
   Table,
 } from 'sequelize-typescript';
+import { Op } from 'sequelize';
 import { Optional } from 'sequelize/types';
-import Block, { BlockAttributes } from './Block';
+import Block, { BlockAttributes, BlockRequest } from './Block';
 import DocumentAudit from './DocumentAudit';
-import Category from './Category';
+import Category, {
+  CategoryAttributes,
+  CategoryResponseConcise,
+} from './Category';
 import User, { UserAttributes, UserPublicResponse } from './User';
 import UserDevice, { UserDeviceAttributes } from './UserDevice';
 import Collection, {
@@ -23,9 +26,11 @@ import Opinion from './Opinion';
 import DocumentCategory from './DocumentCategory';
 import Nft, { NftAttributes, NftResponse, NftResponseConcise } from './Nft';
 import { BlockResponse } from './Block';
+import { UpdateCollectionReqBody } from '../services/wiki/collection';
 
 export type DocumentIdType = number;
 export const documentIdDataTypes = DataType.INTEGER;
+export const TEXTCONTENT_SEPARATOR = ' ';
 
 export interface DocumentAttributes {
   id: DocumentIdType;
@@ -73,9 +78,22 @@ export type DocumentCreationDTO = Pick<
   | 'createdBy'
 >;
 
+export interface DocumentAuditDTO {
+  document: {
+    title?: DocumentAttributes['title'];
+    parent?: DocumentAttributes['id'];
+    blocks?: BlockRequest[];
+    categories?: CategoryAttributes['id'][];
+  };
+  collection?: UpdateCollectionReqBody;
+}
+
 const documentConciseAttributes = ['id', 'title', 'createdAt', 'updatedAt'];
 export interface DocumentResponseConcise
-  extends Pick<DocumentAttributes, 'id' | 'title' | 'createdAt' | 'updatedAt'> {
+  extends Pick<
+    DocumentAttributes,
+    'id' | 'title' | 'textContent' | 'createdAt' | 'updatedAt'
+  > {
   collection?: CollectionResponseConcise;
   nft?: NftResponseConcise;
 }
@@ -85,12 +103,14 @@ type DocumentResponseBase = DocumentResponseConcise &
 export interface DocumentResponse extends DocumentResponseBase {
   parent?: DocumentResponseConcise;
   children?: DocumentResponseConcise[]; // limit 50
-  blocks?: BlockResponse[];
+  blocks?: { [key: BlockAttributes['id']]: BlockResponse };
   // TODO opinions
-  // TODO categories
+  categories: CategoryResponseConcise[];
   // TODO audits
   collection?: CollectionResponse;
   nft?: NftResponse;
+  lastApprovedAudit?: DocumentAudit | null;
+  lastAudit?: DocumentAudit | null;
   createdBy?: UserPublicResponse;
   updatedBy?: UserPublicResponse;
 }
@@ -108,7 +128,6 @@ export default class Document extends Model<
   DocumentAttributes,
   DocumentCreationAttributes
 > {
-  @AllowNull(false)
   @Column(DataType.STRING(191))
   title!: DocumentAttributes['title'];
 
@@ -118,7 +137,7 @@ export default class Document extends Model<
   @Column(DataType.JSON)
   structure: DocumentAttributes['structure'];
 
-  @BelongsTo(() => Document, 'parentId')
+  @BelongsTo(() => Document, { foreignKey: 'parentId', as: 'parent' })
   parent: DocumentAttributes['parent'];
 
   @HasMany(() => Document, 'parentId')
@@ -181,6 +200,7 @@ export default class Document extends Model<
 
     const res: DocumentResponseConcise = {
       ...base,
+      textContent: this.textContent,
       collection: collection ? collection.toResponseJSONConcise() : undefined,
       nft: nft ? nft.toResponseJSONConcise() : undefined,
     };
@@ -226,11 +246,43 @@ export default class Document extends Model<
       ? await Promise.all(children.map((d) => d.toResponseJSONConcise()))
       : undefined;
     const blocks = await this.$get('blocks');
-    const blocksResponse = blocks
+    const blockResponses = blocks
       ? await Promise.all(blocks.map((b) => b.toResponseJSON(myself)))
       : undefined;
+    const blockResponsesMap: DocumentResponse['blocks'] = {};
+    blockResponses?.forEach((blockResponse) => {
+      const blockId = blockResponse.id;
+      blockResponsesMap[blockId] = blockResponse;
+    });
+    const categoriesGet = await this.$get('categories', {
+      attributes: ['id', 'name'],
+    });
+    const categories = categoriesGet
+      ? categoriesGet.map((c) => c.toResponseJSONConcise())
+      : [];
     const createdBy = this.createdBy || (await this.$get('createdBy'));
     const updatedBy = this.updatedBy || (await this.$get('updatedBy'));
+
+    // Get the last audit information
+    const lastAuditGet = await this.$get('audits', {
+      attributes: ['id', 'createdAt', 'approvedAt'],
+      limit: 1,
+      order: [['createdAt', 'DESC']],
+    });
+    const lastApprovedAuditGet = await this.$get('audits', {
+      attributes: ['id', 'createdAt', 'approvedAt'],
+      where: { approvedAt: { [Op.not]: null } },
+      limit: 1,
+      order: [['createdAt', 'DESC']],
+    });
+    const lastAudit =
+      lastAuditGet && lastAuditGet.length
+        ? (lastAuditGet[0] as DocumentAudit)
+        : null;
+    const lastApprovedAudit =
+      lastApprovedAuditGet && lastApprovedAuditGet.length
+        ? (lastApprovedAuditGet[0] as DocumentAudit)
+        : null;
 
     const res: DocumentResponse = {
       ...base,
@@ -241,7 +293,10 @@ export default class Document extends Model<
       structure: this.structure,
       parent: parent ? await parent.toResponseJSONConcise() : undefined,
       children: childrenResponse,
-      blocks: blocksResponse,
+      blocks: blockResponsesMap,
+      categories,
+      lastAudit,
+      lastApprovedAudit,
       createdBy: createdBy ? await createdBy.toResponseJSONPublic() : undefined,
       updatedBy: updatedBy ? await updatedBy.toResponseJSONPublic() : undefined,
     };

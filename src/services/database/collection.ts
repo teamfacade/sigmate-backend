@@ -34,6 +34,7 @@ import {
 import ConflictError from '../../utils/errors/ConflictError';
 import UnauthenticatedError from '../../utils/errors/UnauthenticatedError';
 import BadRequestError from '../../utils/errors/BadRequestError';
+import DocumentAudit from '../../models/DocumentAudit';
 
 export const setCollectionDeployerAddresses = async (
   collection: Collection | null,
@@ -513,6 +514,7 @@ export const createCollectionWithTx = async (
 export const updateCollectionBySlug = async (
   slug: CollectionAttributes['slug'],
   collectionDTO: CollectionUpdateDTO,
+  documentAudit: DocumentAudit | null = null,
   transaction: Transaction | undefined = undefined
 ) => {
   try {
@@ -573,6 +575,7 @@ export const updateCollectionBySlug = async (
             approved: true,
             updatedBy: collectionDTO.updatedBy,
             updatedByDevice: collectionDTO.updatedByDevice,
+            documentAudit,
           },
           transaction
         )
@@ -587,6 +590,7 @@ export const updateCollectionBySlug = async (
             approved: true,
             updatedBy: collectionDTO.updatedBy,
             updatedByDevice: collectionDTO.updatedByDevice,
+            documentAudit,
           },
           transaction
         )
@@ -601,6 +605,7 @@ export const updateCollectionBySlug = async (
             approved: true,
             updatedBy: collectionDTO.updatedBy,
             updatedByDevice: collectionDTO.updatedByDevice,
+            documentAudit,
           },
           transaction
         )
@@ -615,6 +620,7 @@ export const updateCollectionBySlug = async (
             approved: true,
             updatedBy: collectionDTO.updatedBy,
             updatedByDevice: collectionDTO.updatedByDevice,
+            documentAudit,
           },
           transaction
         )
@@ -632,6 +638,7 @@ export const updateCollectionBySlug = async (
             approved: true,
             updatedBy: collectionDTO.updatedBy,
             updatedByDevice: collectionDTO.updatedByDevice,
+            documentAudit,
           },
           transaction
         )
@@ -649,6 +656,7 @@ export const updateCollectionBySlug = async (
             approved: true,
             updatedBy: collectionDTO.updatedBy,
             updatedByDevice: collectionDTO.updatedByDevice,
+            documentAudit,
           },
           transaction
         )
@@ -663,6 +671,7 @@ export const updateCollectionBySlug = async (
             approved: true,
             updatedBy: collectionDTO.updatedBy,
             updatedByDevice: collectionDTO.updatedByDevice,
+            documentAudit,
           },
           transaction
         )
@@ -677,6 +686,7 @@ export const updateCollectionBySlug = async (
             approved: true,
             updatedBy: collectionDTO.updatedBy,
             updatedByDevice: collectionDTO.updatedByDevice,
+            documentAudit,
           },
           transaction
         )
@@ -691,6 +701,7 @@ export const updateCollectionBySlug = async (
             approved: true,
             updatedBy: collectionDTO.updatedBy,
             updatedByDevice: collectionDTO.updatedByDevice,
+            documentAudit,
           },
           transaction
         )
@@ -705,6 +716,7 @@ export const updateCollectionBySlug = async (
             approved: true,
             updatedBy: collectionDTO.updatedBy,
             updatedByDevice: collectionDTO.updatedByDevice,
+            documentAudit,
           },
           transaction
         )
@@ -721,6 +733,7 @@ export const updateCollectionBySlug = async (
             approved: true,
             updatedBy: collectionDTO.updatedBy,
             updatedByDevice: collectionDTO.updatedByDevice,
+            documentAudit,
           },
           transaction
         )
@@ -735,6 +748,7 @@ export const updateCollectionBySlug = async (
             approved: true,
             updatedBy: collectionDTO.updatedBy,
             updatedByDevice: collectionDTO.updatedByDevice,
+            documentAudit,
           },
           transaction
         )
@@ -809,7 +823,12 @@ export const updateCollectionBySlugWithTx = async (
 ) => {
   try {
     return await db.sequelize.transaction(async (transaction) => {
-      return await updateCollectionBySlug(slug, collectionDTO, transaction);
+      return await updateCollectionBySlug(
+        slug,
+        collectionDTO,
+        null,
+        transaction
+      );
     });
   } catch (error) {
     throw new SequelizeError(error as Error);
