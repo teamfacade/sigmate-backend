@@ -105,7 +105,7 @@ forumRouter
     isAuthenticated,
     validateUpdateForumPost,
     handleBadRequest,
-    updateForumPostController
+    updateForumPostController // upload img
   )
   .delete(
     passportJwtAuth,

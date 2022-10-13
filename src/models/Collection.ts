@@ -62,6 +62,8 @@ export interface CollectionAttributes {
   mintingPricePublic?: string;
   floorPrice?: string;
   document?: Document;
+  discordAnnouncement?: DiscordAnnouncement[];
+  twitterAnnouncement?: TwitterAnnouncement[];
   createdBy?: User;
   createdByDevice?: UserDevice;
   createdAt?: Date;
@@ -339,6 +341,12 @@ export default class Collection extends Model<
 
   @Column(DataType.DATE)
   openseaMetadataUpdatedAt: CollectionAttributes['openseaMetadataUpdatedAt'];
+
+  @HasMany(() => DiscordAnnouncement, 'collectionId')
+  discordAnnouncement: CollectionAttributes['discordAnnouncement'];
+
+  @HasMany(() => TwitterAnnouncement, 'collectionId')
+  twitterAnnouncement: CollectionAttributes['twitterAnnouncement'];
 
   @Column(DataType.DATE)
   openseaPriceUpdatedAt: CollectionAttributes['openseaPriceUpdatedAt'];

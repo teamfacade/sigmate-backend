@@ -210,6 +210,8 @@ export const createCategoryController = async (
     const name = req.body.name as string;
     const description = req.body.description as string;
 
+    // image
+
     const category = await createCategory({ name, description }, u, d);
     res.status(201).json({
       success: true,
