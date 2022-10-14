@@ -26,7 +26,7 @@ export const searchWikiDocument = async (q: WikiDocumentSearchQuery) => {
     documents = startsWith.rows;
     count = startsWith.count;
 
-    if (count < 0) {
+    if (count === 0) {
       const contains = await Document.findAndCountAll({
         where: {
           title: { [Op.substring]: q.title },
