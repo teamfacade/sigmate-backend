@@ -30,76 +30,63 @@ export const getBlockById = async (
 export const createTextBlock = async (
   blockDTO: TextBlockCreationDTO,
   transaction: Transaction | undefined = undefined
-) => {
+): Promise<[Block, BlockAudit]> => {
+  const userId = blockDTO.createdById || blockDTO.createdBy?.id;
+  const userDeviceId =
+    blockDTO.createdByDeviceId || blockDTO.createdByDevice?.id;
+
   try {
-    const [b, ba] = await Promise.all([
-      Block.create(
-        {
-          element: blockDTO.element,
-          textContent: blockDTO.textContent,
-          documentId: blockDTO.documentId || blockDTO.document?.id,
-          parentId: blockDTO.parentId || blockDTO.parent?.id,
-          lastDocumentAuditId:
-            blockDTO.documentAuditId || blockDTO.documentAudit?.id,
-          collectionAttrib: blockDTO.collectionAttrib,
-        },
-        { transaction }
-      ),
-      BlockAudit.create(
-        {
-          action: 'c', // create operation
-          element: blockDTO.element,
-          textContent: blockDTO.textContent,
-          parentId: blockDTO.parentId || blockDTO.parent?.id,
-          documentAuditId:
-            blockDTO.documentAuditId || blockDTO.documentAudit?.id,
-          approvedAt: blockDTO.approved ? new Date() : undefined,
-        },
-        { transaction }
-      ),
-    ]);
+    const b = await Block.create(
+      {
+        element: blockDTO.element,
+        textContent: blockDTO.textContent,
+        documentId: blockDTO.documentId || blockDTO.document?.id,
+        parentId: blockDTO.parentId || blockDTO.parent?.id,
+        lastDocumentAuditId:
+          blockDTO.documentAuditId || blockDTO.documentAudit?.id,
+        collectionAttrib: blockDTO.collectionAttrib,
+        createdById: userId,
+        createdByDeviceId: userDeviceId,
+      },
+      { transaction }
+    );
 
-    const ps: Promise<unknown>[] = [
-      // promises
-      // Link block audit(creation) entry
-      ba.$set('block', b, { transaction }),
-    ];
+    const ba = await BlockAudit.create(
+      {
+        action: 'c', // create operation
+        element: blockDTO.element,
+        textContent: blockDTO.textContent,
+        parentId: blockDTO.parentId || blockDTO.parent?.id,
+        documentId: blockDTO.documentId || blockDTO.document?.id,
+        documentAuditId: blockDTO.documentAuditId || blockDTO.documentAudit?.id,
+        createdById: userId,
+        createdByDeviceId: userDeviceId,
+        approvedAt: blockDTO.approved ? new Date() : undefined,
+        approvedById: blockDTO.approved ? userId : undefined,
+        approvedByDeviceId: blockDTO.approved ? userDeviceId : undefined,
+      },
+      { transaction }
+    );
 
-    const d = blockDTO.createdByDevice;
-    const u = blockDTO.createdBy;
+    await b.update(
+      {
+        lastElementAuditId: ba.id,
+        lastStyleAuditId: ba.id,
+        lastTextContentAuditId: ba.id,
+        lastStructureAuditId: ba.id,
+        lastParentAuditId: ba.id,
+      },
+      { transaction }
+    );
 
-    // Who created this block?
-    u && ps.push(b.$set('createdBy', u, { transaction }));
-    d && ps.push(b.$set('createdByDevice', d, { transaction }));
+    await ba.update(
+      {
+        blockId: b.id,
+      },
+      { transaction }
+    );
 
-    // Who created this block audit?
-    u && ps.push(ba.$set('createdBy', u, { transaction }));
-    d && ps.push(ba.$set('createdByDevice', d, { transaction }));
-    if (blockDTO.approved) {
-      u && ps.push(ba.$set('approvedBy', u, { transaction }));
-      d && ps.push(ba.$set('approvedByDevice', d, { transaction }));
-    }
-
-    // Link document
-    blockDTO.document &&
-      ps.push(b.$set('document', blockDTO.document, { transaction }));
-
-    // Link parent block
-    if (blockDTO.parent) {
-      ps.push(b.$set('parent', blockDTO.parent, { transaction }));
-    }
-
-    // Link last audit pointers
-    ps.push(b.$set('lastElementAudit', ba, { transaction }));
-    ps.push(b.$set('lastStyleAudit', ba, { transaction }));
-    ps.push(b.$set('lastTextContentAudit', ba, { transaction }));
-    ps.push(b.$set('lastStructureAudit', ba, { transaction }));
-    ps.push(b.$set('lastParentAudit', ba, { transaction }));
-
-    await Promise.all(ps);
-
-    const ret: [Block, BlockAudit] = [b, ba];
-    return ret;
+    return [b, ba];
   } catch (error) {
     throw new SequelizeError(error as Error);
   }
@@ -152,8 +139,9 @@ export const auditTextBlock = async (
     // Look for block
     if (!block) throw new NotFoundError();
 
-    const u = blockDTO.updatedBy; // user
-    const d = blockDTO.updatedByDevice; // device
+    const userId = blockDTO.updatedById || blockDTO.updatedBy?.id;
+    const userDeviceId =
+      blockDTO.updatedByDeviceId || blockDTO.updatedByDevice?.id;
 
     let isAudited = false;
 
@@ -212,15 +200,15 @@ export const auditTextBlock = async (
     }
 
     // Update the block
-    block.update(
+    await block.update(
       {
         textContent: blockDTO.textContent,
         element: blockDTO.element,
         style: blockDTO.style,
         structure: blockDTO.structure,
         parentId: blockDTO.parentId || blockDTO.parent?.id,
-        updatedById: u?.id,
-        updatedByDeviceId: d?.id,
+        updatedById: userId,
+        updatedByDeviceId: userDeviceId,
       },
       { transaction }
     );
@@ -236,23 +224,14 @@ export const auditTextBlock = async (
         documentAuditId: blockDTO.documentAuditId || blockDTO.documentAudit?.id,
         parentId: blockDTO.parent?.id || undefined,
         blockId: block.id,
-        createdById: u?.id,
-        createdByDeviceId: d?.id,
+        createdById: userId,
+        createdByDeviceId: userDeviceId,
+        approvedAt: blockDTO.approved ? new Date() : undefined,
+        approvedById: blockDTO.approved ? userId : undefined,
+        approvedByDeviceId: blockDTO.approved ? userDeviceId : undefined,
       },
       { transaction }
     );
-
-    // For automatically approved block audits, set approvedBy to myself
-    if (blockDTO.approved) {
-      await bla.update(
-        {
-          approvedAt: bla.createdAt,
-          approvedById: u?.id,
-          approvedByDeviceId: d?.id,
-        },
-        { transaction }
-      );
-    }
 
     // Update last audit pointers, if necessary
     await block.update(
