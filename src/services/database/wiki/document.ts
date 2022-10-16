@@ -301,6 +301,8 @@ export const auditWikiDocumentById = async (
             {
               ...dto.collection,
               document: undefined,
+              updatedBy,
+              updatedByDevice,
             },
             documentAudit,
             transaction

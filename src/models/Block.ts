@@ -102,6 +102,7 @@ export type TextBlockCreationAttribs = Required<
     | 'parentId'
     | 'parent'
     | 'structure'
+    | 'collectionId'
     | 'collectionAttrib'
     | 'createdByDeviceId'
     | 'createdByDevice'

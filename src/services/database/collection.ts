@@ -36,6 +36,20 @@ import UnauthenticatedError from '../../utils/errors/UnauthenticatedError';
 import BadRequestError from '../../utils/errors/BadRequestError';
 import DocumentAudit from '../../models/DocumentAudit';
 
+const COLLECTION_ATTRIBS: BlockCollectionAttrib[] = [
+  'team',
+  'history',
+  'category',
+  'utility',
+  'mintingPriceWl',
+  'mintingPricePublic',
+  'floorPrice',
+  'discordUrl',
+  'twitterHandle',
+  'websiteUrl',
+  'marketplace',
+];
+
 export const setCollectionDeployerAddresses = async (
   collection: Collection | null,
   deployerAddresses: string[],
@@ -203,6 +217,7 @@ export const createCollection = async (
         slug: collectionDTO.slug,
         name: collectionDTO.name,
         description: collectionDTO.description,
+        documentId: collectionDTO.document?.id,
         contractSchema: collectionDTO.contractSchema,
         email: collectionDTO.email,
         blogUrl: collectionDTO.blogUrl,
@@ -225,241 +240,66 @@ export const createCollection = async (
         marketplace: collectionDTO.marketplace,
         openseaMetadataUpdatedAt: collectionDTO.openseaMetadataUpdatedAt,
         openseaPriceUpdatedAt: collectionDTO.openseaPriceUpdatedAt,
+        createdById: collectionDTO.createdBy?.id,
+        createdByDeviceId: collectionDTO.createdByDevice?.id,
       },
       { transaction }
     );
     const blockElement = 'td';
-    const [
-      teamBlock,
-      historyBlock,
-      categoryBlock,
-      utilityBlock,
-      mintingPriceWlBlock,
-      mintingPricePublicBlock,
-      floorPriceBlock,
-      discordUrlBlock,
-      twitterHandleBlock,
-      websiteUrlBlock,
-      chainBlock,
-      marketplaceBlock,
-    ] = await Promise.all([
-      // Create the blocks
-      // Team Block
-      createCollectionAttribBlock(
-        {
-          element: blockElement,
-          textContent: collectionDTO.team || '',
-          document: collectionDTO.document,
-          collection: cl,
-          collectionAttrib: 'team',
-          createdBy: collectionDTO.createdBy,
-          createdByDevice: collectionDTO.createdByDevice,
-          approved: true,
-        },
-        transaction
-      ),
-      // History Block
-      createCollectionAttribBlock(
-        {
-          element: blockElement,
-          textContent: collectionDTO.history || '',
-          document: collectionDTO.document,
-          collection: cl,
-          collectionAttrib: 'history',
-          createdBy: collectionDTO.createdBy,
-          createdByDevice: collectionDTO.createdByDevice,
-          approved: true,
-        },
-        transaction
-      ),
-      // Category Block
-      createCollectionAttribBlock(
-        {
-          element: blockElement,
-          textContent: collectionDTO.category || '',
-          document: collectionDTO.document,
-          collection: cl,
-          collectionAttrib: 'category',
-          createdBy: collectionDTO.createdBy,
-          createdByDevice: collectionDTO.createdByDevice,
-          approved: true,
-        },
-        transaction
-      ),
-      // Utility Block
-      createCollectionAttribBlock(
-        {
-          element: blockElement,
-          textContent: collectionDTO.utility || '',
-          document: collectionDTO.document,
-          collection: cl,
-          collectionAttrib: 'utility',
-          createdBy: collectionDTO.createdBy,
-          createdByDevice: collectionDTO.createdByDevice,
-          approved: true,
-        },
-        transaction
-      ),
-      // Minting Price WL Block
-      createCollectionAttribBlock(
-        {
-          element: blockElement,
-          textContent: collectionDTO.mintingPriceWl || '',
-          document: collectionDTO.document,
-          collection: cl,
-          collectionAttrib: 'mintingPriceWl',
-          createdBy: collectionDTO.createdBy,
-          createdByDevice: collectionDTO.createdByDevice,
-          approved: true,
-        },
-        transaction
-      ),
-      // Minting Price Public Block
-      createCollectionAttribBlock(
-        {
-          element: blockElement,
-          textContent: collectionDTO.mintingPricePublic || '',
-          document: collectionDTO.document,
-          collection: cl,
-          collectionAttrib: 'mintingPricePublic',
-          createdBy: collectionDTO.createdBy,
-          createdByDevice: collectionDTO.createdByDevice,
-          approved: true,
-        },
-        transaction
-      ),
-      // Floor Price Block
-      createCollectionAttribBlock(
-        {
-          element: blockElement,
-          textContent: collectionDTO.floorPrice || '0',
-          document: collectionDTO.document,
-          collection: cl,
-          collectionAttrib: 'floorPrice',
-          createdBy: collectionDTO.createdBy,
-          createdByDevice: collectionDTO.createdByDevice,
-          approved: true,
-        },
-        transaction
-      ),
-      // Discord Url Block
-      createCollectionAttribBlock(
-        {
-          element: blockElement,
-          textContent: collectionDTO.discordUrl || '',
-          document: collectionDTO.document,
-          collection: cl,
-          collectionAttrib: 'discordUrl',
-          createdBy: collectionDTO.createdBy,
-          createdByDevice: collectionDTO.createdByDevice,
-          approved: true,
-        },
-        transaction
-      ),
-      // Twitter Handle Block
-      createCollectionAttribBlock(
-        {
-          element: blockElement,
-          textContent: collectionDTO.twitterHandle || '',
-          document: collectionDTO.document,
-          collection: cl,
-          collectionAttrib: 'twitterHandle',
-          createdBy: collectionDTO.createdBy,
-          createdByDevice: collectionDTO.createdByDevice,
-          approved: true,
-        },
-        transaction
-      ),
-      // Website URL Block
-      createCollectionAttribBlock(
-        {
-          element: blockElement,
-          textContent: collectionDTO.websiteUrl || '',
-          document: collectionDTO.document,
-          collection: cl,
-          collectionAttrib: 'websiteUrl',
-          createdBy: collectionDTO.createdBy,
-          createdByDevice: collectionDTO.createdByDevice,
-          approved: true,
-        },
-        transaction
-      ),
-      // Chain Block
-      createCollectionAttribBlock(
-        {
-          element: blockElement,
-          textContent:
-            collectionDTO.paymentTokens.map((pt) => pt.symbol).join(', ') || '',
-          document: collectionDTO.document,
-          collection: cl,
-          collectionAttrib: 'paymentTokens',
-          createdBy: collectionDTO.createdBy,
-          createdByDevice: collectionDTO.createdByDevice,
-          approved: true,
-        },
-        transaction
-      ),
-      // Marketplace Block
-      createCollectionAttribBlock(
-        {
-          element: blockElement,
-          textContent: collectionDTO.marketplace || '',
-          document: collectionDTO.document,
-          collection: cl,
-          collectionAttrib: 'marketplace',
-          createdBy: collectionDTO.createdBy,
-          createdByDevice: collectionDTO.createdByDevice,
-          approved: true,
-        },
-        transaction
-      ),
-      // Link the document
-      collectionDTO.document &&
-        cl.$set('document', collectionDTO.document, { transaction }),
-      // Link the deployer addresses
-      setCollectionDeployerAddresses(
-        cl,
-        collectionDTO.collectionDeployers,
-        transaction
-      ),
-      // Link the payment tokens
-      setCollectionPaymentTokens(cl, collectionDTO.paymentTokens, transaction),
-    ]);
 
-    // Link the creator
-    const ps: Promise<unknown>[] = [];
-    if (collectionDTO.createdBy) {
-      ps.push(cl.$set('createdBy', collectionDTO.createdBy, { transaction }));
-    }
-    if (collectionDTO.createdByDevice) {
-      ps.push(
-        cl.$set('createdByDevice', collectionDTO.createdByDevice, {
-          transaction,
-        })
-      );
+    const attribBlocks: Block[] = [];
+
+    for (const attrib of COLLECTION_ATTRIBS) {
+      if (attrib) {
+        const attribBlock = await createCollectionAttribBlock(
+          {
+            element: blockElement,
+            textContent: collectionDTO[attrib] as string,
+            document: collectionDTO.document,
+            collection: cl,
+            collectionAttrib: attrib,
+            createdBy: collectionDTO.createdBy,
+            createdByDevice: collectionDTO.createdByDevice,
+            approved: true,
+          },
+          transaction
+        );
+        attribBlocks.push(attribBlock);
+      }
     }
 
-    // Link the blocks
-    ps.push(
-      cl.$set(
-        'blocks',
-        [
-          teamBlock,
-          historyBlock,
-          categoryBlock,
-          utilityBlock,
-          mintingPriceWlBlock,
-          mintingPricePublicBlock,
-          floorPriceBlock,
-          discordUrlBlock,
-          twitterHandleBlock,
-          websiteUrlBlock,
-          chainBlock,
-          marketplaceBlock,
-        ],
-        { transaction }
-      )
+    const chainBlock = await createCollectionAttribBlock(
+      {
+        element: blockElement,
+        textContent:
+          collectionDTO.paymentTokens.map((pt) => pt.symbol).join(', ') || '',
+        document: collectionDTO.document,
+        collection: cl,
+        collectionAttrib: 'paymentTokens',
+        createdBy: collectionDTO.createdBy,
+        createdByDevice: collectionDTO.createdByDevice,
+        approved: true,
+      },
+      transaction
     );
+    attribBlocks.push(chainBlock);
+
+    // Link the deployer addresses
+    await setCollectionDeployerAddresses(
+      cl,
+      collectionDTO.collectionDeployers,
+      transaction
+    );
+
+    // Link the payment tokens
+    await setCollectionPaymentTokens(
+      cl,
+      collectionDTO.paymentTokens,
+      transaction
+    );
+
+    // Set the blocks
+    await cl.$set('blocks', attribBlocks, { transaction });
 
     // Find or create the collection category
     let cc: CollectionCategory | undefined = undefined;
@@ -477,21 +317,17 @@ export const createCollection = async (
 
     // Find or create the collection utility
     if (collectionDTO.utility) {
-      ps.push(
-        findOrCreateCollectionUtility(
-          {
-            name: collectionDTO.utility,
-            collection: cl,
-            category: cc || undefined,
-            createdBy: collectionDTO.createdBy,
-            createdByDevice: collectionDTO.createdByDevice,
-          },
-          transaction
-        )
+      await findOrCreateCollectionUtility(
+        {
+          name: collectionDTO.utility,
+          collection: cl,
+          category: cc || undefined,
+          createdBy: collectionDTO.createdBy,
+          createdByDevice: collectionDTO.createdByDevice,
+        },
+        transaction
       );
     }
-
-    await Promise.all(ps);
 
     return cl;
   } catch (error) {
@@ -527,6 +363,7 @@ export const updateCollectionBySlug = async (
         slug: collectionDTO.slug,
         name: collectionDTO.name,
         description: collectionDTO.description,
+        documentId: collectionDTO.document?.id,
         contractSchema: collectionDTO.contractSchema,
         email: collectionDTO.email,
         blogUrl: collectionDTO.blogUrl,
@@ -566,198 +403,36 @@ export const updateCollectionBySlug = async (
 
     const ps: Promise<unknown>[] = [];
 
-    if (blocksObj.team && collectionDTO.team !== undefined) {
-      ps.push(
-        auditTextBlock(
-          blocksObj.team,
+    for (const attrib of COLLECTION_ATTRIBS) {
+      if (attrib && blocksObj[attrib] && collectionDTO[attrib] !== undefined) {
+        await auditTextBlock(
+          blocksObj[attrib] as Block,
           {
-            textContent: collectionDTO.team,
+            textContent: collectionDTO[attrib] as string,
             approved: true,
             updatedBy: collectionDTO.updatedBy,
             updatedByDevice: collectionDTO.updatedByDevice,
             documentAudit,
           },
           transaction
-        )
-      );
-    }
-    if (blocksObj.history && collectionDTO.history !== undefined) {
-      ps.push(
-        auditTextBlock(
-          blocksObj.history,
-          {
-            textContent: collectionDTO.history,
-            approved: true,
-            updatedBy: collectionDTO.updatedBy,
-            updatedByDevice: collectionDTO.updatedByDevice,
-            documentAudit,
-          },
-          transaction
-        )
-      );
-    }
-    if (blocksObj.category && collectionDTO.category !== undefined) {
-      ps.push(
-        auditTextBlock(
-          blocksObj.category,
-          {
-            textContent: collectionDTO.category,
-            approved: true,
-            updatedBy: collectionDTO.updatedBy,
-            updatedByDevice: collectionDTO.updatedByDevice,
-            documentAudit,
-          },
-          transaction
-        )
-      );
-    }
-    if (blocksObj.utility && collectionDTO.utility !== undefined) {
-      ps.push(
-        auditTextBlock(
-          blocksObj.utility,
-          {
-            textContent: collectionDTO.utility,
-            approved: true,
-            updatedBy: collectionDTO.updatedBy,
-            updatedByDevice: collectionDTO.updatedByDevice,
-            documentAudit,
-          },
-          transaction
-        )
-      );
-    }
-    if (
-      blocksObj.mintingPriceWl &&
-      collectionDTO.mintingPriceWl !== undefined
-    ) {
-      ps.push(
-        auditTextBlock(
-          blocksObj.mintingPriceWl,
-          {
-            textContent: collectionDTO.mintingPriceWl,
-            approved: true,
-            updatedBy: collectionDTO.updatedBy,
-            updatedByDevice: collectionDTO.updatedByDevice,
-            documentAudit,
-          },
-          transaction
-        )
-      );
-    }
-    if (
-      blocksObj.mintingPricePublic &&
-      collectionDTO.mintingPricePublic !== undefined
-    ) {
-      ps.push(
-        auditTextBlock(
-          blocksObj.mintingPricePublic,
-          {
-            textContent: collectionDTO.mintingPricePublic,
-            approved: true,
-            updatedBy: collectionDTO.updatedBy,
-            updatedByDevice: collectionDTO.updatedByDevice,
-            documentAudit,
-          },
-          transaction
-        )
-      );
-    }
-    if (blocksObj.floorPrice && collectionDTO.floorPrice !== undefined) {
-      ps.push(
-        auditTextBlock(
-          blocksObj.floorPrice,
-          {
-            textContent: collectionDTO.floorPrice,
-            approved: true,
-            updatedBy: collectionDTO.updatedBy,
-            updatedByDevice: collectionDTO.updatedByDevice,
-            documentAudit,
-          },
-          transaction
-        )
-      );
-    }
-    if (blocksObj.discordUrl && collectionDTO.discordUrl !== undefined) {
-      ps.push(
-        auditTextBlock(
-          blocksObj.discordUrl,
-          {
-            textContent: collectionDTO.discordUrl,
-            approved: true,
-            updatedBy: collectionDTO.updatedBy,
-            updatedByDevice: collectionDTO.updatedByDevice,
-            documentAudit,
-          },
-          transaction
-        )
-      );
-    }
-    if (blocksObj.twitterHandle && collectionDTO.twitterHandle !== undefined) {
-      ps.push(
-        auditTextBlock(
-          blocksObj.twitterHandle,
-          {
-            textContent: collectionDTO.twitterHandle,
-            approved: true,
-            updatedBy: collectionDTO.updatedBy,
-            updatedByDevice: collectionDTO.updatedByDevice,
-            documentAudit,
-          },
-          transaction
-        )
-      );
-    }
-    if (blocksObj.websiteUrl && collectionDTO.websiteUrl !== undefined) {
-      ps.push(
-        auditTextBlock(
-          blocksObj.websiteUrl,
-          {
-            textContent: collectionDTO.websiteUrl,
-            approved: true,
-            updatedBy: collectionDTO.updatedBy,
-            updatedByDevice: collectionDTO.updatedByDevice,
-            documentAudit,
-          },
-          transaction
-        )
-      );
-    }
-    if (blocksObj.paymentTokens && collectionDTO.paymentTokens !== undefined) {
-      ps.push(
-        auditTextBlock(
-          blocksObj.paymentTokens,
-          {
-            textContent: collectionDTO.paymentTokens
-              .map((pt) => pt.symbol)
-              .join(', '),
-            approved: true,
-            updatedBy: collectionDTO.updatedBy,
-            updatedByDevice: collectionDTO.updatedByDevice,
-            documentAudit,
-          },
-          transaction
-        )
-      );
-    }
-    if (blocksObj.marketplace && collectionDTO.marketplace !== undefined) {
-      ps.push(
-        auditTextBlock(
-          blocksObj.marketplace,
-          {
-            textContent: collectionDTO.marketplace,
-            approved: true,
-            updatedBy: collectionDTO.updatedBy,
-            updatedByDevice: collectionDTO.updatedByDevice,
-            documentAudit,
-          },
-          transaction
-        )
-      );
+        );
+      }
     }
 
-    // Update the document
-    if (collectionDTO.document) {
-      ps.push(cl.$set('document', collectionDTO.document, { transaction }));
+    if (blocksObj.paymentTokens && collectionDTO.paymentTokens !== undefined) {
+      auditTextBlock(
+        blocksObj.paymentTokens,
+        {
+          textContent: collectionDTO.paymentTokens
+            .map((pt) => pt.symbol)
+            .join(', '),
+          approved: true,
+          updatedBy: collectionDTO.updatedBy,
+          updatedByDevice: collectionDTO.updatedByDevice,
+          documentAudit,
+        },
+        transaction
+      );
     }
 
     // Update Collection Deployers
