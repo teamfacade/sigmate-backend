@@ -28,8 +28,8 @@ import CollectionUtility, {
 import Document, { DocumentAttributes } from './Document';
 import MintingSchedule from './MintingSchedule';
 import Nft from './Nft';
-import User from './User';
-import UserDevice from './UserDevice';
+import User, { UserAttributes } from './User';
+import UserDevice, { UserDeviceAttributes } from './UserDevice';
 import Channel from './Channel';
 import DiscordAnnouncement from './DiscordAnnouncement';
 import TwitterAnnouncement from './TwitterAnnouncement';
@@ -61,10 +61,13 @@ export interface CollectionAttributes {
   mintingPriceWl?: string;
   mintingPricePublic?: string;
   floorPrice?: string;
+  documentId?: DocumentAttributes['id'];
   document?: Document;
   discordAnnouncement?: DiscordAnnouncement[];
   twitterAnnouncement?: TwitterAnnouncement[];
+  createdById?: UserAttributes['id'];
   createdBy?: User;
+  createdByDeviceId?: UserDeviceAttributes['id'];
   createdByDevice?: UserDevice;
   createdAt?: Date;
   updatedBy?: User;
