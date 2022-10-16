@@ -1,5 +1,21 @@
 import { Request, Response, NextFunction } from 'express';
-import { addEmailToWaitingList } from '../database/waiting';
+import {
+  addEmailToWaitingList,
+  getWaitingListCount,
+} from '../database/waiting';
+
+export const getWaitingListCountController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const count = await getWaitingListCount();
+    res.status(200).json({ success: true, count });
+  } catch (error) {
+    next(error);
+  }
+};
 
 type AddEmailToWaitingListReqBody = {
   email: string;
