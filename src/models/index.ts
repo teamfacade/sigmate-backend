@@ -46,6 +46,7 @@ import UserOwnedDevice from './UserOwnedDevice';
 import UserProfile from './UserProfile';
 import UserSavedMintingSchedule from './UserSavedMintingSchedule';
 import VerificationType from './VerificationType';
+import WaitingList from './WaitingList';
 
 const config = databaseConfig[process.env.NODE_ENV];
 
@@ -119,6 +120,7 @@ const initDatabase = () => {
     UserProfile,
     UserSavedMintingSchedule,
     VerificationType,
+    WaitingList,
   ]);
 
   const db = { sequelize };
