@@ -12,9 +12,11 @@ import BlockAudit from '../../../models/BlockAudit';
 import Collection from '../../../models/Collection';
 import User from '../../../models/User';
 import UserDevice from '../../../models/UserDevice';
+import ApiError from '../../../utils/errors/ApiError';
 import ConflictError from '../../../utils/errors/ConflictError';
 import NotFoundError from '../../../utils/errors/NotFoundError';
 import SequelizeError from '../../../utils/errors/SequelizeError';
+import UnauthenticatedError from '../../../utils/errors/UnauthenticatedError';
 
 export const getBlockById = async (
   id: BlockAttributes['id'],
@@ -34,6 +36,9 @@ export const createTextBlock = async (
   const userId = blockDTO.createdById || blockDTO.createdBy?.id;
   const userDeviceId =
     blockDTO.createdByDeviceId || blockDTO.createdByDevice?.id;
+
+  if (!userId) throw new UnauthenticatedError();
+  if (!userDeviceId) throw new ApiError('ERR_CREATE_BLOCK_DEVICE');
 
   try {
     const b = await Block.create(
@@ -106,14 +111,21 @@ export const createCollectionAttribBlock = async (
   blockDTO: CollectionAttribBlockCreationDTO,
   transaction: Transaction | undefined = undefined
 ) => {
+  const userId = blockDTO.createdById || blockDTO.createdBy?.id;
+  const userDeviceId =
+    blockDTO.createdByDeviceId || blockDTO.createdByDevice?.id;
+
+  if (!userId) throw new UnauthenticatedError();
+  if (!userDeviceId) throw new ApiError('ERR_CREATE_COLLECTION_BLOCK_DEVICE');
   try {
     const [block] = await createTextBlock(
       {
         element: blockDTO.element,
         textContent: blockDTO.textContent,
         collectionAttrib: blockDTO.collectionAttrib,
-        createdByDevice: blockDTO.createdByDevice,
-        createdBy: blockDTO.createdBy,
+        collectionId: blockDTO.collection?.id,
+        createdByDevice: userDeviceId,
+        createdBy: userId,
         document: blockDTO.document,
         style: blockDTO.style,
         parent: blockDTO.parent,
@@ -142,6 +154,9 @@ export const auditTextBlock = async (
     const userId = blockDTO.updatedById || blockDTO.updatedBy?.id;
     const userDeviceId =
       blockDTO.updatedByDeviceId || blockDTO.updatedByDevice?.id;
+
+    if (!userId) throw new UnauthenticatedError();
+    if (!userDeviceId) throw new ApiError('ERR_AUDIT_BLOCK_DEVICE');
 
     let isAudited = false;
 
