@@ -118,6 +118,7 @@ export const getForumPostsByCategory = async (
     return await category.$get('forumPosts', {
       limit: paginationOptions.limit,
       offset: paginationOptions.offset,
+      order: [['createdAt', 'DESC']],
       include: [
         {
           model: Category,
@@ -513,6 +514,7 @@ export const getForumPostComments = async (
       ],
       limit,
       offset,
+      order: [['createdAt', 'DESC']],
     });
   } catch (error) {
     throw new SequelizeError(error as Error);
