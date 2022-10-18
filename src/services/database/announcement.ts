@@ -6,8 +6,9 @@ import TwitterAnnouncement, {
   TwitterAnnoucemenetResponse,
 } from '../../models/TwitterAnnouncement';
 import SequelizeError from '../../utils/errors/SequelizeError';
-import mysql from 'mysql2';
 import dbConfig from '../../config/dbConfig';
+import promisePool from '../../config/poolConfig';
+
 type DA = {
   id: string;
   content: string;
@@ -26,8 +27,6 @@ export const getAllAnnouncements = async (
 ) => {
   try {
     const config = dbConfig[process.env.NODE_ENV];
-    const pool = mysql.createPool(config);
-    const promisePool = pool.promise();
     const union = `
       SELECT 'd' AS opt, content, timestamp, content_id AS contentId
       FROM ${config.database}.discord_announcements 
@@ -38,6 +37,7 @@ export const getAllAnnouncements = async (
       WHERE collection_id = ${id}
       ORDER BY timestamp DESC, contentId+0 ASC
       LIMIT ${limit} OFFSET ${offset};`;
+
     const res = await promisePool.query(union);
     if (res && res.length) {
       return res[0] as (
