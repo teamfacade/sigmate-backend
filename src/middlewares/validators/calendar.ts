@@ -1,4 +1,4 @@
-import { body, query, param } from 'express-validator';
+import { body, query, param, oneOf } from 'express-validator';
 import isInt from 'validator/lib/isInt';
 import { inMySQLIntRange } from './utils';
 
@@ -30,12 +30,15 @@ export const validateCreateMintingSchedule = [
     .bail()
     .toInt(),
   body('mintingTime').trim().isISO8601().withMessage('NOT_DATE'),
-  body('mintingUrl')
-    .optional()
-    .trim()
-    .stripLow()
-    .isURL({ protocols: ['http', 'https'] })
-    .bail(),
+  oneOf([
+    body('mintingUrl')
+      .optional()
+      .trim()
+      .stripLow()
+      .isURL({ protocols: ['http', 'https'] })
+      .withMessage('NOT_URL'),
+    body('mintingUrl').optional().trim().stripLow().isEmpty(),
+  ]),
   body('description')
     .optional()
     .trim()
