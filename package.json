@@ -52,7 +52,8 @@
     "url-regex": "^5.0.0",
     "uuid": "^8.3.2",
     "validator": "^13.7.0",
-    "web3": "^1.7.5"
+    "web3": "^1.7.5",
+    "winston": "^3.8.2"
   },
   "devDependencies": {
     "@types/cookie-parser": "^1.4.3",
