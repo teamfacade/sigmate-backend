@@ -1,33 +1,60 @@
 import {
-  AllowNull,
   BelongsTo,
   Column,
   DataType,
-  HasMany,
   Table,
   Model,
+  AllowNull,
+  Default,
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
-import Block from './Block';
-import Image from './Image';
-import Url from './Url';
-import User from './User';
-import UserDevice from './UserDevice';
+import Block, { BlockAttributes } from './Block';
+import { DocumentAttributes } from './Document';
+import DocumentAudit, { DocumentAuditAttributes } from './DocumentAudit';
+import User, { UserAttributes } from './User';
+import UserDevice, { UserDeviceAttributes } from './UserDevice';
 
 export interface BlockAuditAttributes {
   id: number;
-  block: Block;
+  action: 'c' | 'u' | 'd'; // create, update, delete
+  block?: Block;
+  blockId?: BlockAttributes['id'];
+
+  // Multiple block audits can be a part of one document audit
+  documentAuditId?: DocumentAuditAttributes['id'];
+  documentAudit?: DocumentAudit;
+
+  // Attributes that we keep track of
   element?: string;
-  style?: string;
+  style?: { [key: string]: string };
   textContent?: string;
-  image?: Image;
-  url?: Url;
-  structure?: string;
-  parent?: Block;
-  children?: Block[];
+  structure?: BlockAttributes['id'][];
+  parentId?: BlockAttributes['id'];
+  documentId?: DocumentAttributes['id'];
+
+  // Pointer to the last audit of each field
+  // if it was not audited on this version
+  // -- for quick reconstruction of versions
+  lastElementAuditId?: BlockAuditAttributes['id'];
+  lastElementAudit?: BlockAudit;
+  lastStyleAuditId?: BlockAuditAttributes['id'];
+  lastStyleAudit?: BlockAudit;
+  lastTextContentAuditId?: BlockAuditAttributes['id'];
+  lastTextContentAudit?: BlockAudit;
+  lastStructureAuditId?: BlockAuditAttributes['id'];
+  lastStructureAudit?: BlockAudit;
+  lastParentAuditId?: BlockAuditAttributes['id'];
+  lastParentAudit?: BlockAudit;
+
+  createdByDeviceId?: UserDeviceAttributes['id'];
   createdByDevice?: UserDevice;
+  createdById?: UserAttributes['id'];
   createdBy?: User;
+  createdAt: Date;
+  updatedAt: Date;
+  approvedByDeviceId?: UserDeviceAttributes['id'];
   approvedByDevice?: UserDevice;
+  approvedById?: UserAttributes['id'];
   approvedBy?: User;
   approvedAt?: Date;
   revertedByDevice?: UserDevice;
@@ -35,7 +62,10 @@ export interface BlockAuditAttributes {
   revertedAt?: Date;
 }
 
-export type BlockAuditCreationAttributes = Optional<BlockAuditAttributes, 'id'>;
+export type BlockAuditCreationAttributes = Optional<
+  BlockAuditAttributes,
+  'id' | 'action' | 'createdAt' | 'updatedAt'
+>;
 
 @Table({
   tableName: 'block_audits',
@@ -50,39 +80,43 @@ export default class BlockAudit extends Model<
   BlockAuditAttributes,
   BlockAuditCreationAttributes
 > {
-  @BelongsTo(() => Block, 'blockId')
-  block!: BlockAuditAttributes['block'];
-
+  @Default('u')
   @AllowNull(false)
-  @Column(DataType.TEXT)
-  element!: BlockAuditAttributes['element'];
+  @Column(DataType.STRING(1))
+  action!: BlockAuditAttributes['action'];
+
+  @BelongsTo(() => Block, 'blockId')
+  block: BlockAuditAttributes['block'];
+
+  @BelongsTo(() => DocumentAudit, {
+    as: 'documentAudit',
+    foreignKey: 'documentAuditId',
+  })
+  documentAudit: BlockAuditAttributes['documentAudit'];
+
+  @Column(DataType.STRING(16))
+  element: BlockAuditAttributes['element'];
+
+  @Column(DataType.JSON)
+  style: BlockAuditAttributes['style'];
 
   @Column(DataType.TEXT)
-  style!: BlockAuditAttributes['style'];
+  textContent: BlockAuditAttributes['textContent'];
 
-  @Column(DataType.TEXT)
-  textContent!: BlockAuditAttributes['textContent'];
+  @Column(DataType.JSON)
+  structure: BlockAuditAttributes['structure'];
 
-  @BelongsTo(() => Image, 'imageId')
-  image!: BlockAuditAttributes['image'];
+  @Column(DataType.INTEGER)
+  parentId: BlockAuditAttributes['parentId'];
 
-  @BelongsTo(() => Url, 'urlId')
-  url!: BlockAuditAttributes['url'];
-
-  @Column(DataType.TEXT)
-  structure!: BlockAuditAttributes['structure'];
-
-  @BelongsTo(() => Block, 'parentId')
-  parent: BlockAuditAttributes['parent'];
-
-  @HasMany(() => Block, 'parentId')
-  children: BlockAuditAttributes['children'];
+  @Column(DataType.INTEGER)
+  documentId: BlockAuditAttributes['documentId'];
 
   @BelongsTo(() => UserDevice, 'createdByDeviceId')
-  createdByDevice!: BlockAuditAttributes['createdByDevice'];
+  createdByDevice: BlockAuditAttributes['createdByDevice'];
 
   @BelongsTo(() => User, 'createdById')
-  createdBy!: BlockAuditAttributes['createdBy'];
+  createdBy: BlockAuditAttributes['createdBy'];
 
   @BelongsTo(() => UserDevice, 'approvedByDeviceId')
   approvedByDevice: BlockAuditAttributes['approvedByDevice'];

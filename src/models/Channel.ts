@@ -1,46 +1,58 @@
 import {
-  AllowNull,
+  BelongsTo,
   Column,
   DataType,
   Model,
   Table,
-  Unique,
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
-
-export interface ChannelAttributes {
+import Collection from './Collection';
+export interface TwitterAnnouncementAttributes {
   id: number;
-  project_name: string;
-  discord_channel?: string;
-  twitter_account?: string;
+  collectionId?: number;
+  collection?: Collection;
+  twitterChannel: string;
+  contentId: string;
+  content: string;
+  timestamp: string;
 }
+export type TwitterAnnouncementCreationAttributes = Optional<
+  TwitterAnnouncementAttributes,
+  'id'
+>;
 
-export type ChannelCreationAttributes = Optional<ChannelAttributes, 'id'>;
+export type TwitterAnnoucemenetResponse = {
+  opt: 't';
+  content: string;
+  timestamp: string;
+  content_id: number;
+};
 
 @Table({
-  tableName: 'channel_types',
-  modelName: 'ChannelType',
-  underscored: true,
+  tableName: 'twitter_announcements',
+  modelName: 'TwitterAnnouncement',
   timestamps: true,
+  paranoid: true,
+  underscored: true,
   charset: 'utf8mb4',
   collate: 'utf8mb4_general_ci',
 })
-export default class Channel extends Model<
-  ChannelAttributes,
-  ChannelCreationAttributes
+export default class TwitterAnnouncement extends Model<
+  TwitterAnnouncementAttributes,
+  TwitterAnnouncementCreationAttributes
 > {
-  @Unique('dicord_channel')
-  @AllowNull(false)
-  @Column(DataType.STRING(64))
-  project_name!: ChannelAttributes['project_name'];
+  @BelongsTo(() => Collection, { foreignKey: 'collectionId' })
+  collection: TwitterAnnouncementAttributes['collection'];
 
-  @Unique('dicord_channel')
-  @AllowNull(true)
-  @Column(DataType.STRING(64))
-  discord_channel: ChannelAttributes['discord_channel'];
+  @Column(DataType.STRING(150))
+  twitterChannel!: string;
 
-  @Unique('discord_channel')
-  @AllowNull(true)
-  @Column(DataType.STRING(64))
-  twitter_account: ChannelAttributes['twitter_account'];
+  @Column(DataType.STRING(150))
+  contentId!: string;
+
+  @Column(DataType.TEXT)
+  content!: string;
+
+  @Column(DataType.STRING(150))
+  timestamp!: string;
 }

@@ -11,6 +11,19 @@ import ConflictError from '../../utils/errors/ConflictError';
 import NotFoundError from '../../utils/errors/NotFoundError';
 import SequelizeError from '../../utils/errors/SequelizeError';
 
+export const getCategoryById = async (categoryId: number | string) => {
+  if (!categoryId) return null;
+  if (typeof categoryId !== 'number') {
+    categoryId = parseInt(categoryId);
+    if (isNaN(categoryId)) throw new BadRequestError();
+  }
+  try {
+    return await Category.findByPk(categoryId);
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
 export const getCategories = async (page: number, limit = 50) => {
   if (typeof page !== 'number' || page <= 0) return null;
   if (typeof limit !== 'number' || limit <= 0) return null;
@@ -64,7 +77,7 @@ export const updateCategory = async (
 
 export const deleteCategory = async (categoryDTO: CategoryDeleteDTO) => {
   try {
-    if (!categoryDTO.id && !categoryDTO.name) throw new BadRequestError();
+    if (!categoryDTO.id) throw new BadRequestError();
 
     return await db.sequelize.transaction(async (transaction) => {
       const affectedRowCount = await Category.destroy({

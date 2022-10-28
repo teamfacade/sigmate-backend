@@ -5,6 +5,10 @@ import {
 } from '../../../middlewares/authMiddlewares';
 import handleBadRequest from '../../../middlewares/handleBadRequest';
 import {
+  validateConnectMetaMask,
+  validateGetMetaMaskNonce,
+} from '../../../middlewares/validators/connect';
+import {
   validateUserCheck,
   validateUserPatch,
 } from '../../../middlewares/validators/user';
@@ -14,6 +18,10 @@ import {
   getUserController,
   patchUserController,
 } from '../../../services/user';
+import {
+  connectMetaMaskController,
+  getMetaMaskNonceController,
+} from '../../../services/user/connect';
 
 const userRouter = express.Router();
 
@@ -36,6 +44,18 @@ userRouter.get(
   validateUserCheck,
   handleBadRequest,
   checkUserController
+);
+
+userRouter
+  .route('/connect/metamask')
+  .get(validateGetMetaMaskNonce, handleBadRequest, getMetaMaskNonceController)
+  .delete();
+
+userRouter.post(
+  '/connect/metamask/verify',
+  validateConnectMetaMask,
+  handleBadRequest,
+  connectMetaMaskController
 );
 
 export default userRouter;

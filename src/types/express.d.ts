@@ -1,3 +1,4 @@
+import { PaginationOptions } from '../middlewares/handlePagination';
 import UserModel from '../models/User';
 import UserDevice from '../models/UserDevice';
 
@@ -7,12 +8,7 @@ declare global {
     export interface User extends UserModel {}
 
     export interface Request {
-      pg?: {
-        // pagination
-        limit: number;
-        page: number;
-        offset: number;
-      };
+      pg?: PaginationOptions;
       device?: UserDevice;
     }
   }

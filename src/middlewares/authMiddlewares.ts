@@ -6,6 +6,25 @@ import ForbiddenError from '../utils/errors/ForbiddenError';
 import UnauthenticatedError from '../utils/errors/UnauthenticatedError';
 
 export const passportJwtAuth = passport.authenticate('jwt', { session: false });
+export const passportJwtAuthOptional = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  passport.authenticate(
+    'jwt',
+    { session: false },
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    (err, user, info) => {
+      if (err) next(err);
+      // Just proceed on auth fail
+      if (user) {
+        req.user = user;
+      }
+      next();
+    }
+  )(req, res, next);
+};
 
 export const isAuthenticated = (
   req: Request,

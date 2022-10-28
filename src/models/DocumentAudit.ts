@@ -3,31 +3,35 @@ import {
   BelongsToMany,
   Column,
   DataType,
-  HasOne,
   Model,
   Table,
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
-import NestedArray from '../types/NestedArray';
-import Block, { BlockIdType } from './Block';
-import Document from './Document';
+import Document, { DocumentAttributes } from './Document';
 import Category from './Category';
-import User from './User';
-import UserDevice from './UserDevice';
+import User, { UserAttributes } from './User';
+import UserDevice, { UserDeviceAttributes } from './UserDevice';
 import DocumentAuditCategory from './DocumentAuditCategory';
+import BlockAudit from './BlockAudit';
+import { BlockAttributes } from './Block';
 
 export interface DocumentAuditAttributes {
   id: number;
-  document: Document;
+  documentId?: DocumentAttributes['id'];
+  document?: Document;
   title?: string;
-  structure?: string;
-  template?: Document;
-  parent?: Document;
-  blocks?: Block[];
+  structure?: BlockAttributes['id'][];
+  parentId?: DocumentAttributes['id']; // Not an association
   categories?: Category[];
-  createdByDevice: UserDevice;
+  blockAudits?: BlockAudit[];
+
+  createdByDeviceId?: UserDeviceAttributes['id'];
+  createdByDevice?: UserDevice;
+  createdById?: UserAttributes['id'];
   createdBy?: User;
+  approvedByDeviceId?: UserDeviceAttributes['id'];
   approvedByDevice?: UserDevice;
+  approvedById?: UserAttributes['id'];
   approvedBy?: User;
   approvedAt?: Date;
   revertedByDevice?: UserDevice;
@@ -44,6 +48,7 @@ export type DocumentAuditCreationAttributes = Optional<
 @Table({
   tableName: 'document_audits',
   modelName: 'DocumentAudit',
+  underscored: true,
   timestamps: true,
   paranoid: true,
   charset: 'utf8mb4',
@@ -54,31 +59,16 @@ export default class DocumentAudit extends Model<
   DocumentAuditCreationAttributes
 > {
   @BelongsTo(() => Document, 'documentId')
-  document!: DocumentAuditAttributes['document'];
+  document: DocumentAuditAttributes['document'];
 
   @Column(DataType.STRING(191))
-  title!: DocumentAuditAttributes['title'];
+  title: DocumentAuditAttributes['title'];
 
-  @Column(DataType.TEXT)
-  get structure() {
-    const stringified = this.getDataValue('structure');
-    if (!stringified) return [];
-    return JSON.parse(stringified);
-  }
-  set structure(value: NestedArray<BlockIdType>) {
-    try {
-      this.setDataValue('structure', JSON.stringify(value));
-    } catch (error) {
-      console.error(error);
-      throw new Error('ERR_MODEL_DOCUMENT_SET_STRUCTURE');
-    }
-  }
+  @Column(DataType.JSON)
+  structure: DocumentAuditAttributes['structure'];
 
-  @HasOne(() => Document, 'templateId')
-  template: DocumentAuditAttributes['template'];
-
-  @BelongsTo(() => Document, 'auditParentId')
-  parent: DocumentAuditAttributes['parent'];
+  @Column(DataType.INTEGER)
+  parentId: DocumentAuditAttributes['parentId'];
 
   @BelongsToMany(() => Category, () => DocumentAuditCategory)
   categories: DocumentAuditAttributes['categories'];

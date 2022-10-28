@@ -8,23 +8,32 @@ import {
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
 import ForumPost from './ForumPost';
-import User from './User';
+import User, { UserPublicResponse } from './User';
 import UserDevice from './UserDevice';
 
 export interface ForumPostVoteAttributes {
   id: number;
-  post: ForumPost;
+  post?: ForumPost;
   like: boolean;
-  createdBy: User;
-  createdByDevice: UserDevice;
+  createdAt: Date;
+  updatedAt?: Date;
+  deletedAt?: Date;
+  createdBy?: User;
+  createdByDevice?: UserDevice;
   deletedBy?: User;
   deletedByDevice?: UserDevice;
 }
 
 export type ForumPostVoteCreationAttributes = Optional<
   ForumPostVoteAttributes,
-  'id'
+  'id' | 'createdAt'
 >;
+
+export interface ForumPostVoteResponse
+  extends Pick<ForumPostVoteAttributes, 'id' | 'like'> {
+  createdBy: UserPublicResponse;
+  createdAt: Date;
+}
 
 @Table({
   modelName: 'ForumPostVote',
@@ -38,21 +47,27 @@ export default class ForumPostVote extends Model<
   ForumPostVoteCreationAttributes
 > {
   @BelongsTo(() => ForumPost, 'forumPostId')
-  post!: ForumPostVoteAttributes['post'];
+  post: ForumPostVoteAttributes['post'];
 
   @AllowNull(false)
   @Column(DataType.BOOLEAN)
   like!: ForumPostVoteAttributes['like']; // true: upvote (+1), false: downvote (-1)
 
-  @BelongsTo(() => User, 'createdById')
-  createdBy!: ForumPostVoteAttributes['createdBy'];
+  @BelongsTo(() => User, { as: 'createdBy', foreignKey: 'createdById' })
+  createdBy: ForumPostVoteAttributes['createdBy'];
 
-  @BelongsTo(() => UserDevice, 'createdByDeviceId')
-  createdByDevice!: ForumPostVoteAttributes['createdByDevice'];
+  @BelongsTo(() => UserDevice, {
+    as: 'createdByDevice',
+    foreignKey: 'createdByDeviceId',
+  })
+  createdByDevice: ForumPostVoteAttributes['createdByDevice'];
 
-  @BelongsTo(() => User, 'deletedById')
+  @BelongsTo(() => User, { as: 'deletedBy', foreignKey: 'deletedById' })
   deletedBy: ForumPostVoteAttributes['deletedBy'];
 
-  @BelongsTo(() => UserDevice, 'deletedByDeviceId')
+  @BelongsTo(() => UserDevice, {
+    as: 'deletedByDevice',
+    foreignKey: 'deletedByDeviceId',
+  })
   deletedByDevice: ForumPostVoteAttributes['deletedByDevice'];
 }

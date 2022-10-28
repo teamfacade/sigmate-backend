@@ -1,14 +1,19 @@
 import { Sequelize } from 'sequelize-typescript';
 import databaseConfig from '../config/database';
 import AdminUser from './AdminUser';
+import BcToken from './BcToken';
 import Block from './Block';
 import BlockAudit from './BlockAudit';
 import BlockVerification from './BlockVerification';
 import Category from './Category';
+import Channel from './Channel';
 import Collection from './Collection';
+import CollectionDeployer from './CollectionDeployer';
 import CollectionDocumentTable from './CollectionDocumentTable';
-import CollectionType from './CollectionType';
+import CollectionPaymentToken from './CollectionPaymentToken';
+import CollectionCategory from './CollectionCategory';
 import CollectionUtility from './CollectionUtility';
+import DiscordAnnouncement from './DiscordAnnouncement';
 import Document from './Document';
 import DocumentAudit from './DocumentAudit';
 import DocumentAuditCategory from './DocumentAuditCategory';
@@ -28,6 +33,7 @@ import MintingSchedule from './MintingSchedule';
 import Nft from './Nft';
 import Opinion from './Opinion';
 import OpinionVerification from './OpinionVerification';
+import TwitterAnnouncement from './TwitterAnnouncement';
 import Url from './Url';
 import UrlVerification from './UrlVerification';
 import User from './User';
@@ -40,6 +46,7 @@ import UserOwnedDevice from './UserOwnedDevice';
 import UserProfile from './UserProfile';
 import UserSavedMintingSchedule from './UserSavedMintingSchedule';
 import VerificationType from './VerificationType';
+import WaitingList from './WaitingList';
 
 const config = databaseConfig[process.env.NODE_ENV];
 
@@ -68,14 +75,19 @@ const initDatabase = () => {
   const sequelize = initSequelize();
   sequelize.addModels([
     AdminUser,
+    BcToken,
     Block,
     BlockAudit,
     BlockVerification,
     Category,
+    Channel,
     Collection,
+    CollectionDeployer,
     CollectionDocumentTable,
-    CollectionType,
+    CollectionPaymentToken,
+    CollectionCategory,
     CollectionUtility,
+    DiscordAnnouncement,
     Document,
     DocumentAudit,
     DocumentAuditCategory,
@@ -95,6 +107,7 @@ const initDatabase = () => {
     Nft,
     Opinion,
     OpinionVerification,
+    TwitterAnnouncement,
     Url,
     UrlVerification,
     User,
@@ -107,45 +120,10 @@ const initDatabase = () => {
     UserProfile,
     UserSavedMintingSchedule,
     VerificationType,
+    WaitingList,
   ]);
 
-  const db = {
-    sequelize,
-    AdminUser,
-    Block,
-    BlockAudit,
-    BlockVerification,
-    Category,
-    Collection,
-    CollectionDocumentTable,
-    CollectionType,
-    CollectionUtility,
-    Document,
-    DocumentAudit,
-    DocumentCategory,
-    ForumComment,
-    ForumCommentVote,
-    ForumPost,
-    ForumPostView,
-    ForumPostVote,
-    ForumReport,
-    ForumTag,
-    Image,
-    MintingSchedule,
-    Nft,
-    Opinion,
-    OpinionVerification,
-    Url,
-    UrlVerification,
-    User,
-    UserAgent,
-    UserAttendance,
-    UserAuth,
-    UserDevice,
-    UserGroup,
-    UserProfile,
-    VerificationType,
-  };
+  const db = { sequelize };
 
   return db;
 };

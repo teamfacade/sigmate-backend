@@ -1,31 +1,38 @@
 import {
-  AllowNull,
+  BelongsTo,
   Column,
   DataType,
   Model,
   Table,
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
-
+import Collection from './Collection';
 export interface TwitterAnnouncementAttributes {
   id: number;
-  project_name: string;
-  twitter_account: string;
-  content: string;
+  collectionId?: number;
+  collection?: Collection;
+  twitterChannel: string;
   contentId: string;
-  timestamp?: string;
+  content: string;
+  timestamp: string;
 }
-
 export type TwitterAnnouncementCreationAttributes = Optional<
   TwitterAnnouncementAttributes,
   'id'
 >;
+export type TwitterAnnoucemenetResponse = {
+  opt: 't';
+  content: string;
+  timestamp: string;
+  content_id: number;
+};
 
 @Table({
   tableName: 'twitter_announcements',
   modelName: 'TwitterAnnouncement',
-  underscored: true,
   timestamps: true,
+  paranoid: true,
+  underscored: true,
   charset: 'utf8mb4',
   collate: 'utf8mb4_general_ci',
 })
@@ -33,19 +40,18 @@ export default class TwitterAnnouncement extends Model<
   TwitterAnnouncementAttributes,
   TwitterAnnouncementCreationAttributes
 > {
+  @BelongsTo(() => Collection, { foreignKey: 'collectionId' })
+  collection: TwitterAnnouncementAttributes['collection'];
+
   @Column(DataType.STRING(150))
-  project_name!: TwitterAnnouncementAttributes['project_name'];
+  twitterChannel!: string;
 
-  @Column(DataType.STRING(64))
-  twitter_account!: TwitterAnnouncementAttributes['twitter_account'];
+  @Column(DataType.STRING(150))
+  contentId!: string;
 
-  @AllowNull(false)
   @Column(DataType.TEXT)
-  content!: TwitterAnnouncementAttributes['content'];
+  content!: string;
 
-  @Column(DataType.STRING(64))
-  contentId!: TwitterAnnouncementAttributes['contentId'];
-
-  @Column(DataType.STRING(64))
-  timestamp: TwitterAnnouncementAttributes['timestamp'];
+  @Column(DataType.STRING(150))
+  timestamp!: string;
 }

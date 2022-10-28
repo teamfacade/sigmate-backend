@@ -4,7 +4,11 @@
  * @returns {Integer} IPv4 in Integer form
  */
 export const ipToInt = (ip: string | undefined): number => {
-  if (!ip) throw new Error('ERR_IPV4_UNDEFINED');
+  if (!ip) {
+    console.log('🛑 ip is falsy');
+    console.log(ip);
+    throw new Error('ERR_IPV4_UNDEFINED');
+  }
   const ipPattern = /^((25[0-5]|(2[0-4]|1\d|[1-9]|)\d)(\.(?!$)|$)){4}$/;
   if (!ipPattern.test(ip)) throw new Error('ERR_NOT_IPV4');
 

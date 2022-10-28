@@ -1,18 +1,18 @@
 import { BelongsTo, HasOne, Model, Table } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
 import Block from './Block';
-import Opinion from './Opinion';
+import Opinion, { OpinionAttributes } from './Opinion';
 import User from './User';
 import UserDevice from './UserDevice';
-import VerificationType from './VerificationType';
+import VerificationType, { VerificationTypeResponse } from './VerificationType';
 
 export interface BlockVerificationAttributes {
   id: number;
   verificationType: VerificationType;
   verificationOpinion?: Opinion; // opinion explaining the verification
   subject: Block;
-  createdByDevice: UserDevice;
-  createdBy: User;
+  createdByDevice?: UserDevice;
+  createdBy?: User;
   deletedByDevice?: UserDevice;
   deletedBy?: User;
 }
@@ -21,6 +21,12 @@ export type BlockVerificationCreationAttributes = Optional<
   BlockVerificationAttributes,
   'id'
 >;
+
+export interface BlockVerificationResponse
+  extends Pick<BlockVerificationAttributes, 'id'> {
+  verificationType?: VerificationTypeResponse;
+  verificationOpinion?: Pick<OpinionAttributes, 'id' | 'createdAt'> | null;
+}
 
 @Table({
   tableName: 'block_verifications',
@@ -42,15 +48,35 @@ export default class BlockVerification extends Model<
   @BelongsTo(() => Block, 'blockId')
   subject!: BlockVerificationAttributes['subject'];
 
-  @BelongsTo(() => UserDevice, 'createdByDeviceId')
-  createdByDevice!: BlockVerificationAttributes['createdByDevice'];
+  @BelongsTo(() => UserDevice, {
+    as: 'createdByDevice',
+    foreignKey: 'createdByDeviceId',
+  })
+  createdByDevice: BlockVerificationAttributes['createdByDevice'];
 
-  @BelongsTo(() => User, 'createdById')
-  createdBy!: BlockVerificationAttributes['createdBy'];
+  @BelongsTo(() => User, { as: 'createdBy', foreignKey: 'createdById' })
+  createdBy: BlockVerificationAttributes['createdBy'];
 
-  @BelongsTo(() => UserDevice, 'deletedByDeviceId')
+  @BelongsTo(() => UserDevice, {
+    as: 'deletedByDevice',
+    foreignKey: 'deletedByDeviceId',
+  })
   deletedByDevice: BlockVerificationAttributes['deletedByDevice'];
 
-  @BelongsTo(() => User, 'deletedById')
+  @BelongsTo(() => User, { as: 'deletedBy', foreignKey: 'deletedById' })
   deletedBy: BlockVerificationAttributes['deletedBy'];
+
+  async toResponseJSON(): Promise<BlockVerificationResponse> {
+    const vt = await this.$get('verificationType');
+    const vo = await this.$get('verificationOpinion', {
+      attributes: ['id', 'createdAt'],
+    });
+    const vor = vo ? { id: vo.id, createdAt: vo.createdAt } : undefined;
+
+    return {
+      id: this.id,
+      verificationType: vt?.toResponseJSON(),
+      verificationOpinion: vor,
+    };
+  }
 }
