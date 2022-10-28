@@ -13,9 +13,9 @@ import CollectionType from './CollectionType';
 import CollectionUtility from './CollectionUtility';
 import Document from './Document';
 import MintingSchedule from './MintingSchedule';
-import Nft from './Nft';
 import User from './User';
 import UserDevice from './UserDevice';
+import Nft from './NFT';
 
 export interface CollectionAttributes {
   id: number;
