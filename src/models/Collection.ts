@@ -93,6 +93,7 @@ export interface CollectionAttributes {
   // for confirm
   confirmed?: boolean;
   confirmedBy?: User;
+  confirmedById?: UserAttributes['id'];
 }
 
 export type CollectionCreationAttributes = Optional<CollectionAttributes, 'id'>;
@@ -365,7 +366,7 @@ export default class Collection extends Model<
   blocks: CollectionAttributes['blocks'];
 
   // for admin page
-  @Default('0')
+  @Default(false)
   @Column(DataType.BOOLEAN)
   confirmed: CollectionAttributes['confirmed'];
 

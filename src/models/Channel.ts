@@ -12,6 +12,7 @@ export interface ChannelAttributes {
   id: number;
   collectionId?: CollectionAttributes['id'];
   collection?: Collection;
+  name?: string;
   discordChannel: string;
   twitterChannel: string;
 }
@@ -31,6 +32,8 @@ export default class Channel extends Model<
 > {
   @BelongsTo(() => Collection, { foreignKey: 'collectionId' })
   collection: ChannelAttributes['collection'];
+  @Column(DataType.STRING(150))
+  name: ChannelAttributes['name'];
   @Column(DataType.STRING(150))
   discordChannel!: string;
   @Column(DataType.STRING(150))

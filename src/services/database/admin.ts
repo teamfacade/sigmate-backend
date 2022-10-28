@@ -1,14 +1,15 @@
 import Channel from '../../models/Channel';
 import Collection from '../../models/Collection';
 import SequelizeError from '../../utils/errors/SequelizeError';
-import Client from 'twitter-api-sdk';
 import NotFoundError from '../../utils/errors/NotFoundError';
+import User from '../../models/User';
+import UnauthenticatedError from '../../utils/errors/UnauthenticatedError';
 
 // for admin page
 export const getUnconfirmedCollections = async () => {
   try {
     return await Collection.findAll({
-      attributes: ['id', 'discordUrl', 'twitterHandle'],
+      attributes: ['id', 'name', 'discordUrl', 'twitterHandle'],
       where: { confirmed: 0 },
     });
   } catch (error) {
@@ -16,30 +17,46 @@ export const getUnconfirmedCollections = async () => {
   }
 };
 
-export const getTwitterId = async (twitterHandle: string) => {
+export const createConfirmedChannel = async (
+  collectionId: number,
+  discordChannel: string,
+  twitterChannel: string,
+  twitterHandle: string
+) => {
   try {
-    const client = new Client(process.env.TWITTER_BEARER_TOKEN as string);
-    const twitterChannel = await client.users.findUserByUsername(twitterHandle);
-    console.log(twitterChannel);
-    if (!twitterChannel.data) {
-      throw new NotFoundError();
-    }
-    return twitterChannel.data.id;
+    const [channel] = await Channel.findOrCreate({
+      where: {
+        collectionId: collectionId,
+      },
+      defaults: {
+        collectionId: collectionId,
+        name: twitterHandle,
+        discordChannel: discordChannel,
+        twitterChannel: twitterChannel,
+      },
+    });
+
+    return channel;
   } catch (error) {
     throw new SequelizeError(error as Error);
   }
 };
 
-export const postConfirmedCollection = async (
+export const updateConfirmedCollection = async (
   collectionId: number,
-  discordChannel: string,
-  twitterChannel: string
+  discordUrl: string,
+  twitterHandle: string,
+  user: User | undefined
 ) => {
   try {
-    return await Channel.create({
-      collectionId: collectionId,
-      discordChannel: discordChannel,
-      twitterChannel: twitterChannel,
+    const cl = await Collection.findByPk(collectionId);
+    if (!cl) throw new NotFoundError();
+    if (!user) throw new UnauthenticatedError();
+    return await cl.update({
+      confirmed: true,
+      confirmedById: user.id,
+      discordUrl,
+      twitterHandle,
     });
   } catch (error) {
     throw new SequelizeError(error as Error);

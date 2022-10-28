@@ -1,8 +1,9 @@
 import { NextFunction, Request, Response } from 'express';
+import { getTwitterId } from '../3p/twitter';
 import {
-  getTwitterId,
   getUnconfirmedCollections,
-  postConfirmedCollection,
+  createConfirmedChannel,
+  updateConfirmedCollection,
 } from '../database/admin';
 
 export const getUnconfirmedCollectionsController = async (
@@ -27,12 +28,21 @@ export const postConfirmedCollectionController = async (
   next: NextFunction
 ) => {
   try {
-    const { collectionId, discordChannel, twitterHandle } = req.body;
+    const user = req.user;
+    const { collectionId, discordUrl, discordChannel, twitterHandle } =
+      req.body;
     const twitterChannel = await getTwitterId(twitterHandle);
-    const channel = await postConfirmedCollection(
+    const channel = await createConfirmedChannel(
       collectionId,
       discordChannel,
-      twitterChannel
+      twitterChannel,
+      twitterHandle
+    );
+    await updateConfirmedCollection(
+      collectionId,
+      discordUrl,
+      twitterHandle,
+      user
     );
     res.status(200).json({
       success: true,

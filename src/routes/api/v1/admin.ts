@@ -1,4 +1,5 @@
 import express from 'express';
+import { passportJwtAuth } from '../../../middlewares/authMiddlewares';
 import {
   getUnconfirmedCollectionsController,
   postConfirmedCollectionController,
@@ -6,7 +7,11 @@ import {
 
 const adminRouter = express.Router();
 
-adminRouter.route('/c').get(getUnconfirmedCollectionsController);
+adminRouter
+  .route('/c')
+  .get(passportJwtAuth, getUnconfirmedCollectionsController);
 
-adminRouter.route('/confirm').post(postConfirmedCollectionController);
+adminRouter
+  .route('/confirm')
+  .post(passportJwtAuth, postConfirmedCollectionController);
 export default adminRouter;
