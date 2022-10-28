@@ -8,7 +8,7 @@ import {
 const adminRouter = express.Router();
 
 adminRouter
-  .route('/c')
+  .route('/uc')
   .get(passportJwtAuth, getUnconfirmedCollectionsController);
 
 adminRouter
