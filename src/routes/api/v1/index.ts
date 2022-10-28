@@ -8,6 +8,7 @@ import userRouter from './user';
 import wikiRouter from './wiki';
 import imageRouter from './image';
 import waitingRouter from './waiting';
+import adminRouter from './admin';
 
 const v1Router = express.Router();
 
@@ -20,5 +21,5 @@ v1Router.use('/wiki', wikiRouter);
 v1Router.use('/calendar', calendarRouter);
 v1Router.use('/wh', announcementRouter);
 v1Router.use('/waiting', waitingRouter);
-
+v1Router.use('/admin', adminRouter);
 export default v1Router;

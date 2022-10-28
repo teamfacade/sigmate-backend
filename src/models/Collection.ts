@@ -365,6 +365,7 @@ export default class Collection extends Model<
   blocks: CollectionAttributes['blocks'];
 
   // for admin page
+  @Default('0')
   @Column(DataType.BOOLEAN)
   confirmed: CollectionAttributes['confirmed'];
 
