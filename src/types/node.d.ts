@@ -25,5 +25,6 @@ declare namespace NodeJS {
     AWS_ACCESS_KEY: string;
     AWS_SECRET_ACCESS_KEY: string;
     AWS_S3_IMAGE_BASEURL: string;
+    TWITTER_BEARER_TOKEN: string;
   }
 }

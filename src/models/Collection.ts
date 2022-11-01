@@ -89,6 +89,11 @@ export interface CollectionAttributes {
   channel?: Channel;
   discordAnnouncements?: DiscordAnnouncement[];
   twitterAnnouncements?: TwitterAnnouncement[];
+
+  // for confirm
+  confirmed?: boolean;
+  confirmedBy?: User;
+  confirmedById?: UserAttributes['id'];
 }
 
 export type CollectionCreationAttributes = Optional<CollectionAttributes, 'id'>;
@@ -191,6 +196,9 @@ export interface CollectionCreationDTO
   createdByDevice?: UserDevice;
   team?: string;
   history?: string;
+  // for confirm
+  confirmed?: boolean;
+  confirmedBy?: User;
 }
 
 export interface CollectionUpdateDTO
@@ -356,6 +364,14 @@ export default class Collection extends Model<
 
   @HasMany(() => Block, 'collectionId')
   blocks: CollectionAttributes['blocks'];
+
+  // for admin page
+  @Default(false)
+  @Column(DataType.BOOLEAN)
+  confirmed: CollectionAttributes['confirmed'];
+
+  @BelongsTo(() => User, 'confirmedById')
+  confirmedBy: CollectionAttributes['confirmedBy'];
 
   toResponseJSONConcise(): CollectionResponseConcise {
     return {

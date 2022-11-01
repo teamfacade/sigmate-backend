@@ -6,53 +6,36 @@ import {
   Table,
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
-import Collection from './Collection';
-export interface TwitterAnnouncementAttributes {
+import Collection, { CollectionAttributes } from './Collection';
+
+export interface ChannelAttributes {
   id: number;
-  collectionId?: number;
+  collectionId?: CollectionAttributes['id'];
   collection?: Collection;
+  name?: string;
+  discordChannel: string;
   twitterChannel: string;
-  contentId: string;
-  content: string;
-  timestamp: string;
 }
-export type TwitterAnnouncementCreationAttributes = Optional<
-  TwitterAnnouncementAttributes,
-  'id'
->;
-
-export type TwitterAnnoucemenetResponse = {
-  opt: 't';
-  content: string;
-  timestamp: string;
-  content_id: number;
-};
-
+export type ChannelCreationAttributes = Optional<ChannelAttributes, 'id'>;
 @Table({
-  tableName: 'twitter_announcements',
-  modelName: 'TwitterAnnouncement',
+  tableName: 'channels',
+  modelName: 'Channel',
   timestamps: true,
   paranoid: true,
   underscored: true,
   charset: 'utf8mb4',
   collate: 'utf8mb4_general_ci',
 })
-export default class TwitterAnnouncement extends Model<
-  TwitterAnnouncementAttributes,
-  TwitterAnnouncementCreationAttributes
+export default class Channel extends Model<
+  ChannelAttributes,
+  ChannelCreationAttributes
 > {
   @BelongsTo(() => Collection, { foreignKey: 'collectionId' })
-  collection: TwitterAnnouncementAttributes['collection'];
-
+  collection: ChannelAttributes['collection'];
+  @Column(DataType.STRING(150))
+  name: ChannelAttributes['name'];
+  @Column(DataType.STRING(150))
+  discordChannel!: string;
   @Column(DataType.STRING(150))
   twitterChannel!: string;
-
-  @Column(DataType.STRING(150))
-  contentId!: string;
-
-  @Column(DataType.TEXT)
-  content!: string;
-
-  @Column(DataType.STRING(150))
-  timestamp!: string;
 }
