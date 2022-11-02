@@ -6,12 +6,18 @@ export const validateConfirm = [
     .stripLow()
     .notEmpty()
     .withMessage('REQUIRED')
-    .bail()
     .isInt()
     .withMessage('NOT_INT')
-    .bail()
     .toInt(),
-  body('discordChannel').trim().stripLow().bail(),
-  body('twitterChannel').trim().stripLow().bail(),
-  body('twitterHandle').trim().stripLow().bail(),
+  body('discordChannel')
+    .trim()
+    .stripLow()
+    .isNumeric()
+    .withMessage('NOT_NUMERIC'),
+  body('twitterChannel')
+    .trim()
+    .stripLow()
+    .isNumeric()
+    .withMessage('NOT_NUMERIC'),
+  body('twitterHandle').trim().stripLow(),
 ];

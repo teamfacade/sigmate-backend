@@ -50,7 +50,7 @@ export const updateConfirmedCollection = async (
 ) => {
   try {
     const cl = await Collection.findByPk(collectionId);
-    if (!cl) throw new NotFoundError('ERR_NOT_FOUND');
+    if (!cl) throw new NotFoundError('ERR_CL_NOT_FOUND');
     if (!user) throw new UnauthenticatedError();
     return await cl.update({
       confirmed: true,

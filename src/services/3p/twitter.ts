@@ -10,7 +10,7 @@ export const getTwitterId = async (twitterHandle: string) => {
         twitterHandle
       );
       if (!twitterChannel.data) {
-        throw new NotFoundError('ERR_NOT_EXIST');
+        throw new NotFoundError('ERR_TWITTER_NOT_FOUND');
       }
       return twitterChannel.data.id;
     } else {
