@@ -9,15 +9,12 @@ export const validateConfirm = [
     .isInt()
     .withMessage('NOT_INT')
     .toInt(),
+  body('discordUrl').optional().trim().stripLow(),
   body('discordChannel')
+    .optional()
     .trim()
     .stripLow()
     .isNumeric()
     .withMessage('NOT_NUMERIC'),
-  body('twitterChannel')
-    .trim()
-    .stripLow()
-    .isNumeric()
-    .withMessage('NOT_NUMERIC'),
-  body('twitterHandle').trim().stripLow(),
+  body('twitterHandle').optional().trim().stripLow(),
 ];
