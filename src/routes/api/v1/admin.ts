@@ -15,4 +15,5 @@ adminRouter
 adminRouter
   .route('/confirm')
   .post(passportJwtAuth, validateConfirm, postConfirmedCollectionController);
+  
 export default adminRouter;

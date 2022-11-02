@@ -31,7 +31,6 @@ export const postConfirmedCollectionController = async (
     const user = req.user;
     const { collectionId, discordUrl, discordChannel, twitterHandle } =
       req.body;
-
     const twitterChannel = await getTwitterId(twitterHandle);
     const channel = await createConfirmedChannel(
       collectionId,
@@ -39,7 +38,6 @@ export const postConfirmedCollectionController = async (
       twitterChannel,
       twitterHandle
     );
-
     await updateConfirmedCollection(
       collectionId,
       discordUrl,
