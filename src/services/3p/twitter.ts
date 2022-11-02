@@ -4,12 +4,18 @@ import ApiError from '../../utils/errors/ApiError';
 
 export const getTwitterId = async (twitterHandle: string) => {
   try {
-    const client = new Client(process.env.TWITTER_BEARER_TOKEN);
-    const twitterChannel = await client.users.findUserByUsername(twitterHandle);
-    if (!twitterChannel.data) {
-      throw new NotFoundError();
+    if (twitterHandle) {
+      const client = new Client(process.env.TWITTER_BEARER_TOKEN);
+      const twitterChannel = await client.users.findUserByUsername(
+        twitterHandle
+      );
+      if (!twitterChannel.data) {
+        throw new NotFoundError('ERR_NOT_EXIST');
+      }
+      return twitterChannel.data.id;
+    } else {
+      return '';
     }
-    return twitterChannel.data.id;
   } catch (error) {
     throw new ApiError('ERR_TWITTER_API');
   }
