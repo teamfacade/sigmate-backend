@@ -104,37 +104,29 @@ export default class AppServer extends BaseServer {
 
   logServerEvent(event: keyof typeof AppServer.EVENTS) {
     // Log message
-    const msg = `${AppServer.EVENTS[event]} (${this.id})`;
+    const msg = AppServer.EVENTS[event];
 
     // Log info
     let level: sigmate.Logger.LogLevel = 'info';
-    let status: sigmate.Logger.ActionStatus = 'STARTED';
     switch (event) {
       case 'START':
       case 'CLOSE':
-        status = 'STARTED';
+        level = 'debug';
         break;
       case 'STARTED':
       case 'CLOSED':
-        status = 'FINISHED';
+        level = 'info';
         break;
       case 'DB_CONNECT':
       case 'DB_CONNECTED':
-        status = 'IN_PROGRESS';
-        level = 'silly';
+        level = 'debug';
         break;
       case 'START_FAIL':
-        status = 'ERROR';
         level = 'error';
         break;
     }
-    const info: Omit<sigmate.Logger.LogInfo, 'message'> = {
-      level,
-      status: {
-        action: status,
-      },
-    };
-    this.logger?.logServerEvent(msg, info);
+    const info: Omit<sigmate.Logger.LogInfo, 'message'> = { level };
+    this.logger?.logServerEvent(msg, this, info);
   }
 
   async start() {
@@ -194,7 +186,7 @@ export default class AppServer extends BaseServer {
   ) {
     const error = new AppServerError(message, origin);
     // TODO Log the AppServerError
-    this.logger.logServerError(error);
+    this.logger.logServerError(error, this);
     this.logServerEvent('START_FAIL');
   }
 

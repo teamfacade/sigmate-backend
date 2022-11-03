@@ -35,6 +35,7 @@ declare namespace sigmate.Logger {
     };
     error?: Error;
     server?: {
+      id: string;
       event: string;
       error?: ServerError;
     };

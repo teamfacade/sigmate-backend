@@ -6,6 +6,7 @@ import WinstonDynamoDB from './transports/dynamo';
 import ServerError from '../errors/ServerError';
 import config from '../../../config';
 import { waitTimeout } from '../../../utils/wait';
+import AppServer from '../servers/AppServer';
 const { timestamp, combine, printf, colorize } = format;
 
 type IssueLoggerOptions = {
@@ -152,29 +153,22 @@ export default class LoggerService {
   static formatMessage = format((info) => {
     info.level = info.level.toUpperCase();
 
-    // Format status if it has not been done already
-    if (!info.status?.formatted) {
-      info = LoggerService.formatStatus().transform(
-        info
-      ) as winston.Logform.TransformableInfo;
-    }
-
-    const { message, status, request, action, server } =
+    const { message, request, action, server, error } =
       info as sigmate.Logger.LogInfo;
 
     let fMessage = '';
-    fMessage += `${status?.formatted || '***'} `;
 
     let id = '';
 
     if (action) {
       id = action.id;
-      fMessage += `(${action.name}) `;
+      fMessage += `${action.name}: `;
     } else if (request) {
       id = request.id;
-      fMessage += `(${request.method} ${request.endpoint}) `;
+      fMessage += `${request.method} ${request.endpoint}: `;
     } else if (server) {
-      fMessage += `(${server.event}) `;
+      id = server.id;
+      // fMessage += `${server.event}: `;
     }
 
     // Add the log message
@@ -198,6 +192,10 @@ export default class LoggerService {
       fMessage += `\n${server.error.stack}`;
     }
 
+    if (error?.stack) {
+      fMessage += `\n${error.stack}`;
+    }
+
     info.message = fMessage;
     return info;
   });
@@ -208,15 +206,15 @@ export default class LoggerService {
 
   static colorizeLevels = colorize({
     level: true,
-    message: false,
+    message: true,
     colors: {
       error: 'bold red',
       warn: 'bold yellow',
       info: 'bold green',
       http: 'magenta',
       verbose: 'blue',
-      debug: 'cyan',
-      silly: 'gray',
+      debug: 'white',
+      silly: 'dim white',
     },
   });
 
@@ -232,9 +230,15 @@ export default class LoggerService {
   );
   static printIssue = printf(({ level, message }) => `${level}: ${message}`);
   static printDebug = printf(
-    ({ level, message, timestamp, ...rest }) =>
-      `${timestamp} ${level}: ${message} ${JSON.stringify(rest)}`
+    ({ level, message, timestamp }) => `${timestamp} ${level}: ${message}`
   );
+
+  /** Logs issues that need review (<info) */
+  protected static issueLogger?: Logger = undefined;
+  /** Logs kept for analytics (<verbose) */
+  protected static analyticsLogger?: Logger = undefined;
+  /** Logs for debugging purposes (<silly) */
+  protected static debugLogger?: Logger = undefined;
 
   // ************ INSTANCE ************
 
@@ -276,6 +280,10 @@ export default class LoggerService {
   }
 
   protected initIssueLogger(options: IssueLoggerOptions = {}) {
+    if (LoggerService.issueLogger) {
+      return (this.issueLogger = LoggerService.issueLogger);
+    }
+
     // Options specify which transport to enable
     const { console = true, cloudWatchLogs = false } = options;
 
@@ -316,6 +324,10 @@ export default class LoggerService {
   }
 
   protected initAnalyticsLogger(options: AnalyticsLoggerOptions = {}) {
+    if (LoggerService.analyticsLogger) {
+      return (this.analyticsLogger = LoggerService.analyticsLogger);
+    }
+
     // Options specify which transport to enable
     const { dynamoDB = true } = options;
 
@@ -345,6 +357,10 @@ export default class LoggerService {
   }
 
   protected initDebugLogger(options: DebugLoggerOptions = {}) {
+    if (LoggerService.debugLogger) {
+      return (this.debugLogger = LoggerService.debugLogger);
+    }
+
     // Options specify which transport to enable
     const { console = true } = options;
 
@@ -357,7 +373,7 @@ export default class LoggerService {
     const dl = winston.createLogger({
       level: 'silly',
       format: combine(
-        timestamp({ format: 'MMM DD HH:mm:ss' }), // Apr 04 16:44:44
+        timestamp({ format: 'HH:mm:ss.SSS' }), // 16:44:44.123
         LoggerService.formatMessage()
       ),
     });
@@ -398,20 +414,20 @@ export default class LoggerService {
    */
   public logServerEvent(
     message: sigmate.Logger.LogInfo['message'],
+    server: AppServer,
     info: Omit<sigmate.Logger.LogInfo, 'message'> = { level: 'info' }
   ) {
-    const { level = 'info', server } = info;
+    const { level = 'info' } = info;
+
     this.log({
       level,
       message,
       userId: 0,
       deviceId: 0,
-      status: info.status || {
-        action: 'STARTED',
-      },
+      status: info.status,
       server: {
+        id: server.id,
         event: LoggerService.EVENT_SERVER,
-        ...server,
       },
     });
   }
@@ -435,6 +451,7 @@ export default class LoggerService {
    */
   public logServerError(
     error: string | ServerError,
+    server: AppServer,
     info: sigmate.Logger.LogInfoParam = {}
   ) {
     let level = info.level || 'error';
@@ -462,6 +479,7 @@ export default class LoggerService {
       level,
       message,
       server: {
+        id: server.id,
         event: LoggerService.EVENT_SERVER_ERROR,
         error: serverError,
       },

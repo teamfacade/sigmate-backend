@@ -4,6 +4,7 @@ module.exports = {
       name: 'sigmate-app',
       // For cluster mode,
       script: 'dist/index.js',
+      args: 'app',
       instances: 4,
       exec_mode: 'cluster',
       ignore_watch: ['node_modules'],

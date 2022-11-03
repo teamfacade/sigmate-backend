@@ -4,6 +4,7 @@ import wait from '../../../utils/wait';
 import BaseService from '../base/BaseService';
 import SequelizeError from '../errors/SequelizeError';
 import ServerError from '../errors/ServerError';
+import DatabaseLoggerService from '../logging/DatabaseLoggerService';
 
 const env = process.env.NODE_ENV;
 
@@ -12,10 +13,21 @@ export default class DatabaseService extends BaseService {
    * Ensures that only one instance of Sequelize exists in this server
    */
   static sequelize?: Sequelize;
+
+  /**
+   * Ensures only one databaseLogger instance exists for this service
+   */
+  static logger?: DatabaseLoggerService;
+
   /**
    * Instance variable for easy access to the static sequelize property
    */
   sequelize: Sequelize;
+
+  /**
+   * Instance variable for easy access to the static sequelize property
+   */
+  logger: DatabaseLoggerService;
 
   // Connection test related properties
   /** Initial retry delay on bad DB connection (milliseconds) */
@@ -50,15 +62,24 @@ export default class DatabaseService extends BaseService {
   constructor() {
     super();
 
+    // Initialize logger
+    if (!DatabaseService.logger) {
+      DatabaseService.logger = new DatabaseLoggerService(this);
+    }
+    this.logger = DatabaseService.logger;
+
     // Ensure only one instance is intialized per process
     if (!DatabaseService.sequelize) {
       let sequelize: Sequelize = undefined as unknown as Sequelize;
+      const sequelizeConfig = config.database[env];
+      sequelizeConfig.logging = this.logger.sequelizeLogger.bind(this.logger);
+
       try {
         sequelize = new Sequelize(
-          config.database[env].database,
-          config.database[env].username,
-          config.database[env].password,
-          config.database[env]
+          sequelizeConfig.database,
+          sequelizeConfig.username,
+          sequelizeConfig.password,
+          sequelizeConfig
         );
       } catch (error) {
         throw new SequelizeError(error);
