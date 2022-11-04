@@ -33,7 +33,7 @@ declare namespace sigmate.Errors {
     service?: sigmate.Services.RequestService;
   }
 
-  export interface ActionErrorOptions extends ServerErrorOptions {
+  export interface ActionErrorOptions extends Omit<ServerErrorOptions, 'name'> {
     /**
      * Message describing the error
      */

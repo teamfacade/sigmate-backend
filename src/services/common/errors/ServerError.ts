@@ -26,7 +26,7 @@ export default class ServerError extends Error {
     const { origin, unexpected, name = 'ServerError' } = options;
     this.name = name;
     this.origin = origin;
-    this.unexpected = unexpected;
+    this.unexpected = unexpected || false;
   }
 
   isUnexpectedError(message: string) {

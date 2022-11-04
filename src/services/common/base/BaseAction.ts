@@ -1,93 +1,116 @@
 import { v4 as uuidv4 } from 'uuid';
-type ActionType = symbol;
-type ActionWorker<P extends any[], R> = (
-  action: BaseAction<P, R>,
-  ...params: P
-) => R | Promise<R>;
-interface ActionOptions {
-  type: ActionType;
-  autoStart?: boolean;
-  parent?: BaseAction<any, any>;
+import AuthService from '../auth/AuthService';
+import { defaults } from 'lodash';
+import ActionLoggerService from '../logging/ActionLoggerService';
+import ActionError from '../errors/ActionError';
+
+type ActionObject = {
+  model: string; // Model name
+  pk: string; // Model's primary key
+};
+
+export type BaseActionOptions<ParentArgsType, ParentResultType> = {
+  auth: AuthService;
   throws?: boolean;
-}
+  parent?: BaseAction<ParentArgsType, ParentResultType>;
+};
 
-export default abstract class BaseAction<P extends any[], R> {
-  // Action Type
-  static TYPE_SERVICE = Symbol('service');
-  static TYPE_DATABASE = Symbol('database');
+export type BaseActionStartOptions = {
+  target?: ActionObject;
+  source?: ActionObject;
+};
 
-  // Action status
-  static IDLE = Symbol('idle');
-  static STARTED = Symbol('started');
-  static IN_PROGRESS = Symbol('in progress');
-  static DELAYED = Symbol('delayed');
-  static FINISHED = Symbol('finished');
-  static ERROR = Symbol('error');
-
-  /** Unique identifier generated using uuid (v4) */
+export default abstract class BaseAction<
+  ArgsType,
+  ResultType,
+  ParentArgsType = any,
+  ParentResultType = any
+> {
   id: string;
-  /** Whether this is a service or database level action */
-  type: ActionType;
-  /** Name of the action (needed for auth checks) */
   name: string;
-  /** An AuthService instance to run the auth checks */
-  auth: unknown;
-  /**
-   * Current status of the action. Use one of provided static variable:
-   * IDLE, STARTED, IN_PROGRESS, DELAYED, FINISHED or ERROR
-   */
-  status: symbol = BaseAction.IDLE;
-  /** Function containing the code to actually run the action */
-  worker: ActionWorker<P, R>;
-  /**
-   * Start action immdediately after the action instance is initialized
-   */
-  autoStart: boolean;
-  /**
-   * Reference to parent action (who called this action)
-   */
-  parent?: BaseAction<any, any>;
-  /** Data returned from action worker */
-  data?: R;
-  /** Error thrown from action worker */
-  error?: Error;
-  /** Throw the action error when the worker throws it */
-  throws?: boolean;
-  /** Log level. use NPM-style log levels (logging) */
-  logLevel = 'verbose';
-  /** Logger instance (logging) */
-  logger: unknown;
-  /**
-   * Record when the action was started (for logging).
-   * Undefined if the action has not yet started
-   */
-  startedAt?: Date;
-  /**
-   * Record when the action was stopped (for any reaason)
-   * Undefined if the action has not yet started, or is still running
-   */
-  stoppedAt?: Date;
+  abstract type: sigmate.Logger.ActionType;
+  status: sigmate.Logger.ActionStatus = 'UNDEFINED';
+  options: BaseActionOptions<ParentArgsType, ParentResultType>;
+  logger: ActionLoggerService<ArgsType, ResultType>;
+
+  args?: ArgsType;
+  result?: ResultType;
+  error?: ActionError;
+
+  auth: AuthService;
+  target?: ActionObject;
+  source?: ActionObject;
+
+  startedAt?: number;
+  endedAt?: number;
+
+  get execTime() {
+    if (this.startedAt && this.endedAt) {
+      return this.endedAt - this.startedAt;
+    }
+    return undefined;
+  }
 
   constructor(
     name: string,
-    worker: ActionWorker<P, R>,
-    options: ActionOptions
+    options: BaseActionOptions<ParentArgsType, ParentResultType>
   ) {
     this.id = uuidv4();
     this.name = name;
-    this.worker = worker;
-
-    const { type, parent, autoStart = false, throws = true } = options;
-    this.type = type;
-    this.parent = parent;
-    this.autoStart = autoStart;
-    this.throws = throws;
+    this.options = defaults(options, {
+      throws: true,
+    });
+    this.auth = options.auth;
+    this.logger = new ActionLoggerService(this);
   }
 
-  init() {
-    this.startedAt = undefined;
-    this.stoppedAt = undefined;
-    this.data = undefined;
-    this.error = undefined;
+  abstract action(
+    args: ArgsType | undefined,
+    action: BaseAction<ArgsType, ResultType> | undefined
+  ): Promise<ResultType>;
+
+  protected onStart() {
+    this.status = 'STARTED';
+    this.startedAt = performance.now();
+    this.endedAt = undefined;
+    this.logger.logActionStart();
+    this.status = 'IN_PROGRESS';
+  }
+
+  public async start(
+    args: ArgsType | undefined = undefined,
+    options: BaseActionStartOptions
+  ) {
+    this.args = args;
+    this.target = options.target;
+    this.source = options.source;
+
+    this.onStart();
+    try {
+      const result: ResultType = await this.action(args, this);
+      this.result = result;
+      this.onFinish();
+      return result;
+    } catch (error) {
+      this.error = new ActionError({ origin: error });
+      this.onError();
+    }
+  }
+
+  protected onEnd() {
+    this.endedAt = performance.now();
+  }
+
+  protected onFinish() {
+    this.onEnd();
+    this.status = 'FINISHED';
+    this.logger.logActionFinish();
+  }
+
+  protected onError() {
+    this.onEnd();
+    this.status = 'ERROR';
+    this.logger.logActionError();
+    if (this.options.throws) throw this.error;
   }
 }

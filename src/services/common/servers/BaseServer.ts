@@ -16,5 +16,5 @@ export default abstract class BaseServer {
   public abstract start(): void;
   public abstract close(): Promise<unknown>;
 
-  protected abstract afterStart(): void;
+  protected abstract onStartSuccess(): void;
 }

@@ -19,7 +19,7 @@ module.exports = {
       },
       min_uptime: 1000,
       listen_timeout: 10000,
-      kill_timeout: 10500,
+      kill_timeout: 15000,
       wait_ready: true,
       max_restarts: 10,
       restart_delay: 500,

@@ -33,7 +33,7 @@ declare namespace sigmate.Logger {
       /** Contains three letter string formatted for logging */
       formatted?: string;
     };
-    error?: Error;
+    error?: unknown;
     server?: {
       id: string;
       event: string;

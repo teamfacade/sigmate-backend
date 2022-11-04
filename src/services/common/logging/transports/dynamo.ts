@@ -90,9 +90,7 @@ export default class WinstonDynamoDB extends Transport {
     this.dynamoDBInstance = opts.dynamoDBInstance;
   }
 
-  // eslint-disable-next-line
   log(info: sigmate.Logger.DynamoDBLogEntry, callback: winston.LogCallback) {
-    setImmediate(() => this.emit('logged', info));
     const item: Record<string, AttributeValue> =
       WinstonDynamoDB.createDynamoDBItem(info);
     const args: PutItemCommandInput = {
@@ -104,10 +102,11 @@ export default class WinstonDynamoDB extends Transport {
     dynamoDB
       .putItem(args)
       .then(() => {
-        if (callback) callback();
+        this.emit('logged', info);
+        callback && callback();
       })
       .catch((err) => {
-        if (callback) callback(err);
+        callback && callback(err);
       });
   }
 }

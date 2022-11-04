@@ -2,12 +2,17 @@ import ServerError from './ServerError';
 
 export default class ActionError extends ServerError {
   constructor(options: sigmate.Errors.ActionErrorOptions) {
-    const {
-      message = 'ActionError',
-      name = 'ActionError',
-      origin,
-      unexpected,
-    } = options;
-    super(message, { name, origin, unexpected });
+    let message = options.message;
+    const { origin, unexpected } = options;
+
+    if (!message) {
+      if (origin instanceof Error) {
+        message = `${origin.name}: ${origin.message}`;
+      } else {
+        message = 'ActionError';
+      }
+    }
+
+    super(message, { name: 'ActionError', origin, unexpected });
   }
 }

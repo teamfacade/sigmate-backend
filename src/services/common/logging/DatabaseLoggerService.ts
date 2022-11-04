@@ -1,14 +1,9 @@
-import DatabaseService from '../database/DatabaseService';
 import LoggerService from './LoggerService';
-
 export default class DatabaseLoggerService extends LoggerService {
   static BENCHMARK_LOG_THRESHOLD = 1000;
 
-  db: DatabaseService;
-
-  constructor(db: DatabaseService) {
+  constructor() {
     super();
-    this.db = db;
   }
 
   /**

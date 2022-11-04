@@ -7,6 +7,7 @@ import ServerError from '../errors/ServerError';
 import config from '../../../config';
 import { waitTimeout } from '../../../utils/wait';
 import AppServer from '../servers/AppServer';
+import BaseService from '../base/BaseService';
 const { timestamp, combine, printf, colorize } = format;
 
 type IssueLoggerOptions = {
@@ -22,7 +23,7 @@ type DebugLoggerOptions = {
   console?: boolean;
 };
 
-export default class LoggerService {
+export default class LoggerService extends BaseService {
   // ************ STATIC ************
 
   // For key shortening and expansion on DynamoDB
@@ -33,13 +34,20 @@ export default class LoggerService {
   static CLOUDWATCH_LOG_GROUP_DEV = 'sigmate-app-dev';
   static CLOUDWATCH_LOG_STREAM_DEV = 'dev-1';
   static DYNAMODB_TABLE_PROD = 'sigmate-app-log';
-  static env = process.env.NODE_ENV;
-
   static EVENT_SERVER = 'SERVER_EVENT';
   static EVENT_SERVER_ERROR = 'SERVER_ERROR';
 
+  // AWS SDKs
   static dynamoDB?: DynamoDB;
   static cloudWatchLogs?: CloudWatchLogs;
+
+  // Loggers
+  /** Logs issues that need review (<info) */
+  protected static issueLogger?: Logger = undefined;
+  /** Logs kept for analytics (<verbose) */
+  protected static analyticsLogger?: Logger = undefined;
+  /** Logs for debugging purposes (<silly) */
+  protected static debugLogger?: Logger = undefined;
 
   static getDynamoUserAttribute = (
     userId: sigmate.Logger.LogInfo['userId'],
@@ -76,7 +84,7 @@ export default class LoggerService {
       level: info.level,
       message: info.message,
       status: info.status?.formatted,
-      err: info.error?.stack,
+      err: info.error instanceof Error ? info.error.stack : undefined,
       srvEvent: info.server?.event,
       srvErr: info.server?.error?.stack,
       reqId: info.request?.id,
@@ -192,8 +200,10 @@ export default class LoggerService {
       fMessage += `\n${server.error.stack}`;
     }
 
-    if (error?.stack) {
-      fMessage += `\n${error.stack}`;
+    if (error instanceof Error) {
+      fMessage += `\n${error.name}: ${error.message}\n${error.stack}`;
+    } else if (error) {
+      fMessage += `${error}`;
     }
 
     info.message = fMessage;
@@ -204,13 +214,13 @@ export default class LoggerService {
     return LoggerService.createDynamoLogEntry(info as sigmate.Logger.LogInfo);
   });
 
-  static colorizeLevels = colorize({
+  static colorizeLog = colorize({
     level: true,
     message: true,
     colors: {
-      error: 'bold red',
-      warn: 'bold yellow',
-      info: 'bold green',
+      error: 'red',
+      warn: 'yellow',
+      info: 'green',
       http: 'magenta',
       verbose: 'blue',
       debug: 'white',
@@ -233,12 +243,22 @@ export default class LoggerService {
     ({ level, message, timestamp }) => `${timestamp} ${level}: ${message}`
   );
 
-  /** Logs issues that need review (<info) */
-  protected static issueLogger?: Logger = undefined;
-  /** Logs kept for analytics (<verbose) */
-  protected static analyticsLogger?: Logger = undefined;
-  /** Logs for debugging purposes (<silly) */
-  protected static debugLogger?: Logger = undefined;
+  static started = false;
+
+  static start() {
+    // Initialize AWS SDKs if not already done
+    if (!this.dynamoDB) {
+      this.dynamoDB = new DynamoDB(config.aws.dynamoDB.logger);
+    }
+
+    if (!this.cloudWatchLogs) {
+      this.cloudWatchLogs = new CloudWatchLogs(
+        config.aws.cloudWatchLogs.logger
+      );
+    }
+
+    this.started = true;
+  }
 
   // ************ INSTANCE ************
 
@@ -255,19 +275,12 @@ export default class LoggerService {
   public closed = false;
 
   constructor() {
-    // Initialize AWS SDKs if not already done
-    if (!LoggerService.dynamoDB) {
-      LoggerService.dynamoDB = new DynamoDB(config.aws.dynamoDB.logger);
+    if (!LoggerService.started) {
+      throw new Error('LoggerService initialized before start');
     }
-
-    if (!LoggerService.cloudWatchLogs) {
-      LoggerService.cloudWatchLogs = new CloudWatchLogs(
-        config.aws.cloudWatchLogs.logger
-      );
-    }
-
+    super();
     // Initialize loggers depending on environment
-    const env = LoggerService.env;
+    const env = process.env.NODE_ENV;
     if (env === 'development') {
       // For development, log EVERYTHING to the console
       this.initDebugLogger({ console: true });
@@ -281,7 +294,8 @@ export default class LoggerService {
 
   protected initIssueLogger(options: IssueLoggerOptions = {}) {
     if (LoggerService.issueLogger) {
-      return (this.issueLogger = LoggerService.issueLogger);
+      this.issueLogger = LoggerService.issueLogger;
+      return;
     }
 
     // Options specify which transport to enable
@@ -304,7 +318,11 @@ export default class LoggerService {
 
     // Add transport for console
     if (console) {
-      il.add(new winston.transports.Console());
+      il.add(
+        new winston.transports.Console({
+          format: combine(LoggerService.printDebug),
+        })
+      );
     }
 
     // Add transport for AWS CloudWatch Logs
@@ -325,7 +343,8 @@ export default class LoggerService {
 
   protected initAnalyticsLogger(options: AnalyticsLoggerOptions = {}) {
     if (LoggerService.analyticsLogger) {
-      return (this.analyticsLogger = LoggerService.analyticsLogger);
+      this.analyticsLogger = LoggerService.analyticsLogger;
+      return;
     }
 
     // Options specify which transport to enable
@@ -358,7 +377,8 @@ export default class LoggerService {
 
   protected initDebugLogger(options: DebugLoggerOptions = {}) {
     if (LoggerService.debugLogger) {
-      return (this.debugLogger = LoggerService.debugLogger);
+      this.debugLogger = LoggerService.debugLogger;
+      return;
     }
 
     // Options specify which transport to enable
@@ -382,10 +402,7 @@ export default class LoggerService {
     if (console) {
       dl.add(
         new winston.transports.Console({
-          format: combine(
-            LoggerService.colorizeLevels,
-            LoggerService.printDebug
-          ),
+          format: combine(LoggerService.colorizeLog, LoggerService.printDebug),
         })
       );
     }

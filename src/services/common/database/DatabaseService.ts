@@ -1,5 +1,6 @@
 import { Sequelize } from 'sequelize-typescript';
 import config from '../../../config';
+import models, { importModels } from '../../../models';
 import wait from '../../../utils/wait';
 import BaseService from '../base/BaseService';
 import SequelizeError from '../errors/SequelizeError';
@@ -19,21 +20,11 @@ export default class DatabaseService extends BaseService {
    */
   static logger?: DatabaseLoggerService;
 
-  /**
-   * Instance variable for easy access to the static sequelize property
-   */
-  sequelize: Sequelize;
-
-  /**
-   * Instance variable for easy access to the static sequelize property
-   */
-  logger: DatabaseLoggerService;
-
   // Connection test related properties
   /** Initial retry delay on bad DB connection (milliseconds) */
-  retryDelayInitial = 200;
+  static retryDelayInitial = 200;
   /** Number of times to retry the database test */
-  retryCountLimit = 5;
+  static retryCountLimit = 5;
 
   /**
    * Status of the database connection.
@@ -48,48 +39,44 @@ export default class DatabaseService extends BaseService {
    *     - New database queries will be rejected (i.e. the `run()` method
    *       will always throw an error), causing the user's request to fail.
    */
-  connected?: boolean;
+  static connected?: boolean;
   /**
    * A promise that runs the connection test. Resolves to a boolean value
    * containing the test result.
    *
    * @returns `true` on test success, `false` on failure
    */
-  testPromise?: Promise<boolean>;
+  static testPromise?: Promise<boolean>;
   /** Error object thrown during the last connection test */
-  testError?: unknown;
+  static testError?: unknown;
 
-  constructor() {
-    super();
+  static started = false;
 
+  static async start() {
     // Initialize logger
-    if (!DatabaseService.logger) {
-      DatabaseService.logger = new DatabaseLoggerService(this);
+    if (!this.logger) {
+      this.logger = new DatabaseLoggerService();
     }
-    this.logger = DatabaseService.logger;
 
-    // Ensure only one instance is intialized per process
-    if (!DatabaseService.sequelize) {
-      let sequelize: Sequelize = undefined as unknown as Sequelize;
-      const sequelizeConfig = config.database[env];
-      sequelizeConfig.logging = this.logger.sequelizeLogger.bind(this.logger);
-
-      try {
-        sequelize = new Sequelize(
-          sequelizeConfig.database,
-          sequelizeConfig.username,
-          sequelizeConfig.password,
-          sequelizeConfig
-        );
-      } catch (error) {
-        throw new SequelizeError(error);
-      }
-
+    // Initialize Sequelize instance
+    if (!this.sequelize) {
+      const cfg = config.database[env];
+      cfg.logging = this.logger.sequelizeLogger.bind(this.logger);
+      const sequelize = new Sequelize(
+        cfg.database,
+        cfg.username,
+        cfg.password,
+        cfg
+      );
       this.sequelize = sequelize;
-      DatabaseService.sequelize = sequelize;
-    } else {
-      this.sequelize = DatabaseService.sequelize;
     }
+
+    // import all models from the models directory
+    await importModels();
+    // Add the imported models
+    this.sequelize.addModels(models);
+
+    this.started = true;
   }
 
   /**
@@ -102,7 +89,7 @@ export default class DatabaseService extends BaseService {
    * @returns Promise that resolves to `true` if test was successful,
    * and `false` otherwise.
    */
-  private async runTest(
+  private static async runTest(
     throws = false,
     initialDelay: number = this.retryDelayInitial
   ) {
@@ -141,7 +128,7 @@ export default class DatabaseService extends BaseService {
    * @returns Promise that resolves to `true` if test was successful,
    * and `false` otherwise.
    */
-  public async test(throws = false) {
+  public static async test(throws = false) {
     if (!this.sequelize) {
       this.connected = false;
     }
@@ -163,18 +150,42 @@ export default class DatabaseService extends BaseService {
   }
 
   /**
+   * Instance variable for easy access to the static sequelize property
+   */
+  sequelize: Sequelize;
+
+  /**
+   * Instance variable for easy access to the static sequelize property
+   */
+  logger: DatabaseLoggerService;
+
+  constructor() {
+    super();
+    if (!DatabaseService.started) {
+      throw new Error('DatabaseService initialized before start');
+    }
+
+    this.logger = DatabaseService.logger as NonNullable<
+      typeof DatabaseService['logger']
+    >;
+    this.sequelize = DatabaseService.sequelize as NonNullable<
+      typeof DatabaseService['sequelize']
+    >;
+  }
+
+  /**
    * Runs an action containing Sequelize database API calls with
    * proper error handling.
    * @param worker An async function containing the database query
    * @returns Return value of the worker function
    */
   public async run<T>(worker: () => Promise<T>) {
-    if (this.connected === undefined) {
-      await this.test();
+    if (DatabaseService.connected === undefined) {
+      await DatabaseService.test();
     }
 
-    if (this.connected === false) {
-      throw new SequelizeError(this.testError);
+    if (DatabaseService.connected === false) {
+      throw new SequelizeError(DatabaseService.testError);
     }
 
     try {

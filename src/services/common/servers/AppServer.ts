@@ -23,6 +23,8 @@ export default class AppServer extends BaseServer {
     CLOSED: 'Server closed. Shutting down...',
   };
 
+  static started = false;
+
   /** Check if all environment variables have been set correctly */
   static checkEnv() {
     const envSuffixes: Record<typeof process.env.NODE_ENV, string> = {
@@ -53,15 +55,14 @@ export default class AppServer extends BaseServer {
     checkEnv('AWS_S3_IMAGE_BASEURL');
   }
 
-  static initialized = false;
-
-  app: Express;
+  // ********** INSTANCE **********
   /**
    * HTTP server instance created by Express.
    * Later used to close the server gracefully upon shutdown
    */
   server?: Server;
   db?: DatabaseService;
+  app: Express;
   logger: LoggerService;
 
   /**
@@ -79,11 +80,13 @@ export default class AppServer extends BaseServer {
    * @throws Error if more than one instance is attempted to be created
    */
   constructor() {
-    if (AppServer.initialized) {
+    if (AppServer.started) {
       throw new Error('An instance of AppServer already exists!');
     }
-    super();
     AppServer.checkEnv();
+
+    super();
+    LoggerService.start();
     const logger = new LoggerService();
     this.logger = logger;
     setService('logger', logger);
@@ -92,9 +95,9 @@ export default class AppServer extends BaseServer {
     const app = express();
     this.app = app;
 
-    AppServer.initialized = true;
+    AppServer.started = true;
 
-    // Graceful shutdown
+    // Prepare for graceful shutdown
     process.on('SIGINT', () => {
       this.close().then(() => {
         process.exit(0);
@@ -142,36 +145,40 @@ export default class AppServer extends BaseServer {
       app.use(express.urlencoded({ extended: true }));
       app.use(requestIp.mw());
     } catch (e) {
-      return this.handleError('START/3P', e);
+      return this.onStartFail('START/3P', e);
     }
 
+    // Start DatabaseService
     try {
       this.logServerEvent('DB_CONNECT');
+      await DatabaseService.start();
+      this.logServerEvent('DB_CONNECTED');
       const db = new DatabaseService();
-      await db.test(true);
       setService('db', db);
       this.db = db;
-      this.logServerEvent('DB_CONNECTED');
     } catch (e) {
-      return this.handleError('START/DB', e);
+      return this.onStartFail('START/DB', e);
     }
 
+    // Start AuthService
     try {
+      AuthService.start();
       passport.use(AuthService.PASSPORT_STRATEGY_JWT);
       app.use(passport.initialize());
     } catch (e) {
-      return this.handleError('START/AUTH', e);
+      return this.onStartFail('START/AUTH', e);
     }
 
+    // Check if all services have been set
     try {
       checkServices();
     } catch (error) {
-      return this.handleError('START/SERVICES');
+      return this.onStartFail('START/SERVICES');
     }
 
+    // Start listening
     this.server = app.listen(app.get('port'), () => {
-      this.logServerEvent('STARTED');
-      this.afterStart();
+      this.onStartSuccess();
     });
   }
 
@@ -180,7 +187,7 @@ export default class AppServer extends BaseServer {
    * @param message Error message key
    * @param origin The original Error object
    */
-  handleError(
+  onStartFail(
     message: keyof typeof AppServerError['MESSAGES'],
     origin: unknown = undefined
   ) {
@@ -190,14 +197,19 @@ export default class AppServer extends BaseServer {
     this.logServerEvent('START_FAIL');
   }
 
-  afterStart() {
-    // Send ready signal to PM2
-    // https://pm2.keymetrics.io/docs/usage/signals-clean-restart/
+  /**
+   * Chores to do after a successful server start
+   * - Log the successful server start
+   * - (PM2 Cluster Mode) Send a 'ready' signal to the parent process
+   *   https://pm2.keymetrics.io/docs/usage/signals-clean-restart/
+   */
+  onStartSuccess() {
+    this.logServerEvent('STARTED');
     if (process.send) process.send('ready');
   }
 
   async close() {
-    // Close call prevents server from receiving new connections
+    // Prevent server from accepting new inbound connections
     const server = this.server?.close();
     this.logServerEvent('CLOSE');
 
@@ -207,7 +219,7 @@ export default class AppServer extends BaseServer {
         resolve();
       });
     });
-    await waitTimeout(serverClose, 5000);
+    await waitTimeout(serverClose, 10000);
     this.logServerEvent('CLOSED');
 
     // Close all loggers

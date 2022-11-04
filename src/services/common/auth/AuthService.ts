@@ -7,10 +7,13 @@ import {
 import { readFileSync } from 'fs';
 import { Request } from 'express';
 import isInt from 'validator/lib/isInt';
+import BaseService from '../base/BaseService';
+import User from '../../../models/User.model';
+import UserDevice from '../../../models/UserDevice.model';
 
 type SigmateJwtPayload = sigmate.Auth.JwtPayload & jwt.JwtPayload;
 
-export default class AuthService {
+export default class AuthService extends BaseService {
   /** JWT signing algorithm */
   protected static JWT_ALG = 'ES256';
   /** JWT issuer */
@@ -28,10 +31,18 @@ export default class AuthService {
   /** Private key for signing tokens */
   protected static ecPrivateKey?: Buffer;
 
+  static started = false;
+
+  static start() {
+    this.loadKeys();
+    this.started = true;
+  }
+
   /**
    * Loads the public and private key from file
    */
   public static loadKeys() {
+    if (this.isKeysLoaded) return;
     this.ecPrivateKey = readFileSync(process.env.PATH_PRIVATE_KEY);
     this.ecPublicKey = readFileSync(process.env.PATH_PUBLIC_KEY);
   }
@@ -48,8 +59,8 @@ export default class AuthService {
   private static __PASSPORT_STRATEGY_JWT?: JwtStrategy;
   /** Strategy for the `passport` library to use JWT */
   public static get PASSPORT_STRATEGY_JWT() {
-    if (!AuthService.isKeysLoaded) {
-      AuthService.loadKeys();
+    if (!AuthService.started) {
+      throw new Error('AuthService not started');
     }
 
     this.__PASSPORT_STRATEGY_JWT = new JwtStrategy(
@@ -86,11 +97,8 @@ export default class AuthService {
   user: any;
   device: any;
 
-  constructor(user: any, device: any) {
-    if (!AuthService.isKeysLoaded) {
-      AuthService.loadKeys();
-    }
-
+  constructor(user: User, device: UserDevice) {
+    super();
     this.user = user;
     this.device = device;
   }

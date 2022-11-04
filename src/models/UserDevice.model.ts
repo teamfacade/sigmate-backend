@@ -1,4 +1,4 @@
 import { Table, Model } from 'sequelize-typescript';
 
 @Table
-export default class User extends Model {}
+export default class UserDevice extends Model {}
