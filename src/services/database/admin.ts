@@ -10,7 +10,7 @@ export const getUnconfirmedCollections = async () => {
   try {
     return await Collection.findAll({
       attributes: ['id', 'name', 'discordUrl', 'twitterHandle'],
-      where: { confirmed: 0 },
+      where: { adminConfirmed: 0 },
     });
   } catch (error) {
     throw new SequelizeError(error as Error);
@@ -53,7 +53,7 @@ export const updateConfirmedCollection = async (
     if (!cl) throw new NotFoundError('ERR_CL_NOT_FOUND');
     if (!user) throw new UnauthenticatedError();
     return await cl.update({
-      confirmed: true,
+      adminConfirmed: true,
       confirmedById: user.id,
       discordUrl,
       twitterHandle,

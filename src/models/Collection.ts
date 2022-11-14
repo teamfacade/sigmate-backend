@@ -8,6 +8,7 @@ import {
   Default,
   HasMany,
   HasOne,
+  IsIn,
   Model,
   Table,
   Unique,
@@ -91,9 +92,10 @@ export interface CollectionAttributes {
   twitterAnnouncements?: TwitterAnnouncement[];
 
   // for confirm
-  confirmed?: boolean;
+  adminConfirmed?: boolean;
   confirmedBy?: User;
   confirmedById?: UserAttributes['id'];
+  infoSource: string; // 'opensea' 'admin' 'user'
 }
 
 export type CollectionCreationAttributes = Optional<CollectionAttributes, 'id'>;
@@ -368,10 +370,14 @@ export default class Collection extends Model<
   // for admin page
   @Default(false)
   @Column(DataType.BOOLEAN)
-  confirmed: CollectionAttributes['confirmed'];
+  adminConfirmed: CollectionAttributes['adminConfirmed'];
 
   @BelongsTo(() => User, 'confirmedById')
   confirmedBy: CollectionAttributes['confirmedBy'];
+
+  @IsIn([['opensea', 'admin', 'user']])
+  @Column(DataType.STRING(16))
+  infoSource?: CollectionAttributes['infoSource'];
 
   toResponseJSONConcise(): CollectionResponseConcise {
     return {
