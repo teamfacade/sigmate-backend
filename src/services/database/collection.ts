@@ -35,6 +35,7 @@ import ConflictError from '../../utils/errors/ConflictError';
 import UnauthenticatedError from '../../utils/errors/UnauthenticatedError';
 import BadRequestError from '../../utils/errors/BadRequestError';
 import DocumentAudit from '../../models/DocumentAudit';
+import { PaginationOptions } from '../../middlewares/handlePagination';
 
 const COLLECTION_ATTRIBS: BlockCollectionAttrib[] = [
   'team',
@@ -201,6 +202,20 @@ export const getCollectionById = async (id: CollectionAttributes['id']) => {
 export const getCollectionBySlug = async (slug: string) => {
   try {
     return await Collection.findOne({ where: { slug } });
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+// for admin page
+export const getCollectionByUser = async (pg: PaginationOptions) => {
+  try {
+    const { limit, offset } = pg;
+    return await Collection.findAndCountAll({
+      where: { infoSource: 'user' },
+      limit,
+      offset,
+    });
   } catch (error) {
     throw new SequelizeError(error as Error);
   }

@@ -22,31 +22,6 @@ export const getUnconfirmedCollections = async () => {
   }
 };
 
-//for admin page - collection
-export const getUserSourceCollections = async () => {
-  try {
-    return await Collection.findAll({
-      attributes: [
-        'team',
-        'history',
-        'category',
-        'utility',
-        'mintingPriceWl',
-        'mintingPricePublic',
-        'floorPrice',
-        'discordUrl',
-        'twitterHandle',
-        'websiteUrl',
-        'paymentTokens',
-        'marketplace',
-      ],
-      where: { infoSource: 'user' },
-    });
-  } catch (error) {
-    throw new SequelizeError(error as Error);
-  }
-};
-
 export const createConfirmedChannel = async (
   collectionId: number,
   discordChannel: string,
@@ -84,7 +59,7 @@ export const updateConfirmedCollection = async (
     if (!user) throw new UnauthenticatedError();
     return await cl.update({
       adminConfirmed: true,
-      confirmedById: user.id,
+      adminConfirmedById: user.id,
       discordUrl,
       twitterHandle,
     });

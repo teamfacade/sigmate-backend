@@ -93,8 +93,8 @@ export interface CollectionAttributes {
 
   // for confirm
   adminConfirmed?: boolean;
-  confirmedBy?: User;
-  confirmedById?: UserAttributes['id'];
+  adminConfirmedBy?: User;
+  adminConfirmedById?: UserAttributes['id'];
   infoSource: string; // 'opensea' 'admin' 'user'\
   infoConfirmedBy?: User;
   infoConfirmedById?: UserAttributes['id'];
@@ -380,8 +380,8 @@ export default class Collection extends Model<
   @Column(DataType.BOOLEAN)
   adminConfirmed: CollectionAttributes['adminConfirmed'];
 
-  @BelongsTo(() => User, 'confirmedById')
-  confirmedBy: CollectionAttributes['confirmedBy'];
+  @BelongsTo(() => User, 'adminConfirmedById')
+  adminConfirmedBy: CollectionAttributes['adminConfirmedBy'];
 
   @IsIn([['opensea', 'admin', 'user']])
   @Column(DataType.STRING(16))
