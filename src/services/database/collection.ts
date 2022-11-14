@@ -242,6 +242,7 @@ export const createCollection = async (
         openseaPriceUpdatedAt: collectionDTO.openseaPriceUpdatedAt,
         createdById: collectionDTO.createdBy?.id,
         createdByDeviceId: collectionDTO.createdByDevice?.id,
+        infoSource: collectionDTO.infoSource || 'opensea',
       },
       { transaction }
     );
@@ -386,6 +387,9 @@ export const updateCollectionBySlug = async (
         marketplace: collectionDTO.marketplace,
         openseaMetadataUpdatedAt: collectionDTO.openseaMetadataUpdatedAt,
         openseaPriceUpdatedAt: collectionDTO.openseaPriceUpdatedAt,
+        infoSource: collectionDTO.infoSource,
+        infoConfirmedById:
+          collectionDTO.infoConfirmedById || collectionDTO.infoConfirmedBy?.id,
       },
       { transaction }
     );

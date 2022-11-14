@@ -135,6 +135,9 @@ export interface CreateCollectionReqBody
     | 'mintingPricePublic'
     | 'floorPrice'
     | 'marketplace'
+    | 'infoSource'
+    | 'infoConfirmedBy'
+    | 'infoConfirmedById'
   > {
   collectionDeployers?: CollectionDeployerAttributes['address'][];
   paymentTokens?: BcTokenRequest[];
@@ -235,6 +238,7 @@ export const createCollectionController = async (
       history: body.history,
       createdBy: u,
       createdByDevice: d,
+      infoSource: body.infoSource,
     };
 
     const cl = await createCollectionWithTx(collectionDTO);

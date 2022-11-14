@@ -1,4 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
+import { Optional } from 'sequelize/types';
+import slugify from 'slugify';
 import { BlockAttributes, BlockRequest } from '../../models/Block';
 import { CategoryAttributes } from '../../models/Category';
 import Collection from '../../models/Collection';
@@ -48,10 +50,10 @@ export const getWikiDocumentByIdController = async (
 type CreateWikiDocumentReqBody = {
   title: string;
   parent?: DocumentAttributes['id'];
-  collection?: {
-    slug: string;
-    marketplace: string;
-  };
+  collection?: Optional<
+    CreateCollectionReqBody,
+    'name' | 'slug' | 'marketplace'
+  >;
   nft?: {
     contractAddress: string;
     tokenId: number;
@@ -94,36 +96,89 @@ export const createWikiDocumentController = async (
 
     if (collectionReq) {
       // Document about NFT Collection
-      if (!collectionReq.slug) throw new BadRequestError();
+      if (collectionReq.slug) {
+        // Look if the collection has already been created
+        cl = await getCollectionBySlug(collectionReq.slug);
 
-      // Look if the collection has already been created
-      cl = await getCollectionBySlug(collectionReq.slug);
+        if (cl) {
+          // Check if a document about this collection already exists
+          doc = await getCollectionDocument(cl);
 
-      if (cl) {
-        // Check if a document about this collection already exists
-        doc = await getCollectionDocument(cl);
+          if (doc) {
+            // Document already exists. Stop and send a fail response
+            const response: CreateWikiDocumentFailRes = {
+              success: false,
+              msg: 'ERR_DOCUMENT_ALREADY_EXISTS',
+              document: {
+                id: doc.id,
+                title: doc.title,
+              },
+            };
 
-        if (doc) {
-          // Document already exists. Stop and send a fail response
-          const response: CreateWikiDocumentFailRes = {
-            success: false,
-            msg: 'ERR_DOCUMENT_ALREADY_EXISTS',
-            document: {
-              id: doc.id,
-              title: doc.title,
-            },
-          };
-
-          res.status(409).json(response);
-          return;
+            res.status(409).json(response);
+            return;
+          }
         }
       }
 
-      // Try the Opensea API
-      // Create a collection if not exists, and update if already exists
-      cl = await fetchCollectionBySlug(collectionReq.slug, d, u);
-
-      if (!cl) {
+      if (
+        collectionReq.name &&
+        (!collectionReq.marketplace || !collectionReq.slug)
+      ) {
+        // Collection not in marketplace
+        cl = await createCollectionWithTx({
+          slug: slugify(collectionReq.name, '-'), // slugify
+          name: collectionReq.name,
+          contractSchema: 'ERC721',
+          collectionDeployers: [],
+          paymentTokens: collectionReq.paymentTokens || [],
+          marketplace: '',
+          imageUrl: collectionReq.imageUrl,
+          bannerImageUrl: collectionReq.bannerImageUrl,
+          team: collectionReq.team,
+          history: collectionReq.history,
+          category: collectionReq.category,
+          utility: collectionReq.utility,
+          mintingPriceWl: collectionReq.mintingPriceWl,
+          mintingPricePublic: collectionReq.mintingPricePublic,
+          floorPrice: collectionReq.floorPrice,
+          websiteUrl: collectionReq.websiteUrl,
+          twitterHandle: collectionReq.twitterHandle,
+          discordUrl: collectionReq.discordUrl,
+          createdBy: u,
+          createdByDevice: d,
+          infoSource: 'user',
+        });
+      } else if (collectionReq.marketplace === 'opensea') {
+        // Collection in opensea
+        // Try the Opensea API
+        if (!collectionReq.slug) {
+          throw new BadRequestError({
+            validationErrors: [
+              {
+                location: 'body',
+                param: 'slug',
+                value: '',
+                msg: 'REQUIRED',
+              },
+            ],
+          });
+        }
+        // Create a collection if not exists, and update if already exists
+        cl = await fetchCollectionBySlug(collectionReq.slug, d, u);
+      } else {
+        if (!collectionReq.slug) {
+          throw new BadRequestError({
+            validationErrors: [
+              {
+                location: 'body',
+                param: 'slug',
+                value: '',
+                msg: 'REQUIRED',
+              },
+            ],
+          });
+        }
         // If not found on Opensea, create an empty collection
         cl = await createCollectionWithTx({
           slug: collectionReq.slug,
@@ -131,9 +186,10 @@ export const createWikiDocumentController = async (
           contractSchema: 'ERC721',
           collectionDeployers: [],
           paymentTokens: [],
-          marketplace: collectionReq.marketplace,
+          marketplace: collectionReq.marketplace || '',
           createdBy: u,
           createdByDevice: d,
+          infoSource: 'opensea',
         });
       }
 

@@ -95,7 +95,9 @@ export interface CollectionAttributes {
   adminConfirmed?: boolean;
   confirmedBy?: User;
   confirmedById?: UserAttributes['id'];
-  infoSource: string; // 'opensea' 'admin' 'user'
+  infoSource: string; // 'opensea' 'admin' 'user'\
+  infoConfirmedBy?: User;
+  infoConfirmedById?: UserAttributes['id'];
 }
 
 export type CollectionCreationAttributes = Optional<CollectionAttributes, 'id'>;
@@ -150,6 +152,9 @@ export interface CollectionResponse
     | 'marketplace'
     | 'openseaMetadataUpdatedAt'
     | 'openseaPriceUpdatedAt'
+    | 'infoSource'
+    | 'infoConfirmedBy'
+    | 'infoConfirmedById'
   > {
   collectionDeployers: (CollectionDeployerAttributes['address'] | null)[];
   paymentTokens?: (BcTokenResponse | null)[];
@@ -189,6 +194,9 @@ export interface CollectionCreationDTO
     | 'marketplace'
     | 'openseaMetadataUpdatedAt'
     | 'openseaPriceUpdatedAt'
+    | 'infoSource'
+    | 'infoConfirmedBy'
+    | 'infoConfirmedById'
   > {
   collectionDeployers: CollectionDeployerAttributes['address'][];
   paymentTokens: BcTokenCreationAttributes[];
@@ -379,6 +387,10 @@ export default class Collection extends Model<
   @Column(DataType.STRING(16))
   infoSource?: CollectionAttributes['infoSource'];
 
+  // for admin page
+  @BelongsTo(() => User, 'infoConfirmedById')
+  infoConfirmedBy: CollectionAttributes['infoConfirmedBy'];
+
   toResponseJSONConcise(): CollectionResponseConcise {
     return {
       id: this.id,
@@ -421,6 +433,7 @@ export default class Collection extends Model<
       'marketplace',
       'openseaMetadataUpdatedAt',
       'openseaPriceUpdatedAt',
+      'infoSource',
     ]);
 
     const [

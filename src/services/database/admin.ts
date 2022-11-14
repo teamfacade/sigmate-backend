@@ -3,14 +3,44 @@ import Collection from '../../models/Collection';
 import SequelizeError from '../../utils/errors/SequelizeError';
 import NotFoundError from '../../utils/errors/NotFoundError';
 import User from '../../models/User';
+import UserDevice from '../../models/UserDevice';
 import UnauthenticatedError from '../../utils/errors/UnauthenticatedError';
+import ApiError from '../../utils/errors/ApiError';
+import { UpdateCollectionReqBody } from '../../services/wiki/collection';
+import { getCollectionBySlug } from './collection';
+import { auditWikiDocumentById } from './wiki/document';
 
-// for admin page
+// for admin page - channel
 export const getUnconfirmedCollections = async () => {
   try {
     return await Collection.findAll({
       attributes: ['id', 'name', 'discordUrl', 'twitterHandle'],
       where: { adminConfirmed: 0 },
+    });
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+//for admin page - collection
+export const getUserSourceCollections = async () => {
+  try {
+    return await Collection.findAll({
+      attributes: [
+        'team',
+        'history',
+        'category',
+        'utility',
+        'mintingPriceWl',
+        'mintingPricePublic',
+        'floorPrice',
+        'discordUrl',
+        'twitterHandle',
+        'websiteUrl',
+        'paymentTokens',
+        'marketplace',
+      ],
+      where: { infoSource: 'user' },
     });
   } catch (error) {
     throw new SequelizeError(error as Error);
@@ -58,6 +88,42 @@ export const updateConfirmedCollection = async (
       discordUrl,
       twitterHandle,
     });
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+export const updateUserSourceCollection = async (
+  collectionSlug: string,
+  collectionDTO: UpdateCollectionReqBody,
+  user: User | undefined,
+  device: UserDevice | undefined
+) => {
+  try {
+    const cl = await getCollectionBySlug(collectionSlug);
+    if (!cl) throw new NotFoundError('ERR_CL_NOT_FOUND');
+    if (!user) throw new UnauthenticatedError();
+    if (!device) throw new ApiError('ERR_DEVICE');
+
+    const document = await cl.$get('document', { attributes: ['id'] });
+    if (!document) throw new NotFoundError('ERR_DOCUMENT_NOT_FOUND');
+
+    //document audit
+    await auditWikiDocumentById(
+      document.id,
+      {
+        document: {},
+        collection: {
+          ...collectionDTO,
+          infoSource: 'admin',
+          infoConfirmedById: user.id,
+        },
+      },
+      user,
+      device
+    );
+
+    return cl;
   } catch (error) {
     throw new SequelizeError(error as Error);
   }
