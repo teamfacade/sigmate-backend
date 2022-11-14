@@ -1,5 +1,5 @@
 import express from 'express';
-import { passportJwtAuth } from '../../../middlewares/authMiddlewares';
+import { isAdmin, passportJwtAuth } from '../../../middlewares/authMiddlewares';
 import { validateConfirm } from '../../../middlewares/validators/admin';
 import {
   getUnconfirmedCollectionsController,
@@ -14,6 +14,11 @@ adminRouter
 
 adminRouter
   .route('/confirm')
-  .post(passportJwtAuth, validateConfirm, postConfirmedCollectionController);
-  
+  .post(
+    passportJwtAuth,
+    isAdmin,
+    validateConfirm,
+    postConfirmedCollectionController
+  );
+
 export default adminRouter;
