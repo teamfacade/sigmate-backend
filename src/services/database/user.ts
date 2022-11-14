@@ -1,5 +1,6 @@
 import { Credentials } from 'google-auth-library';
 import { Transaction } from 'sequelize/types';
+import { PaginationOptions } from '../../middlewares/handlePagination';
 import db from '../../models';
 import User, { UserCreationDTO, UserDTO } from '../../models/User';
 import UserAuth, { UserAuthDTO } from '../../models/UserAuth';
@@ -282,6 +283,25 @@ export const getMetaMaskNonce = async (user: User) => {
       await userAuth.update({ metamaskNonce: nonce });
     }
     return nonce;
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+export const getReferredUsers = async (
+  user: User | undefined,
+  pg: PaginationOptions | undefined
+) => {
+  if (!user) throw new UnauthenticatedError();
+  if (!pg) throw new BadRequestError();
+  try {
+    const users = await user.$get('referredUsers', {
+      attributes: ['id', 'userName', 'createdAt'],
+      limit: pg.limit,
+      offset: pg.offset,
+    });
+    const count = await user.$count('referredUsers');
+    return { rows: users, count };
   } catch (error) {
     throw new SequelizeError(error as Error);
   }
