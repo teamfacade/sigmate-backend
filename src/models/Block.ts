@@ -19,7 +19,7 @@ import Collection, {
 } from './Collection';
 import Document, { DocumentAttributes } from './Document';
 import DocumentAudit, { DocumentAuditAttributes } from './DocumentAudit';
-import Image from './Image';
+import Image, { ImageAttributes, ImageResponse } from './Image';
 import Opinion from './Opinion';
 import Url from './Url';
 import User, { UserAttributes } from './User';
@@ -59,6 +59,7 @@ export interface BlockAttributes {
   lastParentAudit?: BlockAudit;
 
   image?: Image;
+  imageId?: ImageAttributes['id'];
   url?: Url;
   children?: Block[];
   audits?: BlockAudit[];
@@ -141,6 +142,29 @@ export interface TextBlockAuditDTO
   approved: boolean;
 }
 
+export interface ImageBlockCreationDTO
+  extends Pick<
+    BlockAttributes,
+    | 'element'
+    | 'documentId'
+    | 'document'
+    | 'style'
+    | 'parentId'
+    | 'parent'
+    | 'structure'
+    | 'createdByDeviceId'
+    | 'createdByDevice'
+    | 'createdById'
+    | 'createdBy'
+    | 'temporaryId'
+  > {
+  documentAuditId?: DocumentAuditAttributes['id'];
+  documentAudit?: DocumentAudit | null;
+  approved: boolean;
+  imageId: ImageAttributes['id'];
+  originalFileSize: ImageAttributes['originalFilesize'];
+}
+
 export type CollectionAttribBlockCreationDTO = TextBlockCreationDTO &
   Required<Pick<BlockAttributes, 'collection' | 'collectionAttrib'>>;
 
@@ -158,6 +182,10 @@ export interface BlockRequest {
   parent?: BlockAttributes['id'];
   children?: BlockRequest[];
   lastAuditId?: BlockAuditAttributes['id'];
+
+  // Image blocks
+  imageId?: ImageAttributes['id'];
+  originalFileSize?: ImageAttributes['originalFilesize'];
   depth?: number;
 }
 
@@ -185,6 +213,7 @@ export interface BlockResponse
   myVerification?: BlockVerificationResponse | null;
   collection?: { id: CollectionAttributes['id'] };
   collectionAttrib?: BlockCollectionAttrib;
+  image?: ImageResponse;
 }
 
 @Table({
@@ -331,6 +360,7 @@ export default class Block extends Model<
       opinionCount,
       myVerification,
       collection,
+      image,
     ] = await Promise.all([
       this.$get('document', { attributes: ['id', 'title'] }),
       this.$get('parent', { attributes: ['id'] }),
@@ -368,6 +398,7 @@ export default class Block extends Model<
       this.$count('opinions'),
       this.getMyVerification(myself),
       this.$get('collection', { attributes: ['id'] }),
+      this.$get('image'),
     ]);
 
     const parentResponse = parent ? { id: parent.id } : null;
@@ -377,6 +408,7 @@ export default class Block extends Model<
     const myVerificationResponse: BlockVerificationResponse | null =
       myVerification && (await myVerification.toResponseJSON());
     const collectionResponse = collection ? { id: collection.id } : undefined;
+    const imageResponse = image ? await image.toResponseJSON() : undefined;
 
     return {
       id: this.id,
@@ -401,6 +433,7 @@ export default class Block extends Model<
       myVerification: myVerificationResponse,
       collection: collectionResponse,
       collectionAttrib: this.collectionAttrib,
+      image: imageResponse,
     };
   }
 }
