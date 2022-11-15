@@ -10,6 +10,7 @@ import {
   MintingScheduleAttributes,
   MintingScheduleResponse,
 } from '../../models/MintingSchedule';
+import Document from '../../models/Document';
 import ApiError from '../../utils/errors/ApiError';
 import NotFoundError from '../../utils/errors/NotFoundError';
 import UnauthenticatedError from '../../utils/errors/UnauthenticatedError';
@@ -107,7 +108,10 @@ export const createMintingScheduleController = async (
     if (collectionId) {
       cl = await getCollectionById(collectionId);
     } else if (documentId) {
-      cl = await Collection.findOne({ where: { documentId } });
+      const doc = await Document.findByPk(documentId);
+      if (doc) {
+        cl = await doc.$get('collection', { attributes: ['id'] });
+      }
     }
     if (!cl) throw new NotFoundError();
 
