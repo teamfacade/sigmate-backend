@@ -5,6 +5,7 @@ import {
   PaginatedResponse,
   PaginationOptions,
 } from '../../middlewares/handlePagination';
+import Collection from '../../models/Collection';
 import {
   MintingScheduleAttributes,
   MintingScheduleResponse,
@@ -72,7 +73,8 @@ type CreateMintingScheduleReqBody = {
   mintingTime: string; // isISO8601
   mintingUrl?: string; // isURL
   description?: string;
-  collection: number; // collection id
+  collection?: number; // collection id
+  document?: number;
   mintingPrice?: string;
   mintingPriceSymbol?: string;
 };
@@ -94,12 +96,19 @@ export const createMintingScheduleController = async (
       mintingUrl,
       description,
       collection: collectionId,
+      document: documentId,
       mintingPrice,
       mintingPriceSymbol,
     } = req.body as CreateMintingScheduleReqBody;
 
     // Check if collection exists
-    const cl = await getCollectionById(collectionId);
+
+    let cl: Collection | null = null;
+    if (collectionId) {
+      cl = await getCollectionById(collectionId);
+    } else if (documentId) {
+      cl = await Collection.findOne({ where: { documentId } });
+    }
     if (!cl) throw new NotFoundError();
 
     // Create the schedule
@@ -109,7 +118,7 @@ export const createMintingScheduleController = async (
       mintingTime: new Date(mintingTime),
       mintingUrl,
       description,
-      collectionId,
+      collectionId: cl.id,
       mintingPrice,
       mintingPriceSymbol,
       createdBy: u,
