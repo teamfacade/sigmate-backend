@@ -1,7 +1,9 @@
 import express from 'express';
 import { isAdmin, passportJwtAuth } from '../../../middlewares/authMiddlewares';
+import handleBadRequest from '../../../middlewares/handleBadRequest';
 import handlePagination from '../../../middlewares/handlePagination';
 import { validateConfirm } from '../../../middlewares/validators/admin';
+import { validateUpdateCollectionByUser } from '../../../middlewares/validators/wiki/collection';
 import {
   getUnconfirmedCollectionsController,
   postConfirmedCollectionController,
@@ -19,7 +21,7 @@ adminRouter.route('/uc').get(getUnconfirmedCollectionsController);
 
 adminRouter
   .route('/confirm')
-  .post(validateConfirm, postConfirmedCollectionController);
+  .post(validateConfirm, handleBadRequest, postConfirmedCollectionController);
 
 adminRouter
   .route('/info-confirm')
@@ -27,6 +29,10 @@ adminRouter
 
 adminRouter
   .route('/info-confirm/:slug')
-  .patch(updateCollectionByUserController);
+  .patch(
+    validateUpdateCollectionByUser,
+    handleBadRequest,
+    updateCollectionByUserController
+  );
 
 export default adminRouter;

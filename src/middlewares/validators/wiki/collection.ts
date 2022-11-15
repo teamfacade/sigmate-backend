@@ -568,3 +568,156 @@ export const validateUpdateCollectionUtility = [
     .withMessage('TOO_LONG')
     .bail(),
 ];
+
+export const validateUpdateCollectionByUser = [
+  //name: collection?.name,!
+  // description: collection?.description,!
+  // paymentTokens: collection?.paymentTokens,!
+  // twitterHandle: collection?.twitterHandle,!
+  // discordUrl: collection?.discordUrl,!
+  // websiteUrl: collection?.websiteUrl,!
+  // imageUrl: collection?.imageUrl,!
+  // bannerImageUrl: collection?.bannerImageUrl,!
+  // mintingPriceWl: collection?.mintingPriceWl,!
+  // mintingPricePublic: collection?.mintingPricePublic,!
+  // floorPrice: collection?.floorPrice,!
+  // marketplace: collection?.marketplace,!
+  // category: collection?.category,!
+  // utility: collection?.utility,!
+  // team: collection?.team,!
+  // history: collection?.history,!
+  // infoConfirmedById: u.id,
+  // infoSource: 'admin',
+  body('name')
+    .optional()
+    .trim()
+    .stripLow()
+    .notEmpty()
+    .withMessage('REQUIRED')
+    .bail()
+    .isLength({ min: 1, max: 191 })
+    .withMessage('TOO_LONG'),
+  body('description')
+    .optional()
+    .trim()
+    .stripLow()
+    .notEmpty()
+    .withMessage('REQUIRED')
+    .bail()
+    .isLength({ min: 1, max: 16383 })
+    .withMessage('TOO_LONG')
+    .bail(),
+  body('paymentTokens')
+    .optional()
+    .isArray()
+    .custom(isPaymentTokensArray)
+    .toArray(),
+  body('twitterHandle')
+    .optional()
+    .trim()
+    .stripLow()
+    .isLength({ max: 16 })
+    .withMessage('TOO_LONG')
+    .bail(),
+  body('discordUrl')
+    .optional()
+    .trim()
+    .stripLow()
+    .isLength({ max: 1024 })
+    .withMessage('TOO_LONG'),
+  body('websiteUrl')
+    .optional()
+    .trim()
+    .stripLow()
+    .notEmpty()
+    .withMessage('REQUIRED')
+    .bail()
+    .isURL()
+    .withMessage('NOT_URL')
+    .bail()
+    .isLength({ max: 1024 })
+    .withMessage('TOO_LONG'),
+  body('imageUrl')
+    .optional()
+    .trim()
+    .stripLow()
+    .isURL()
+    .withMessage('NOT_URL')
+    .isLength({ max: 1024 })
+    .withMessage('TOO_LONG'),
+  body('bannerImageUrl')
+    .optional()
+    .trim()
+    .stripLow()
+    .isURL()
+    .withMessage('NOT_URL')
+    .isLength({ max: 1024 })
+    .withMessage('TOO_LONG'),
+  body('mintingPriceWl')
+    .optional()
+    .trim()
+    .stripLow()
+    .isFloat()
+    .withMessage('NOT_FLOAT'),
+  body('mintingPricePublic')
+    .optional()
+    .trim()
+    .stripLow()
+    .isFloat()
+    .withMessage('NOT_FLOAT'),
+  body('floorPrice')
+    .optional()
+    .trim()
+    .stripLow()
+    .isFloat()
+    .withMessage('NOT_FLOAT'),
+  body('marketplace')
+    .optional()
+    .trim()
+    .stripLow()
+    .isLength({ max: 191 })
+    .withMessage('TOO_LONG')
+    .bail(),
+  body('category')
+    .optional()
+    .trim()
+    .stripLow()
+    .isLength({ min: 1, max: 64 })
+    .withMessage('TOO_LONG')
+    .bail(),
+  body('utility')
+    .optional()
+    .trim()
+    .stripLow()
+    .isLength({ min: 1, max: 64 })
+    .withMessage('TOO_LONG')
+    .bail(),
+  body('team')
+    .optional()
+    .trim()
+    .stripLow()
+    .isLength({ min: 1, max: 16383 })
+    .withMessage('TOO_LONG')
+    .bail(),
+  body('history')
+    .optional()
+    .trim()
+    .stripLow()
+    .isLength({ min: 1, max: 16383 })
+    .withMessage('TOO_LONG')
+    .bail(),
+  body('infoConfimedById')
+    .trim()
+    .stripLow()
+    .notEmpty()
+    .withMessage('REQUIRED')
+    .bail(),
+  body('infoSource')
+    .trim()
+    .stripLow()
+    .notEmpty()
+    .withMessage('REQUIRED')
+    .bail()
+    .isIn(['admin'])
+    .withMessage('NOT_ADMIN'),
+];
