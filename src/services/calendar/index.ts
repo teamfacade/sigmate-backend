@@ -14,6 +14,7 @@ import NotFoundError from '../../utils/errors/NotFoundError';
 import UnauthenticatedError from '../../utils/errors/UnauthenticatedError';
 import {
   createMintingSchedule,
+  deleteMintingScheduleById,
   getMintingScheduleWithinPeriod,
   getMintingScheudleById,
   updateMintingScheduleById,
@@ -182,6 +183,24 @@ export const updateMintingScheduleController = async (
       data: await ms.toResponseJSON(),
     };
     res.status(200).json(response);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteMintingScheduleController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const id = req.params.id as unknown as number;
+    const deleted = await deleteMintingScheduleById(id);
+    if (deleted) {
+      res.status(200).json({ success: true });
+    } else {
+      throw new NotFoundError();
+    }
   } catch (error) {
     next(error);
   }

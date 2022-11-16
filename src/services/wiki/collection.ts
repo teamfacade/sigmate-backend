@@ -470,7 +470,7 @@ export const deleteCollectionCategoryController = async (
     // If not, proceed to delete
     const deleted = await deleteCollectionCategory(id);
     if (deleted) {
-      res.status(200).send();
+      res.status(200).json({ success: true });
     } else {
       // Nothing deleted. Category must not exist
       throw new NotFoundError();
@@ -597,7 +597,7 @@ export const deleteCollectionUtilityController = async (
 
     const deleted = await deleteCollectionUtilityById(uid);
     if (deleted) {
-      res.status(200).send();
+      res.status(200).json({ success: true });
     } else {
       // Nothing was deleted. Utility must not exist.
       throw new NotFoundError();

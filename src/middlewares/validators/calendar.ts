@@ -138,6 +138,14 @@ export const validateUpdateMintingSchedule = [
     .withMessage('TOO_LONG'),
 ];
 
+export const validateDeleteMintingSchedule = param('id')
+  .notEmpty()
+  .withMessage('REQUIRED')
+  .isInt({ min: 1, max: Number.MAX_SAFE_INTEGER })
+  .withMessage('NOT_INT')
+  .bail()
+  .toInt();
+
 export const validateGetMyMintingSchedules = [
   query('start')
     .notEmpty()
