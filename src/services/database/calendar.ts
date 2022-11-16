@@ -32,7 +32,10 @@ export const getMintingScheduleWithinPeriod = async (
     return await MintingSchedule.findAndCountAll({
       where: {
         mintingTime: {
-          [Op.between]: [start.toJSDate(), end.toJSDate()],
+          [Op.and]: {
+            [Op.gte]: start.toJSDate(),
+            [Op.lt]: end.toJSDate(),
+          },
         },
       },
       order: [['mintingTime', 'ASC']],
