@@ -157,6 +157,9 @@ export const auditWikiDocumentById = async (
         parentId: dto.document.parent,
         createdByDeviceId: updatedByDevice.id,
         createdById: updatedBy.id,
+        approvedAt: new Date(),
+        approvedById: updatedBy.id,
+        approvedByDeviceId: updatedByDevice.id,
       });
 
       // Update complex parameters (Document)
