@@ -183,7 +183,7 @@ export const createUserGoogle = async (
 
   const userProfileDTO: UserProfileCreationDTO = {
     displayName: googleProfile.displayName,
-    profileImageUrl: googleProfile.coverPhoto,
+    profileImageUrl: googleProfile.photo,
   };
 
   return await createUser(userDTO, userAuthDTO, userProfileDTO);
