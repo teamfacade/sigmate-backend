@@ -33,6 +33,7 @@ export const getRecentEditsController = async (
             title: document.title,
           },
           createdBy: await userPublicInfoToJSON(createdBy),
+          approvedAt: auditJSON.approvedAt || null,
         };
       })
     );

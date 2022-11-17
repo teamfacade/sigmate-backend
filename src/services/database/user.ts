@@ -59,7 +59,7 @@ export const findUserByMetamaskWallet = async (metamaskWallet: string) => {
   try {
     return await User.findOne({
       where: { metamaskWallet },
-      include: [{ model: UserProfile }],
+      include: [{ model: UserProfile }, { model: UserGroup }],
     });
   } catch (error) {
     throw new SequelizeError(error as Error);

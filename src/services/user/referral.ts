@@ -1,5 +1,6 @@
 import { randomBytes } from 'crypto';
 import { Request, Response, NextFunction } from 'express';
+import { userPublicInfoToJSON } from '.';
 import { createPgRes } from '../../middlewares/handlePagination';
 import BadRequestError from '../../utils/errors/BadRequestError';
 import { getReferredUsers } from '../database/user';
@@ -33,11 +34,14 @@ export const getReferredUsersController = async (
     const pg = req.pg;
     if (!pg) throw new BadRequestError();
     const { rows: users, count } = await getReferredUsers(user, pg);
+    const usersRes = await Promise.all(
+      users.map((user) => userPublicInfoToJSON(user))
+    );
     const data = createPgRes({
       limit: pg.limit,
       offset: pg.offset,
       count,
-      data: users,
+      data: usersRes,
     });
     res.status(200).json(data);
   } catch (error) {
