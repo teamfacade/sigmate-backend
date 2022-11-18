@@ -121,6 +121,7 @@ export const userPublicInfoToJSON = async (
       ? user.discordAccount
       : undefined,
     primaryProfile,
+    createdAt: user.createdAt,
   };
   return response;
 };
