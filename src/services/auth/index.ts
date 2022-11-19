@@ -11,7 +11,7 @@ import {
 import UnauthenticatedError from '../../utils/errors/UnauthenticatedError';
 import db from '../../models';
 import SequelizeError from '../../utils/errors/SequelizeError';
-import { getECPublicKey, JWT_ALG, JWT_ISS } from './token';
+import { getECPublicKey, JWT_ALG, JWT_ISS, SigmateJwtPayload } from './token';
 
 export type AuthResponse = {
   success: boolean;
@@ -32,10 +32,16 @@ export const sigmateLogin = async (user: User | null | undefined) => {
   let shouldRenewAccessToken = false;
   try {
     if (accessToken) {
-      jwt.verify(accessToken, getECPublicKey(), {
+      const payload = jwt.verify(accessToken, getECPublicKey(), {
         issuer: JWT_ISS,
         algorithms: [JWT_ALG],
-      });
+      }) as SigmateJwtPayload;
+      if (
+        payload.group !== user.group.id ||
+        (payload.isAdmin as unknown as boolean | undefined) !== user.isAdmin
+      ) {
+        shouldRenewAccessToken = true;
+      }
     } else {
       shouldRenewAccessToken = true;
     }
@@ -45,10 +51,17 @@ export const sigmateLogin = async (user: User | null | undefined) => {
   let shouldRenewRefreshToken = false;
   try {
     if (refreshToken) {
-      jwt.verify(refreshToken, getECPublicKey(), {
+      const payload = jwt.verify(refreshToken, getECPublicKey(), {
         issuer: JWT_ISS,
         algorithms: [JWT_ALG],
-      });
+      }) as SigmateJwtPayload;
+
+      if (
+        payload.group !== user.group.id ||
+        (payload.isAdmin as unknown as boolean | undefined) !== user.isAdmin
+      ) {
+        shouldRenewRefreshToken = true;
+      }
     } else {
       shouldRenewRefreshToken = true;
     }
