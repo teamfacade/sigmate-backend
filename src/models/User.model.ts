@@ -20,14 +20,14 @@ import UserAuth, { UserAuthAttribs } from './UserAuth.model';
 import UserDevice from './UserDevice.model';
 import UserGroup from './UserGroup.model';
 
-const USER_USERNAME_MIN_LENGTH = 3;
-const USER_USERNAME_MAX_LENGTH = 15;
-const USER_METAMASK_MAX_LENGTH = 64;
+export const USER_USERNAME_MIN_LENGTH = 3;
+export const USER_USERNAME_MAX_LENGTH = 15;
+export const USER_METAMASK_MAX_LENGTH = 64;
 const USER_GOOGLE_ID_LENGTH = 32; // 22 (for future-proof)
 const USER_REFERRAL_CODE_LENGTH = 15;
 // A dollar sign followed by UNIX epoch timestamp
 // e.g. email@email.com$1668133802617
-const USER_DELETE_SUFFIX_LENGTH = 14;
+export const USER_DELETE_SUFFIX_LENGTH = 14;
 
 export interface UserAttribs {
   /** Primary key */
@@ -175,6 +175,10 @@ export default class User extends Model<UserAttribs, UserCAttribs> {
   googleAccount: UserAttribs['googleAccount'];
 
   @Unique('googleAccountId')
+  @Length({
+    msg: 'LENGTH',
+    max: USER_GOOGLE_ID_LENGTH + USER_DELETE_SUFFIX_LENGTH,
+  })
   @Column(DataType.STRING(USER_GOOGLE_ID_LENGTH + USER_DELETE_SUFFIX_LENGTH))
   googleAccountId: UserAttribs['googleAccountId'];
 

@@ -154,6 +154,13 @@ export default class AuthService extends BaseService {
       : device || new DeviceService();
   }
 
+  public async setDevice(
+    ip: string | undefined,
+    userAgent: string | undefined
+  ) {
+    await this.device.findOrCreate(ip, userAgent);
+  }
+
   /**
    * Generate a new signed Sigmate access or refresh token
    * @param type Type of token
@@ -346,6 +353,12 @@ export default class AuthService extends BaseService {
     await this.renewToken('both');
   }
 
+  /**
+   * Authenticate user with a Sigmate token.
+   * Sets the user on this Auth instance on auth success
+   * @param method Authentication method
+   * @param dto Sigmate token
+   */
   public async authenticate(
     method: sigmate.Auth.AuthMethod,
     dto: sigmate.Auth.AuthDTO

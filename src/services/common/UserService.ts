@@ -1,23 +1,28 @@
 import { randomBytes } from 'crypto';
+import { CustomValidator, ValidationChain } from 'express-validator';
 import { Transaction, WhereOptions } from 'sequelize/types';
+import isURL from 'validator/lib/isURL';
 import services from '..';
-import User, { UserAttribs, UserCAttribs } from '../../models/User.model';
+import User, {
+  UserAttribs,
+  UserCAttribs,
+  USER_DELETE_SUFFIX_LENGTH,
+  USER_METAMASK_MAX_LENGTH,
+  USER_USERNAME_MAX_LENGTH,
+  USER_USERNAME_MIN_LENGTH,
+} from '../../models/User.model';
 import UserAuth, { UserAuthAttribs } from '../../models/UserAuth.model';
 import UserGroup from '../../models/UserGroup.model';
 import AuthService from './auth/AuthService';
-import BaseService from './base/BaseService';
+import ModelService from './base/ModelService';
 import AuthError from './errors/AuthError';
 
-export interface UserFindDTO
-  extends Partial<
-    Pick<
-      UserAttribs,
-      'id' | 'userName' | 'googleAccountId' | 'referralCode' | 'metamaskWallet'
-    >
-  > {
-  sigmateAccessToken?: string;
-  sigmateRefreshToken?: string;
-}
+export type UserFindDTO = Partial<
+  Pick<
+    UserAttribs,
+    'id' | 'userName' | 'googleAccountId' | 'referralCode' | 'metamaskWallet'
+  >
+>;
 
 type UserCreateDTO = Pick<
   UserCAttribs,
@@ -52,7 +57,7 @@ type UserUpdateDTO = Pick<
     'googleAccessToken' | 'googleRefreshToken' | 'metamaskNonce'
   >;
 
-export default class UserService extends BaseService {
+export default class UserService extends ModelService {
   user?: User;
   constructor(user: User | null | undefined = undefined) {
     super();
@@ -85,6 +90,13 @@ export default class UserService extends BaseService {
     }
     if (options?.set && user) this.user = user;
     return user;
+  }
+
+  public async exists(dto: UserFindDTO) {
+    const count = await services.db.run(() =>
+      User.count({ where: dto, attributes: ['id'] })
+    );
+    return count > 0;
   }
 
   private async findById(id: UserAttribs['id']) {
@@ -241,5 +253,92 @@ export default class UserService extends BaseService {
 
     await services.db.run(() => user.save({ transaction }));
     await services.db.run(() => auth.save({ transaction }));
+  }
+
+  public isUserNameAvailable: CustomValidator = async (value) => {
+    return await this.exists({ userName: value });
+  };
+
+  public followsUserNamePolicy: CustomValidator = (value) => {
+    // Check length
+    if (value.length < USER_USERNAME_MIN_LENGTH) throw new Error('TOO_SHORT');
+    if (value.length > USER_USERNAME_MAX_LENGTH) throw new Error('TOO_LONG');
+
+    // ignore cases
+    value = value.toLowerCase();
+
+    // Only allow alphanumeric characters, underscores, dashes, and periods
+    const allowed = /[^a-z|A-Z|0-9|\-|_|.]/;
+    if (allowed.test(value)) throw new Error('ERR_USERNAME_ILLEGAL_CHARS');
+
+    // Special characters cannot appear more than 2 times in a row
+    const consecutiveSpecials = /[-|_|.]{2,}/;
+    if (consecutiveSpecials.test(value))
+      throw new Error('ERR_USERNAME_CONSECUTIVE_SPECIAL_CHARS');
+
+    // Cannot start nor end with a special character
+    const startsOrEndsWithSpecials = /^[-|_|.]|[-|_|.]$/;
+    if (startsOrEndsWithSpecials.test(value))
+      throw new Error('ERR_USERNAME_START_OR_END_WITH_SPECIAL_CHARS');
+
+    // Cannot contain certain words
+    const illegalWords = ['admin', 'sigmate', 'facade'];
+    const valueWithoutSpecials = value.replace(/[-|_|.]/g, '');
+    const containIllegalWords = illegalWords
+      .map((iw) => valueWithoutSpecials.includes(iw))
+      .reduce((p, c) => {
+        return p || c;
+      }, false);
+    if (containIllegalWords) throw new Error('ERR_USERNAME_ILLEGAL_WORDS');
+
+    // Cannot be a URL
+    if (isURL(value)) throw new Error('ERR_USERNAME_IS_URL');
+
+    return true;
+  };
+
+  private getValidator(field: keyof UserAttribs, chain: ValidationChain) {
+    switch (field) {
+      case 'userName':
+        return chain
+          .isLength({
+            min: USER_USERNAME_MIN_LENGTH,
+            max: USER_USERNAME_MAX_LENGTH,
+          })
+          .withMessage('LENGTH')
+          .custom(this.followsUserNamePolicy)
+          .bail()
+          .custom(this.isUserNameAvailable);
+      case 'email':
+        return chain
+          .isLength({ max: 255 - USER_DELETE_SUFFIX_LENGTH })
+          .withMessage('TOO_LONG')
+          .bail()
+          .isEmail()
+          .withMessage('NOT_EMAIL');
+      case 'metamaskWallet':
+        return chain
+          .isLength({ max: USER_METAMASK_MAX_LENGTH })
+          .withMessage('TOO_LONG')
+          .isEthereumAddress()
+          .withMessage('NOT_ETH_ADDRESS');
+      // case "referralCode": // other's referral code (not mine)
+      //   return chain
+      //     .
+    }
+  }
+
+  public getValidators(
+    location: 'body' | 'query' | 'param',
+    fields: string[],
+    options: { fieldPrefix?: string | undefined }
+  ): ValidationChain[] {
+    const chains: ValidationChain[] = [];
+    const fieldPrefix = options.fieldPrefix ? options.fieldPrefix : '';
+    fields.forEach((field) => {
+      // eslint-disable-next-line
+      const chain = this.VALIDATOR[location](fieldPrefix + field);
+    });
+    return chains;
   }
 }
