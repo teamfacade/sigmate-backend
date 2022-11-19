@@ -11,7 +11,7 @@ export const validateConfirm = [
     .toInt(),
   body('discordUrl').optional().trim().stripLow(),
   body('discordChannel')
-    .optional()
+    .optional({ checkFalsy: true })
     .trim()
     .stripLow()
     .isNumeric()

@@ -7,6 +7,7 @@ import { validateUpdateCollectionByUser } from '../../../middlewares/validators/
 import {
   getUnconfirmedCollectionsController,
   postConfirmedCollectionController,
+  updateConfirmedCollectionController,
 } from '../../../services/admin';
 import {
   getCollectionByUserController,
@@ -17,12 +18,23 @@ const adminRouter = express.Router();
 
 adminRouter.use(passportJwtAuth, isAdmin);
 
-adminRouter.route('/uc').get(getUnconfirmedCollectionsController);
-
+// get unconfirmed collections to admin page
 adminRouter
-  .route('/confirm')
-  .post(validateConfirm, handleBadRequest, postConfirmedCollectionController);
+  .route('/uc')
+  .get(getUnconfirmedCollectionsController)
+  .post(validateConfirm, handleBadRequest, postConfirmedCollectionController)
+  .patch(
+    validateConfirm,
+    handleBadRequest,
+    updateConfirmedCollectionController
+  );
 
+// confirm collection's channel info
+// adminRouter
+//   .route('/confirm')
+//   .post(validateConfirm, handleBadRequest, postConfirmedCollectionController);
+
+// get collections made by users not by marketplaceno
 adminRouter
   .route('/info-confirm')
   .get(handlePagination, getCollectionByUserController);

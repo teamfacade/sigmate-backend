@@ -40,7 +40,6 @@ export const createConfirmedChannel = async (
         twitterChannel: twitterChannel,
       },
     });
-
     return channel;
   } catch (error) {
     throw new SequelizeError(error as Error);

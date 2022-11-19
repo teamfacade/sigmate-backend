@@ -5,6 +5,7 @@ import {
   createConfirmedChannel,
   updateConfirmedCollection,
 } from '../database/admin';
+import { updateChannel } from '../database/channel';
 
 export const getUnconfirmedCollectionsController = async (
   req: Request,
@@ -47,6 +48,38 @@ export const postConfirmedCollectionController = async (
     res.status(200).json({
       success: true,
       channel,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const updateConfirmedCollectionController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const user = req.user;
+    const { collectionId, discordUrl, discordChannel, twitterHandle } =
+      req.body;
+    const twitterChannel = await getTwitterId(twitterHandle);
+    await updateConfirmedCollection(
+      collectionId,
+      discordUrl,
+      twitterHandle,
+      user
+    );
+    const updatedChannel = await updateChannel(
+      collectionId,
+      twitterChannel,
+      discordChannel,
+      twitterHandle
+    );
+
+    res.status(200).json({
+      success: true,
+      channel: updatedChannel,
     });
   } catch (error) {
     next(error);
