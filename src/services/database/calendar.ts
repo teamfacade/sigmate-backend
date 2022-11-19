@@ -12,6 +12,9 @@ import User, { UserAttributes } from '../../models/User';
 import { UserDeviceAttributes } from '../../models/UserDevice';
 import UnauthenticatedError from '../../utils/errors/UnauthenticatedError';
 import NotFoundError from '../../utils/errors/NotFoundError';
+import BadRequestError from '../../utils/errors/BadRequestError';
+import UserSavedMintingSchedule from '../../models/UserSavedMintingSchedule';
+import db from '../../models';
 
 export const getMintingScheudleById = async (
   id: MintingScheduleAttributes['id']
@@ -104,6 +107,23 @@ export const updateMintingScheduleById = async (
     );
 
     return await MintingSchedule.findByPk(id);
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+export const deleteMintingScheduleById = async (
+  id: MintingScheduleAttributes['id']
+) => {
+  if (!id) throw new BadRequestError();
+  try {
+    return db.sequelize.transaction(async (transaction) => {
+      await UserSavedMintingSchedule.destroy({
+        where: { mintingScheduleId: id },
+        transaction,
+      });
+      return await MintingSchedule.destroy({ where: { id }, transaction });
+    });
   } catch (error) {
     throw new SequelizeError(error as Error);
   }

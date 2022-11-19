@@ -521,6 +521,14 @@ export const validateUpdateCollectionCategory = [
     .withMessage('TOO_LONG'),
 ];
 
+export const validateDeleteCollectionCategory = param('cid')
+  .notEmpty()
+  .withMessage('REQUIRED')
+  .isInt({ min: 1, max: Number.MAX_SAFE_INTEGER })
+  .withMessage('NOT_INT')
+  .bail()
+  .toInt();
+
 export const validateGetCollectionUtilities = [
   query('q')
     .optional()
@@ -567,4 +575,21 @@ export const validateUpdateCollectionUtility = [
     .isLength({ max: 64 })
     .withMessage('TOO_LONG')
     .bail(),
+];
+
+export const validateDeleteCollectionUtility = [
+  query('cid')
+    .notEmpty()
+    .withMessage('REQUIRED')
+    .isInt({ min: 1, max: Number.MAX_SAFE_INTEGER })
+    .withMessage('NOT_INT')
+    .bail()
+    .toInt(),
+  query('uid')
+    .notEmpty()
+    .withMessage('REQUIRED')
+    .isInt({ min: 1, max: Number.MAX_SAFE_INTEGER })
+    .withMessage('NOT_INT')
+    .bail()
+    .toInt(),
 ];

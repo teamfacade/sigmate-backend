@@ -88,6 +88,17 @@ export const userToJSON = (user: User) => {
   return userJSON;
 };
 
+export const userPublicAttributes = [
+  'id',
+  'userName',
+  'metamaskWallet',
+  'isMetamaskWalletPublic',
+  'twitterHandle',
+  'isTwitterHandlePublic',
+  'discordAccount',
+  'isDiscordAccountPublic',
+];
+
 export const userPublicInfoToJSON = async (
   user: User
 ): Promise<UserPublicResponse> => {
@@ -110,6 +121,7 @@ export const userPublicInfoToJSON = async (
       ? user.discordAccount
       : undefined,
     primaryProfile,
+    createdAt: user.createdAt,
   };
   return response;
 };

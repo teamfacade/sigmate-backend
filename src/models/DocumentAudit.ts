@@ -9,7 +9,7 @@ import {
 import { Optional } from 'sequelize/types';
 import Document, { DocumentAttributes } from './Document';
 import Category from './Category';
-import User, { UserAttributes } from './User';
+import User, { UserAttributes, UserPublicResponse } from './User';
 import UserDevice, { UserDeviceAttributes } from './UserDevice';
 import DocumentAuditCategory from './DocumentAuditCategory';
 import BlockAudit from './BlockAudit';
@@ -33,7 +33,7 @@ export interface DocumentAuditAttributes {
   approvedByDevice?: UserDevice;
   approvedById?: UserAttributes['id'];
   approvedBy?: User;
-  approvedAt?: Date;
+  approvedAt?: Date | null;
   revertedByDevice?: UserDevice;
   revertedBy?: User;
   revertedAt?: Date;
@@ -44,6 +44,15 @@ export type DocumentAuditCreationAttributes = Optional<
   DocumentAuditAttributes,
   'id'
 >;
+
+export interface DocumentAuditResponse
+  extends Pick<DocumentAuditAttributes, 'id' | 'approvedAt'> {
+  document: {
+    id: DocumentAttributes['id'];
+    title: DocumentAttributes['title'];
+  };
+  createdBy: UserPublicResponse;
+}
 
 @Table({
   tableName: 'document_audits',
@@ -76,13 +85,13 @@ export default class DocumentAudit extends Model<
   @BelongsTo(() => UserDevice, 'createdByDeviceId')
   createdByDevice!: DocumentAuditAttributes['createdByDevice'];
 
-  @BelongsTo(() => User, 'createdById')
+  @BelongsTo(() => User, { as: 'createdBy', foreignKey: 'createdById' })
   createdBy: DocumentAuditAttributes['createdBy'];
 
   @BelongsTo(() => UserDevice, 'approvedByDeviceId')
   approvedByDevice!: DocumentAuditAttributes['approvedByDevice'];
 
-  @BelongsTo(() => User, 'approvedById')
+  @BelongsTo(() => User, { as: 'approvedBy', foreignKey: 'approvedById' })
   approvedBy: DocumentAuditAttributes['approvedBy'];
 
   @Column(DataType.DATE)

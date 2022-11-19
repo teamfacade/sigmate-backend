@@ -70,6 +70,7 @@ export type GoogleProfile = {
   email: string;
   coverPhoto: string;
   locale: string;
+  photo: string;
 };
 
 /**
@@ -84,7 +85,7 @@ export const getGoogleProfile = async () => {
   try {
     const response = await people.people.get({
       resourceName: 'people/me',
-      personFields: 'names,emailAddresses,metadata,coverPhotos,locales',
+      personFields: 'names,emailAddresses,metadata,coverPhotos,locales,photos',
     });
     data = response.data;
   } catch (googleError) {
@@ -110,18 +111,21 @@ export const getGoogleProfile = async () => {
     ? data.coverPhotos.filter(primaryDataFilter)
     : [];
   let locales = data.locales ? data.locales.filter(primaryDataFilter) : [];
+  let photos = data.photos ? data.photos.filter(primaryDataFilter) : [];
 
   // If the filter returned nothing, just use the unfiltered results
   names = names.length > 0 ? names : data.names || [];
   emails = emails.length > 0 ? emails : data.emailAddresses || [];
   coverPhotos = coverPhotos.length > 0 ? coverPhotos : data.coverPhotos || [];
   locales = locales.length > 0 ? locales : data.locales || [];
+  photos = photos.length > 0 ? photos : data.photos || [];
 
   // Get the data. Fallback to empty string if not found.
   const displayName = (names.length > 0 && names[0].displayName) || '';
   const email = (emails.length > 0 && emails[0].value) || '';
   const coverPhoto = (coverPhotos.length > 0 && coverPhotos[0].url) || '';
   const locale = (locales.length > 0 && locales[0].value) || '';
+  const photo = (photos.length > 0 && photos[0].url) || '';
 
   // Return the constructed profile object
   const googleProfile: GoogleProfile = {
@@ -130,6 +134,7 @@ export const getGoogleProfile = async () => {
     email,
     coverPhoto,
     locale,
+    photo,
   };
 
   return googleProfile;

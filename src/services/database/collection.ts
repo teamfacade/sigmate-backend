@@ -206,6 +206,18 @@ export const getCollectionBySlug = async (slug: string) => {
   }
 };
 
+export const countCollectionByUtility = async (
+  uid: CollectionUtilityAttributes['id']
+) => {
+  try {
+    const cu = await CollectionUtility.findByPk(uid);
+    if (!cu) throw new NotFoundError();
+    return await cu.$count('collections');
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
 export const createCollection = async (
   collectionDTO: CollectionCreationDTO,
   transaction: Transaction | undefined = undefined
@@ -616,7 +628,28 @@ export const updateCollectionCategory = async (
   }
 };
 
-// TODO Delete Collection Category
+export const deleteCollectionCategory = async (
+  id: CollectionCategoryAttributes['id']
+) => {
+  if (!id) throw new BadRequestError();
+  try {
+    return await CollectionCategory.destroy({ where: { id } });
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+export const countCollectionUtilityInCategory = async (
+  collectionCategoryId: CollectionCategoryAttributes['id']
+) => {
+  try {
+    const cc = await CollectionCategory.findByPk(collectionCategoryId);
+    if (!cc) throw new NotFoundError();
+    return await cc.$count('utilities');
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
 
 export const getCollectionUtilitiesByCollectionCategoryId = async (
   collectionCategoryId: CollectionCategoryAttributes['id'],
@@ -690,3 +723,13 @@ export const updateCollectionUtility = async (
 };
 
 // TODO Delete collection utility
+export const deleteCollectionUtilityById = async (
+  id: CollectionUtilityAttributes['id']
+) => {
+  if (!id) throw new BadRequestError();
+  try {
+    return await CollectionUtility.destroy({ where: { id } });
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};

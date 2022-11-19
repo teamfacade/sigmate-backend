@@ -20,6 +20,7 @@ import NotFoundError from '../../utils/errors/NotFoundError';
 import UnauthenticatedError from '../../utils/errors/UnauthenticatedError';
 import {
   auditTextBlock,
+  createImageBlock,
   createTextBlock,
   getBlockById,
 } from '../database/wiki/block';
@@ -126,22 +127,47 @@ export const createNewBlocksInRequest = async (
           });
         }
 
-        // Create the block
-        const [blk, bla] = await createTextBlock(
-          {
-            element: block.element,
-            documentId: documentId, // Set the document ID in blocks
-            style: block.style,
-            textContent: block.textContent || '',
-            parentId: block.parent,
-            createdById: createdBy.id,
-            createdByDeviceId: createdByDevice.id,
-            documentAudit,
-            approved: true, // TODO Prevent auto approval for newbies
-          },
-          transaction
-        );
+        let blk: Block | undefined = undefined;
+        let bla: BlockAudit | undefined = undefined;
 
+        // Image blocks
+        if (
+          block.element === 'img' &&
+          block.imageId &&
+          block.originalFileSize
+        ) {
+          [blk, bla] = await createImageBlock(
+            {
+              element: block.element,
+              documentId,
+              style: block.style,
+              parentId: block.parent,
+              createdById: createdBy.id,
+              createdByDeviceId: createdByDevice.id,
+              documentAudit,
+              imageId: block.imageId,
+              originalFileSize: block.originalFileSize,
+              approved: true,
+            },
+            transaction
+          );
+        } else {
+          // Create the block
+          [blk, bla] = await createTextBlock(
+            {
+              element: block.element,
+              documentId: documentId, // Set the document ID in blocks
+              style: block.style,
+              textContent: block.textContent || '',
+              parentId: block.parent,
+              createdById: createdBy.id,
+              createdByDeviceId: createdByDevice.id,
+              documentAudit,
+              approved: true, // TODO Prevent auto approval for newbies
+            },
+            transaction
+          );
+        }
         // Check if everything went well
         if (!blk || !bla) {
           throw new ApiError('ERR_AUDIT_DOCUMENT_CREATE_BLOCK');

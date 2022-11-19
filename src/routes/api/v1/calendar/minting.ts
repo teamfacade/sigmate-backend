@@ -7,12 +7,14 @@ import handleBadRequest from '../../../../middlewares/handleBadRequest';
 import handlePagination from '../../../../middlewares/handlePagination';
 import {
   validateCreateMintingSchedule,
+  validateDeleteMintingSchedule,
   validateGetMintingScheduleById,
   validateGetMintingSchedules,
   validateUpdateMintingSchedule,
 } from '../../../../middlewares/validators/calendar';
 import {
   createMintingScheduleController,
+  deleteMintingScheduleController,
   getMintingScheduleByIdController,
   getMintingSchedulesController,
   updateMintingScheduleController,
@@ -49,6 +51,12 @@ mintingRouter
     validateUpdateMintingSchedule,
     handleBadRequest,
     updateMintingScheduleController
+  )
+  .delete(
+    passportJwtAuth,
+    validateDeleteMintingSchedule,
+    handleBadRequest,
+    deleteMintingScheduleController
   );
 
 export default mintingRouter;

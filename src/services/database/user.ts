@@ -1,5 +1,6 @@
 import { Credentials } from 'google-auth-library';
 import { Transaction } from 'sequelize/types';
+import { PaginationOptions } from '../../middlewares/handlePagination';
 import db from '../../models';
 import User, { UserCreationDTO, UserDTO } from '../../models/User';
 import UserAuth, { UserAuthDTO } from '../../models/UserAuth';
@@ -58,7 +59,7 @@ export const findUserByMetamaskWallet = async (metamaskWallet: string) => {
   try {
     return await User.findOne({
       where: { metamaskWallet },
-      include: [{ model: UserProfile }],
+      include: [{ model: UserProfile }, { model: UserGroup }],
     });
   } catch (error) {
     throw new SequelizeError(error as Error);
@@ -182,7 +183,7 @@ export const createUserGoogle = async (
 
   const userProfileDTO: UserProfileCreationDTO = {
     displayName: googleProfile.displayName,
-    profileImageUrl: googleProfile.coverPhoto,
+    profileImageUrl: googleProfile.photo,
   };
 
   return await createUser(userDTO, userAuthDTO, userProfileDTO);
@@ -282,6 +283,25 @@ export const getMetaMaskNonce = async (user: User) => {
       await userAuth.update({ metamaskNonce: nonce });
     }
     return nonce;
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+export const getReferredUsers = async (
+  user: User | undefined,
+  pg: PaginationOptions | undefined
+) => {
+  if (!user) throw new UnauthenticatedError();
+  if (!pg) throw new BadRequestError();
+  try {
+    const users = await user.$get('referredUsers', {
+      attributes: ['id', 'userName', 'createdAt'],
+      limit: pg.limit,
+      offset: pg.offset,
+    });
+    const count = await user.$count('referredUsers');
+    return { rows: users, count };
   } catch (error) {
     throw new SequelizeError(error as Error);
   }

@@ -85,6 +85,8 @@ export interface UserAttributes {
   userAuth?: UserAuth;
   adminUser?: AdminUser;
   devices?: UserDevice[];
+  createdAt?: Date;
+  updatedAt?: Date;
 
   appointedAdminUsers?: AdminUser[];
   createdBlocks?: Block[];
@@ -193,6 +195,7 @@ export interface UserResponse
     | 'group'
     | 'primaryProfile'
     | 'adminUser'
+    | 'createdAt'
   > {
   referredBy: UserAttributes['referralCode'] | null;
 }
@@ -201,7 +204,12 @@ export interface UserResponse
 export interface UserPublicResponse
   extends Pick<
     UserResponse,
-    'id' | 'userName' | 'metamaskWallet' | 'twitterHandle' | 'discordAccount'
+    | 'id'
+    | 'userName'
+    | 'metamaskWallet'
+    | 'twitterHandle'
+    | 'discordAccount'
+    | 'createdAt'
   > {
   primaryProfile: Omit<UserProfileAttributes, 'user'>;
 }

@@ -5,6 +5,7 @@ import Block, {
   BlockAttributes,
   CollectionAttribBlockCreationDTO,
   CollectionAttribBlockDeletionDTO,
+  ImageBlockCreationDTO,
   TextBlockAuditDTO,
   TextBlockCreationDTO,
 } from '../../../models/Block';
@@ -17,6 +18,7 @@ import ConflictError from '../../../utils/errors/ConflictError';
 import NotFoundError from '../../../utils/errors/NotFoundError';
 import SequelizeError from '../../../utils/errors/SequelizeError';
 import UnauthenticatedError from '../../../utils/errors/UnauthenticatedError';
+import { createImage, deleteImage } from '../image';
 
 export const getBlockById = async (
   id: BlockAttributes['id'],
@@ -101,6 +103,93 @@ export const createTextBlockWithTx = async (blockDTO: TextBlockCreationDTO) => {
   try {
     return await db.sequelize.transaction(async (transaction) => {
       return await createTextBlock(blockDTO, transaction);
+    });
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+export const createImageBlock = async (
+  blockDTO: ImageBlockCreationDTO,
+  transaction: Transaction | undefined = undefined
+): Promise<[Block, BlockAudit]> => {
+  const userId = blockDTO.createdById || blockDTO.createdBy?.id;
+  const deviceId = blockDTO.createdByDeviceId || blockDTO.createdByDevice?.id;
+  if (!userId) throw new UnauthenticatedError();
+  if (!deviceId) throw new ApiError('ERR_CREATE_IMG_BLOCK_CREATE');
+
+  try {
+    const img = await createImage(
+      {
+        id: blockDTO.imageId,
+        folder: 'wiki/block',
+        originalFilesize: blockDTO.originalFileSize,
+        createdById: userId,
+        createdByDeviceId: deviceId,
+      },
+      transaction
+    );
+
+    const b = await Block.create(
+      {
+        element: blockDTO.element,
+        documentId: blockDTO.documentId || blockDTO.document?.id,
+        parentId: blockDTO.parentId || blockDTO.parent?.id,
+        lastDocumentAuditId:
+          blockDTO.documentAuditId || blockDTO.documentAudit?.id,
+        imageId: img.id,
+        createdById: userId,
+        createdByDeviceId: deviceId,
+      },
+      { transaction }
+    );
+
+    const ba = await BlockAudit.create(
+      {
+        action: 'c',
+        element: blockDTO.element,
+        parentId: blockDTO.parentId || blockDTO.parent?.id,
+        documentId: blockDTO.documentId || blockDTO.document?.id,
+        documentAuditId: blockDTO.documentAuditId || blockDTO.documentAudit?.id,
+        createdById: userId,
+        createdByDeviceId: deviceId,
+        approvedAt: blockDTO.approved ? new Date() : undefined,
+        approvedById: blockDTO.approved ? userId : undefined,
+        approvedByDeviceId: blockDTO.approved ? deviceId : undefined,
+      },
+      { transaction }
+    );
+
+    await b.update(
+      {
+        lastElementAuditId: ba.id,
+        lastStyleAuditId: ba.id,
+        lastTextContentAuditId: ba.id,
+        lastStructureAuditId: ba.id,
+        lastParentAuditId: ba.id,
+      },
+      { transaction }
+    );
+
+    await ba.update(
+      {
+        blockId: b.id,
+      },
+      { transaction }
+    );
+
+    return [b, ba];
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+export const createImageBlockWithTx = async (
+  blockDTO: ImageBlockCreationDTO
+) => {
+  try {
+    return await db.sequelize.transaction(async (transaction) => {
+      return await createImageBlock(blockDTO, transaction);
     });
   } catch (error) {
     throw new SequelizeError(error as Error);
@@ -350,6 +439,18 @@ export const deleteBlockById = async (
       },
       { transaction }
     );
+
+    // Delete the image (for image blocks only)
+    if (block.element === 'img') {
+      const image = await block.$get('image', {
+        attributes: ['id'],
+        transaction,
+      });
+      if (image) {
+        await block.$remove('image', image);
+        await deleteImage(image, deletedBy, deletedByDevice, transaction);
+      }
+    }
 
     // Create audit entry for deletion
     await BlockAudit.create(
