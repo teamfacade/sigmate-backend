@@ -16,8 +16,8 @@ export default class ActionLoggerService<A, R> extends LoggerService {
 
   getActionInfo(): ActionLogInfoBase {
     return {
-      userId: this.action.auth.user?.id || -1,
-      deviceId: this.action.auth.device?.id || -1,
+      userId: this.action.auth.user.user?.id || -1,
+      deviceId: this.action.auth.device.device?.id || -1,
       status: {
         action: this.action.status,
       },

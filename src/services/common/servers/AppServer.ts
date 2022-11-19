@@ -165,6 +165,9 @@ export default class AppServer extends BaseServer {
       AuthService.start();
       passport.use(AuthService.PASSPORT_STRATEGY_JWT);
       app.use(passport.initialize());
+      setService('auth', {
+        system: new AuthService({ system: true }),
+      });
     } catch (e) {
       return this.onStartFail('START/AUTH', e);
     }
@@ -192,7 +195,6 @@ export default class AppServer extends BaseServer {
     origin: unknown = undefined
   ) {
     const error = new AppServerError(message, origin);
-    // TODO Log the AppServerError
     this.logger.logServerError(error, this);
     this.logServerEvent('START_FAIL');
   }

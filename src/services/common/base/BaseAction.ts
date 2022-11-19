@@ -3,6 +3,7 @@ import AuthService from '../auth/AuthService';
 import { defaults } from 'lodash';
 import ActionLoggerService from '../logging/ActionLoggerService';
 import ActionError from '../errors/ActionError';
+import { Transaction } from 'sequelize/types';
 
 type ActionObject = {
   model: string; // Model name
@@ -13,11 +14,13 @@ export type BaseActionOptions<ParentArgsType, ParentResultType> = {
   auth: AuthService;
   throws?: boolean;
   parent?: BaseAction<ParentArgsType, ParentResultType>;
+  transaction?: Transaction;
 };
 
 export type BaseActionStartOptions = {
   target?: ActionObject;
   source?: ActionObject;
+  transaction?: Transaction;
 };
 
 export default abstract class BaseAction<
@@ -64,10 +67,7 @@ export default abstract class BaseAction<
     this.logger = new ActionLoggerService(this);
   }
 
-  abstract action(
-    args: ArgsType | undefined,
-    action: BaseAction<ArgsType, ResultType> | undefined
-  ): Promise<ResultType>;
+  abstract action(args: ArgsType | undefined): Promise<ResultType>;
 
   protected onStart() {
     this.status = 'STARTED';
@@ -84,10 +84,11 @@ export default abstract class BaseAction<
     this.args = args;
     this.target = options.target;
     this.source = options.source;
+    this.options.transaction = options.transaction;
 
     this.onStart();
     try {
-      const result: ResultType = await this.action(args, this);
+      const result: ResultType = await this.action.bind(this)(args);
       this.result = result;
       this.onFinish();
       return result;

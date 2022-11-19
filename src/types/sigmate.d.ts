@@ -5,11 +5,36 @@ declare namespace sigmate {
 
   namespace Auth {
     export interface JwtPayload {
-      tok?: string;
-      group?: string;
+      type?: string;
+      group?: number;
       isAdmin?: boolean;
+      iat?: number;
     }
-  }
 
-  namespace User {}
+    export type TokenType = 'a' | 'r';
+
+    export type GoogleProfile = {
+      id: string;
+      displayName: string;
+      email: string;
+      coverPhoto: string;
+      photo: string;
+      locale: string;
+    };
+
+    export type AuthMethod = 'jwt' | 'google' | 'metamask';
+    export type AuthDTO = {
+      jwt?: {
+        accessToken?: string;
+        refreshToken?: string;
+      };
+      google?: {
+        code: string;
+      };
+      metamask?: {
+        metamaskWallet: string;
+        signature?: string;
+      };
+    };
+  }
 }

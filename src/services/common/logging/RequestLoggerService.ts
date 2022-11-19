@@ -24,8 +24,8 @@ export default class RequestLoggerService extends LoggerService {
     this.log({
       level: 'http',
       message,
-      userId: this.auth.user?.id as number | undefined, // TODO correct type
-      deviceId: this.auth.device?.id as number | undefined, // TODO correct type
+      userId: this.auth.user.user?.id as number | undefined,
+      deviceId: this.auth.device.device?.id as number | undefined,
       status: {
         request: 'STARTED',
       },
@@ -44,8 +44,8 @@ export default class RequestLoggerService extends LoggerService {
     this.log({
       level: info.level || 'info',
       message,
-      userId: this.auth.user?.id as number | undefined, // TODO correct type
-      deviceId: this.auth.device?.id as number | undefined, // TODO correct type
+      userId: this.auth.user.user?.id as number | undefined,
+      deviceId: this.auth.device.device?.id as number | undefined,
       status: {
         request: 'IN_PROGRESS',
       },
@@ -71,12 +71,11 @@ export default class RequestLoggerService extends LoggerService {
       };
     }
 
-    // TODO
     this.log({
       level: info.level || 'http',
       message,
-      userId: this.auth.user?.id as number | undefined, // TODO correct type
-      deviceId: this.auth.device?.id as number | undefined, // TODO correct type
+      userId: this.auth.user.user?.id as number | undefined,
+      deviceId: this.auth.device.device?.id as number | undefined,
       status: {
         request: 'FINISHED',
       },

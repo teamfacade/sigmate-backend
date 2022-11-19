@@ -2,7 +2,7 @@ import ServerError from './ServerError';
 
 type RequestErrorOptions = sigmate.Errors.RequestErrorOptions;
 
-type HttpStatusCode = keyof typeof RequestError['HTTP_ERR_STATUS'];
+export type HttpStatusCode = keyof typeof RequestError['HTTP_ERR_STATUS'];
 
 export default class RequestError extends ServerError {
   static HTTP_ERR_STATUS = {

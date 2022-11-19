@@ -159,6 +159,10 @@ export default class DatabaseService extends BaseService {
    */
   logger: DatabaseLoggerService;
 
+  get transaction() {
+    return this.sequelize.transaction;
+  }
+
   constructor() {
     super();
     if (!DatabaseService.started) {

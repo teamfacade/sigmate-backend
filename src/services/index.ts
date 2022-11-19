@@ -1,9 +1,13 @@
+import AuthService from './common/auth/AuthService';
 import DatabaseService from './common/database/DatabaseService';
 import LoggerService from './common/logging/LoggerService';
 
 type SigmateServices = {
   logger: LoggerService;
   db: DatabaseService;
+  auth: {
+    system: AuthService;
+  };
 };
 
 /**
@@ -12,6 +16,7 @@ type SigmateServices = {
 const services: SigmateServices = {
   logger: undefined as unknown as LoggerService,
   db: undefined as unknown as DatabaseService,
+  auth: undefined as unknown as SigmateServices['auth'],
 };
 
 export const setService = <T extends keyof SigmateServices>(
