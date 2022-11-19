@@ -51,7 +51,7 @@ export interface DocumentAuditResponse
     id: DocumentAttributes['id'];
     title: DocumentAttributes['title'];
   };
-  createdBy: UserPublicResponse;
+  createdBy: UserPublicResponse | null;
 }
 
 @Table({

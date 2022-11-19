@@ -5,7 +5,6 @@ import {
 } from '../../middlewares/handlePagination';
 import Document from '../../models/Document';
 import { DocumentAuditResponse } from '../../models/DocumentAudit';
-import User from '../../models/User';
 import { getRecentDocumentAudits } from '../database/wiki/activity';
 import { userPublicInfoToJSON } from '../user';
 
@@ -25,14 +24,14 @@ export const getRecentEditsController = async (
       audits.map(async (audit) => {
         const auditJSON = audit.toJSON();
         const document = audit.document as Document;
-        const createdBy = audit.createdBy as User;
+        const createdBy = audit.createdBy;
         return {
           id: auditJSON.id,
           document: {
             id: document.id,
             title: document.title,
           },
-          createdBy: await userPublicInfoToJSON(createdBy),
+          createdBy: createdBy ? await userPublicInfoToJSON(createdBy) : null,
           approvedAt: auditJSON.approvedAt || null,
         };
       })
