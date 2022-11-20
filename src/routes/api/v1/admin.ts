@@ -5,6 +5,7 @@ import handlePagination from '../../../middlewares/handlePagination';
 import { validateConfirm } from '../../../middlewares/validators/admin';
 import { validateUpdateCollectionByUser } from '../../../middlewares/validators/wiki/collection';
 import {
+  getConfirmedCollectionsController,
   getUnconfirmedCollectionsController,
   postConfirmedCollectionController,
   updateConfirmedCollectionController,
@@ -20,9 +21,14 @@ adminRouter.use(passportJwtAuth, isAdmin);
 
 // get unconfirmed collections to admin page
 adminRouter
-  .route('/uc')
+  .route('/collection/unconfirmed')
   .get(getUnconfirmedCollectionsController)
-  .post(validateConfirm, handleBadRequest, postConfirmedCollectionController)
+  .post(validateConfirm, handleBadRequest, postConfirmedCollectionController);
+
+// get confirmed collections to admin page
+adminRouter
+  .route('/collection/confirmed')
+  .get(getConfirmedCollectionsController)
   .patch(
     validateConfirm,
     handleBadRequest,

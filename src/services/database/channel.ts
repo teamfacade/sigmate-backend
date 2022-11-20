@@ -21,11 +21,18 @@ export const updateChannel = async (
   try {
     const ch = await Channel.findByPk(collectionId);
     if (!ch) throw new NotFoundError('ERR_CL_NOT_FOUND');
-    return await ch.update({
-      twitterChannel,
-      discordChannel,
-      name: twitterHandle,
-    });
+
+    if (twitterChannel) {
+      ch.set('twitterChannel', twitterChannel);
+    }
+    if (discordChannel) {
+      ch.set('discordChannel', discordChannel);
+    }
+    if (twitterHandle) {
+      ch.set('name', twitterHandle);
+    }
+    await ch.save();
+    return ch;
   } catch (error) {
     throw new SequelizeError(error as Error);
   }

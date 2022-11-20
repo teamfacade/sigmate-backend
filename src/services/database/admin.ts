@@ -22,6 +22,17 @@ export const getUnconfirmedCollections = async () => {
   }
 };
 
+export const getConfirmedCollections = async () => {
+  try {
+    return await Collection.findAll({
+      attributes: ['id', 'name', 'discordUrl', 'twitterHandle'],
+      where: { adminConfirmed: 1 },
+    });
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
 export const createConfirmedChannel = async (
   collectionId: number,
   discordChannel: string,

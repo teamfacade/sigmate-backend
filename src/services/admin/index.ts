@@ -4,6 +4,7 @@ import {
   getUnconfirmedCollections,
   createConfirmedChannel,
   updateConfirmedCollection,
+  getConfirmedCollections,
 } from '../database/admin';
 import { updateChannel } from '../database/channel';
 
@@ -14,6 +15,22 @@ export const getUnconfirmedCollectionsController = async (
 ) => {
   try {
     const collections = await getUnconfirmedCollections();
+    res.status(200).json({
+      success: true,
+      collections,
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getConfirmedCollectionsController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const collections = await getConfirmedCollections();
     res.status(200).json({
       success: true,
       collections,
