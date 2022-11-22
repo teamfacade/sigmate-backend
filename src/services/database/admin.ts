@@ -9,24 +9,29 @@ import ApiError from '../../utils/errors/ApiError';
 import { UpdateCollectionReqBody } from '../../services/wiki/collection';
 import { getCollectionBySlug } from './collection';
 import { auditWikiDocumentById } from './wiki/document';
+import { PaginationOptions } from '../../middlewares/handlePagination';
 
 // for admin page - channel
-export const getUnconfirmedCollections = async () => {
+export const getUnconfirmedCollections = async (pg: PaginationOptions) => {
   try {
-    return await Collection.findAll({
+    return await Collection.findAndCountAll({
       attributes: ['id', 'name', 'discordUrl', 'twitterHandle'],
       where: { adminConfirmed: 0 },
+      limit: pg.limit,
+      offset: pg.offset,
     });
   } catch (error) {
     throw new SequelizeError(error as Error);
   }
 };
 
-export const getConfirmedCollections = async () => {
+export const getConfirmedCollections = async (pg: PaginationOptions) => {
   try {
-    return await Collection.findAll({
+    return await Collection.findAndCountAll({
       attributes: ['id', 'name', 'discordUrl', 'twitterHandle'],
       where: { adminConfirmed: 1 },
+      limit: pg.limit,
+      offset: pg.offset,
     });
   } catch (error) {
     throw new SequelizeError(error as Error);

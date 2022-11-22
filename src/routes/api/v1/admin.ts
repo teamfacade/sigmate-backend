@@ -22,13 +22,13 @@ adminRouter.use(passportJwtAuth, isAdmin);
 // get unconfirmed collections to admin page
 adminRouter
   .route('/collection/unconfirmed')
-  .get(getUnconfirmedCollectionsController)
+  .get(handlePagination, getUnconfirmedCollectionsController)
   .post(validateConfirm, handleBadRequest, postConfirmedCollectionController);
 
 // get confirmed collections to admin page
 adminRouter
   .route('/collection/confirmed')
-  .get(getConfirmedCollectionsController)
+  .get(handlePagination, getConfirmedCollectionsController)
   .put(validateConfirm, handleBadRequest, updateConfirmedCollectionController);
 
 // get collections made by users not by marketplace

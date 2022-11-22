@@ -8,6 +8,8 @@ import {
 } from '../database/admin';
 import { updateChannel } from '../database/channel';
 import axios from 'axios';
+import BadRequestError from '../../utils/errors/BadRequestError';
+import { createPgRes } from '../../middlewares/handlePagination';
 
 export const getUnconfirmedCollectionsController = async (
   req: Request,
@@ -15,11 +17,17 @@ export const getUnconfirmedCollectionsController = async (
   next: NextFunction
 ) => {
   try {
-    const collections = await getUnconfirmedCollections();
-    res.status(200).json({
-      success: true,
-      collections,
-    });
+    const pg = req.pg;
+    if (!pg) throw new BadRequestError();
+    const { rows: collections, count } = await getUnconfirmedCollections(pg);
+    res.status(200).json(
+      createPgRes({
+        limit: pg.limit,
+        offset: pg.offset,
+        count,
+        data: collections,
+      })
+    );
   } catch (error) {
     next(error);
   }
@@ -31,11 +39,17 @@ export const getConfirmedCollectionsController = async (
   next: NextFunction
 ) => {
   try {
-    const collections = await getConfirmedCollections();
-    res.status(200).json({
-      success: true,
-      collections,
-    });
+    const pg = req.pg;
+    if (!pg) throw new BadRequestError();
+    const { rows: collections, count } = await getConfirmedCollections(pg);
+    res.status(200).json(
+      createPgRes({
+        limit: pg.limit,
+        offset: pg.offset,
+        count,
+        data: collections,
+      })
+    );
   } catch (error) {
     next(error);
   }
