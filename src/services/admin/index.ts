@@ -7,6 +7,7 @@ import {
   getConfirmedCollections,
 } from '../database/admin';
 import { updateChannel } from '../database/channel';
+import axios from 'axios';
 
 export const getUnconfirmedCollectionsController = async (
   req: Request,
@@ -61,6 +62,10 @@ export const postConfirmedCollectionController = async (
       discordUrl,
       twitterHandle,
       user
+    );
+    // execute lambda bot-server
+    await axios.get(
+      'https://frxti63hah4j7sgeq5xrhz6wvu0cccdh.lambda-url.ap-northeast-2.on.aws/'
     );
     res.status(200).json({
       success: true,
