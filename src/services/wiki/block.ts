@@ -24,6 +24,7 @@ import {
   createTextBlock,
   getBlockById,
 } from '../database/wiki/block';
+import { getMdInnerText } from '../../utils/markdown';
 
 const setBlockStructures = (
   blocks: BlockRequest[],
@@ -349,7 +350,8 @@ export const getDocumentTextContent = (
 
   const documentTextContent = document.structure
     ?.map((blockId) => {
-      const blockTextContent = getBlockTextContentFromRes(blocks[blockId]);
+      const blockMarkdown = getBlockTextContentFromRes(blocks[blockId]);
+      const blockTextContent = getMdInnerText(blockMarkdown);
       return blockTextContent;
     })
     .join(TEXTCONTENT_SEPARATOR);
