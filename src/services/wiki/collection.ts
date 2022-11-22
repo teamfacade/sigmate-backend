@@ -30,6 +30,7 @@ import {
   deleteCollectionCategory,
   deleteCollectionUtilityById,
   getCollectionBySlug,
+  getCollectionByUser,
   getCollectionCategories,
   getCollectionCategoryById,
   getCollectionUtilitiesByCollectionCategoryId,
@@ -37,6 +38,11 @@ import {
   updateCollectionCategory,
   updateCollectionUtility,
 } from '../database/collection';
+import {
+  auditWikiDocumentById,
+  updateDocumentTextContent,
+} from '../database/wiki/document';
+import { createPgRes } from '../../middlewares/handlePagination';
 import ConflictError from '../../utils/errors/ConflictError';
 
 type GetCollectionBySlugRequestQuery = {
@@ -114,6 +120,111 @@ export const getCollectionBySlugController = async (
   }
 };
 
+// for admin page
+export const getCollectionByUserController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const pg = req.pg;
+    if (!pg) throw new BadRequestError();
+    const { rows: cls, count } = await getCollectionByUser(pg);
+    const clsRes = await Promise.all(cls.map((cl) => cl.toResponseJSON()));
+    const pgRes = createPgRes({
+      limit: pg.limit,
+      offset: pg.offset,
+      data: clsRes,
+      count,
+    });
+    res.status(200).json(pgRes);
+  } catch (error) {
+    next(error);
+  }
+};
+
+type UpdateCollectionByUserReqBody = Partial<
+  Pick<
+    CreateCollectionReqBody,
+    | 'name'
+    | 'description'
+    | 'paymentTokens'
+    | 'twitterHandle'
+    | 'discordUrl'
+    | 'websiteUrl'
+    | 'imageUrl'
+    | 'bannerImageUrl'
+    | 'mintingPriceWl'
+    | 'mintingPricePublic'
+    | 'floorPrice'
+    | 'marketplace'
+    | 'category'
+    | 'utility'
+    | 'team'
+    | 'history'
+  >
+>;
+
+export const updateCollectionByUserController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const u = req.user;
+    const d = req.device;
+    if (!u) throw new UnauthenticatedError();
+    if (!d) throw new ApiError('ERR_DEVICE');
+    const { slug } = req.params;
+    const collection = req.body as UpdateCollectionByUserReqBody;
+
+    const auditWikiDocumentDTO = {
+      document: {},
+      collection: {
+        name: collection?.name,
+        description: collection?.description,
+        paymentTokens: collection?.paymentTokens,
+        twitterHandle: collection?.twitterHandle,
+        discordUrl: collection?.discordUrl,
+        websiteUrl: collection?.websiteUrl,
+        imageUrl: collection?.imageUrl,
+        bannerImageUrl: collection?.bannerImageUrl,
+        mintingPriceWl: collection?.mintingPriceWl,
+        mintingPricePublic: collection?.mintingPricePublic,
+        floorPrice: collection?.floorPrice,
+        marketplace: collection?.marketplace,
+        category: collection?.category,
+        utility: collection?.utility,
+        team: collection?.team,
+        history: collection?.history,
+        infoConfirmedById: u.id,
+        infoSource: 'admin',
+      },
+    };
+
+    const cl = await getCollectionBySlug(slug);
+    if (!cl) throw new NotFoundError();
+    const document = await cl.$get('document', { attributes: ['id'] });
+    if (!document) throw new NotFoundError();
+
+    const doc = await auditWikiDocumentById(
+      document.id,
+      auditWikiDocumentDTO,
+      u,
+      d
+    );
+    const documentResponse = await doc.toResponseJSON();
+    await updateDocumentTextContent(doc, documentResponse.blocks);
+
+    res.status(200).json({
+      success: true,
+      document: await doc.toResponseJSON(),
+    });
+  } catch (error) {
+    next(error);
+  }
+};
+
 export interface CreateCollectionReqBody
   extends Pick<
     CollectionResponse,
@@ -140,6 +251,9 @@ export interface CreateCollectionReqBody
     | 'mintingPricePublic'
     | 'floorPrice'
     | 'marketplace'
+    | 'infoSource'
+    | 'infoConfirmedBy'
+    | 'infoConfirmedById'
   > {
   collectionDeployers?: CollectionDeployerAttributes['address'][];
   paymentTokens?: BcTokenRequest[];
@@ -240,6 +354,7 @@ export const createCollectionController = async (
       history: body.history,
       createdBy: u,
       createdByDevice: d,
+      infoSource: body.infoSource,
     };
 
     const cl = await createCollectionWithTx(collectionDTO);

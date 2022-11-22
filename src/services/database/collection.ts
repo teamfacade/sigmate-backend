@@ -35,6 +35,7 @@ import ConflictError from '../../utils/errors/ConflictError';
 import UnauthenticatedError from '../../utils/errors/UnauthenticatedError';
 import BadRequestError from '../../utils/errors/BadRequestError';
 import DocumentAudit from '../../models/DocumentAudit';
+import { PaginationOptions } from '../../middlewares/handlePagination';
 
 const COLLECTION_ATTRIBS: BlockCollectionAttrib[] = [
   'team',
@@ -206,6 +207,20 @@ export const getCollectionBySlug = async (slug: string) => {
   }
 };
 
+// for admin page
+export const getCollectionByUser = async (pg: PaginationOptions) => {
+  try {
+    const { limit, offset } = pg;
+    return await Collection.findAndCountAll({
+      where: { infoSource: 'user' },
+      limit,
+      offset,
+    });
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
 export const countCollectionByUtility = async (
   uid: CollectionUtilityAttributes['id']
 ) => {
@@ -254,6 +269,7 @@ export const createCollection = async (
         openseaPriceUpdatedAt: collectionDTO.openseaPriceUpdatedAt,
         createdById: collectionDTO.createdBy?.id,
         createdByDeviceId: collectionDTO.createdByDevice?.id,
+        infoSource: collectionDTO.infoSource || 'opensea',
       },
       { transaction }
     );
@@ -398,6 +414,9 @@ export const updateCollectionBySlug = async (
         marketplace: collectionDTO.marketplace,
         openseaMetadataUpdatedAt: collectionDTO.openseaMetadataUpdatedAt,
         openseaPriceUpdatedAt: collectionDTO.openseaPriceUpdatedAt,
+        infoSource: collectionDTO.infoSource,
+        infoConfirmedById:
+          collectionDTO.infoConfirmedById || collectionDTO.infoConfirmedBy?.id,
       },
       { transaction }
     );

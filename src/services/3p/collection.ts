@@ -115,6 +115,7 @@ export const fetchCollectionBySlug = async (
     marketplace,
     openseaMetadataUpdatedAt: now,
     openseaPriceUpdatedAt: now,
+    infoSource: 'opensea',
   };
 
   if (collection) {
