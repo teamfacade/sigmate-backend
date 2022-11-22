@@ -34,6 +34,7 @@ export interface UserPointAttributes {
 
   createdAt?: Date;
   updatedAt?: Date;
+  deletedAt?: Date;
 
   // transferRequestedAt?: Date;
   // transferApprovedAt?: Date;
@@ -53,6 +54,7 @@ type UserPointCreationAttributes = Optional<UserPointAttributes, 'id'>;
   tableName: 'user_points',
   timestamps: true,
   underscored: true,
+  paranoid: true,
   charset: 'utf8mb4',
   collate: 'utf8mb4_general_ci',
 })

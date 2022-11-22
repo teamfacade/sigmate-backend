@@ -270,19 +270,13 @@ export const validateUpdateWikiDocument = [
     .isString()
     .withMessage('NOT_STRING')
     .isLength({ max: 255 })
-    .withMessage('TOO_LONG')
-    .isFloat()
-    .withMessage('NOT_FLOAT'),
+    .withMessage('TOO_LONG'),
   body('collection.mintingPricePublic')
     .optional()
     .trim()
     .stripLow()
-    .isString()
-    .withMessage('NOT_STRING')
     .isLength({ max: 255 })
-    .withMessage('TOO_LONG')
-    .isFloat()
-    .withMessage('NOT_FLOAT'),
+    .withMessage('TOO_LONG'),
   body('collection.floorPrice')
     .optional()
     .trim()

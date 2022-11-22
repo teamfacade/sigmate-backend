@@ -5,6 +5,7 @@ import db from '../../models';
 import User, { UserCreationDTO, UserDTO } from '../../models/User';
 import UserAuth, { UserAuthDTO } from '../../models/UserAuth';
 import UserGroup from '../../models/UserGroup';
+import UserPoint from '../../models/UserPoint';
 import UserProfile, {
   UserProfileCreationAttributes,
   UserProfileCreationDTO,
@@ -273,6 +274,10 @@ export const deleteUser = async (user: User | null | undefined) => {
       ];
 
       if (adminUser) deletePromises.push(adminUser.destroy({ transaction }));
+
+      await UserPoint.destroy({
+        where: { grantedToId: user.id },
+      });
 
       await Promise.all(deletePromises);
       await user.destroy({ transaction });
