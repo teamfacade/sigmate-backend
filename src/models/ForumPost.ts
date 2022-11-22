@@ -78,8 +78,8 @@ export interface ForumPostResponse
   voteCount?: number;
   commentCount?: number;
   myVote?: ForumPostVoteResponse | null;
-  createdBy: UserPublicResponse;
-  updatedBy: UserPublicResponse;
+  createdBy: UserPublicResponse | null;
+  updatedBy: UserPublicResponse | null;
 }
 
 @Table({

@@ -58,7 +58,7 @@ export type ImageCreationAttributes = Optional<
 
 export interface ImageResponse {
   url: string;
-  createdBy?: UserPublicResponse;
+  createdBy?: UserPublicResponse | null;
 }
 
 @Table({

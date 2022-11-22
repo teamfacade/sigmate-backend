@@ -55,7 +55,7 @@ export interface ForumCommentResponse
   parent?: ForumCommentResponse;
   replies?: ForumCommentResponse[];
   parentId?: ForumCommentAttributes['id'];
-  createdBy?: UserPublicResponse;
+  createdBy?: UserPublicResponse | null;
   myVote?: ForumCommentVoteResponse | null;
 }
 

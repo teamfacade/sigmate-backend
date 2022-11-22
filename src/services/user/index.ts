@@ -19,6 +19,8 @@ import {
 } from '../database/user';
 
 export const userToJSON = (user: User) => {
+  if (!user) return null;
+
   const {
     id,
     userName,
@@ -101,7 +103,8 @@ export const userPublicAttributes = [
 
 export const userPublicInfoToJSON = async (
   user: User
-): Promise<UserPublicResponse> => {
+): Promise<UserPublicResponse | null> => {
+  if (!user) return null;
   const p = user.primaryProfile || (await user.$get('primaryProfile'));
   const primaryProfile = _.pick(p, [
     'id',

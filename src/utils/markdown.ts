@@ -2,7 +2,6 @@ import { marked } from 'marked';
 import { decode } from 'html-entities';
 import DOMPurify from 'dompurify';
 import { JSDOM } from 'jsdom';
-import fs from 'fs';
 
 const window = new JSDOM('').window;
 const purify = DOMPurify(window as any);
@@ -35,7 +34,3 @@ export const getMdInnerText = (
   const decoded = decode(innerText);
   return decoded;
 };
-
-const markdown = fs.readFileSync('README.md').toString();
-const text = getMdInnerText(markdown);
-console.log(text);
