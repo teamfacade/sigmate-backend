@@ -29,10 +29,12 @@ export const validateProfilePatch = [
   body('displayName')
     .optional()
     .trim()
-    .escape()
     .stripLow()
     .isLength({ max: 191 })
-    .withMessage('TOO_LONG'),
+    .withMessage('TOO_LONG')
+    .not()
+    .matches(/[^A-Za-zÀ-ÖØ-öø-ÿ ]/)
+    .withMessage('NOT_ALPHA'),
   body('bio')
     .optional()
     .trim()
