@@ -29,18 +29,9 @@ adminRouter
 adminRouter
   .route('/collection/confirmed')
   .get(getConfirmedCollectionsController)
-  .patch(
-    validateConfirm,
-    handleBadRequest,
-    updateConfirmedCollectionController
-  );
+  .put(validateConfirm, handleBadRequest, updateConfirmedCollectionController);
 
-// confirm collection's channel info
-// adminRouter
-//   .route('/confirm')
-//   .post(validateConfirm, handleBadRequest, postConfirmedCollectionController);
-
-// get collections made by users not by marketplaceno
+// get collections made by users not by marketplace
 adminRouter
   .route('/info-confirm')
   .get(handlePagination, getCollectionByUserController);

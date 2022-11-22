@@ -19,7 +19,7 @@ export const updateChannel = async (
   twitterHandle: string
 ) => {
   try {
-    const ch = await Channel.findByPk(collectionId);
+    const ch = await Channel.findOne({ where: { collectionId } });
     if (!ch) throw new NotFoundError('ERR_CL_NOT_FOUND');
 
     if (twitterChannel) {

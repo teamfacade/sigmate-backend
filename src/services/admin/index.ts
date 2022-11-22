@@ -86,19 +86,22 @@ export const updateConfirmedCollectionController = async (
     const { collectionId, discordUrl, discordChannel, twitterHandle } =
       req.body;
     const twitterChannel = await getTwitterId(twitterHandle);
-    await updateConfirmedCollection(
-      collectionId,
-      discordUrl,
-      twitterHandle,
-      user
-    );
     const updatedChannel = await updateChannel(
       collectionId,
       twitterChannel,
       discordChannel,
       twitterHandle
     );
-
+    await updateConfirmedCollection(
+      collectionId,
+      discordUrl,
+      twitterHandle,
+      user
+    );
+    // execute lambda bot-server
+    await axios.get(
+      'https://frxti63hah4j7sgeq5xrhz6wvu0cccdh.lambda-url.ap-northeast-2.on.aws/'
+    );
     res.status(200).json({
       success: true,
       channel: updatedChannel,
