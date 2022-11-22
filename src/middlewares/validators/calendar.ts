@@ -46,10 +46,12 @@ export const validateCreateMintingSchedule = [
     .isLength({ max: 16383 })
     .withMessage('TOO_LONG'),
   body('collection') // collectionId
+    .optional()
     .isInt()
     .withMessage('NOT_INT')
     .bail()
     .toInt(),
+  body('document').optional().isInt().withMessage('NOT_INT').bail().toInt(),
   body('mintingPrice')
     .optional()
     .isString()
@@ -137,6 +139,14 @@ export const validateUpdateMintingSchedule = [
     .isLength({ max: 16 })
     .withMessage('TOO_LONG'),
 ];
+
+export const validateDeleteMintingSchedule = param('id')
+  .notEmpty()
+  .withMessage('REQUIRED')
+  .isInt({ min: 1, max: Number.MAX_SAFE_INTEGER })
+  .withMessage('NOT_INT')
+  .bail()
+  .toInt();
 
 export const validateGetMyMintingSchedules = [
   query('start')

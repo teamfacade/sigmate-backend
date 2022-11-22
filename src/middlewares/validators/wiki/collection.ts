@@ -521,6 +521,14 @@ export const validateUpdateCollectionCategory = [
     .withMessage('TOO_LONG'),
 ];
 
+export const validateDeleteCollectionCategory = param('cid')
+  .notEmpty()
+  .withMessage('REQUIRED')
+  .isInt({ min: 1, max: Number.MAX_SAFE_INTEGER })
+  .withMessage('NOT_INT')
+  .bail()
+  .toInt();
+
 export const validateGetCollectionUtilities = [
   query('q')
     .optional()
@@ -570,24 +578,6 @@ export const validateUpdateCollectionUtility = [
 ];
 
 export const validateUpdateCollectionByUser = [
-  //name: collection?.name,!
-  // description: collection?.description,!
-  // paymentTokens: collection?.paymentTokens,!
-  // twitterHandle: collection?.twitterHandle,!
-  // discordUrl: collection?.discordUrl,!
-  // websiteUrl: collection?.websiteUrl,!
-  // imageUrl: collection?.imageUrl,!
-  // bannerImageUrl: collection?.bannerImageUrl,!
-  // mintingPriceWl: collection?.mintingPriceWl,!
-  // mintingPricePublic: collection?.mintingPricePublic,!
-  // floorPrice: collection?.floorPrice,!
-  // marketplace: collection?.marketplace,!
-  // category: collection?.category,!
-  // utility: collection?.utility,!
-  // team: collection?.team,!
-  // history: collection?.history,!
-  // infoConfirmedById: u.id,
-  // infoSource: 'admin',
   body('name')
     .optional()
     .trim()
@@ -720,4 +710,21 @@ export const validateUpdateCollectionByUser = [
     .bail()
     .isIn(['admin'])
     .withMessage('NOT_ADMIN'),
+];
+
+export const validateDeleteCollectionUtility = [
+  query('cid')
+    .notEmpty()
+    .withMessage('REQUIRED')
+    .isInt({ min: 1, max: Number.MAX_SAFE_INTEGER })
+    .withMessage('NOT_INT')
+    .bail()
+    .toInt(),
+  query('uid')
+    .notEmpty()
+    .withMessage('REQUIRED')
+    .isInt({ min: 1, max: Number.MAX_SAFE_INTEGER })
+    .withMessage('NOT_INT')
+    .bail()
+    .toInt(),
 ];

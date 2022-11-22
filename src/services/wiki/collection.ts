@@ -21,10 +21,14 @@ import NotFoundError from '../../utils/errors/NotFoundError';
 import UnauthenticatedError from '../../utils/errors/UnauthenticatedError';
 import { fetchCollectionBySlug } from '../3p/collection';
 import {
+  countCollectionByUtility,
+  countCollectionUtilityInCategory,
   createCollectionCategory,
   createCollectionUtility,
   createCollectionWithTx,
   deleteCollectionBySlug,
+  deleteCollectionCategory,
+  deleteCollectionUtilityById,
   getCollectionBySlug,
   getCollectionByUser,
   getCollectionCategories,
@@ -39,6 +43,7 @@ import {
   updateDocumentTextContent,
 } from '../database/wiki/document';
 import { createPgRes } from '../../middlewares/handlePagination';
+import ConflictError from '../../utils/errors/ConflictError';
 
 type GetCollectionBySlugRequestQuery = {
   create?: boolean;
@@ -563,6 +568,33 @@ export const updateCollectionCategoryController = async (
   }
 };
 
+export const deleteCollectionCategoryController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const id = req.params.cid as unknown as number;
+
+    // Does category have any utilities?
+    const uCount = await countCollectionUtilityInCategory(id);
+    if (uCount) {
+      throw new ConflictError('ERR_DELETE_CATEGORY_UTILITIES_STILL_EXIST');
+    }
+
+    // If not, proceed to delete
+    const deleted = await deleteCollectionCategory(id);
+    if (deleted) {
+      res.status(200).json({ success: true });
+    } else {
+      // Nothing deleted. Category must not exist
+      throw new NotFoundError();
+    }
+  } catch (error) {
+    next(error);
+  }
+};
+
 type GetCollectionUtilitiesReqQuery = {
   q?: string;
 };
@@ -660,6 +692,31 @@ export const updateCollectionUtilityController = async (
       success: true,
       utility: await cu.toResponseJSON(['category']),
     });
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const deleteCollectionUtilityController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const uid = req.params.uid as unknown as number;
+    const cCount = await countCollectionByUtility(uid);
+    if (cCount) {
+      // Delete all collections that use this utility first
+      throw new ConflictError('ERR_DELETE_UTILITY_COLLECTIONS_STILL_EXIST');
+    }
+
+    const deleted = await deleteCollectionUtilityById(uid);
+    if (deleted) {
+      res.status(200).json({ success: true });
+    } else {
+      // Nothing was deleted. Utility must not exist.
+      throw new NotFoundError();
+    }
   } catch (error) {
     next(error);
   }

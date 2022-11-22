@@ -29,6 +29,10 @@ export interface ImageAttributes {
   createdByDevice?: UserDevice;
   createdById?: UserAttributes['id'];
   createdBy?: User;
+  deletedByDeviceId?: UserDeviceAttributes['id'];
+  deletedByDevice?: UserDevice;
+  deletedById?: UserAttributes['id'];
+  deletedBy?: User;
 
   blocks?: Block[]; // wiki
   forumPosts?: ForumPost;
@@ -42,7 +46,10 @@ export type ImageCreateRequestBody = Pick<
 >;
 
 export type ImageCreationDTO = ImageCreateRequestBody &
-  Pick<ImageAttributes, 'createdBy' | 'createdByDevice'>;
+  Pick<
+    ImageAttributes,
+    'createdBy' | 'createdById' | 'createdByDeviceId' | 'createdByDevice'
+  >;
 
 export type ImageCreationAttributes = Optional<
   ImageAttributes,
@@ -91,6 +98,12 @@ export default class Image extends Model<
 
   @BelongsTo(() => User, 'createdById')
   createdBy!: ImageAttributes['createdBy'];
+
+  @BelongsTo(() => UserDevice, 'deletedByDeviceId')
+  deletedByDevice!: ImageAttributes['deletedByDevice'];
+
+  @BelongsTo(() => User, 'deletedById')
+  deletedBy!: ImageAttributes['deletedBy'];
 
   @HasMany(() => Block, 'imageId')
   blocks: ImageAttributes['blocks'];

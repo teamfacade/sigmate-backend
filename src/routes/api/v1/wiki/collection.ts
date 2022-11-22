@@ -9,6 +9,8 @@ import {
   validateCreateCollectionCategory,
   validateCreateCollectionUtility,
   validateDeleteCollection,
+  validateDeleteCollectionCategory,
+  validateDeleteCollectionUtility,
   validateGetCollectionBySlug,
   validateGetCollectionCategories,
   validateGetCollectionUtilities,
@@ -20,7 +22,9 @@ import {
   createCollectionCategoryController,
   createCollectionController,
   createCollectionUtilityController,
+  deleteCollectionCategoryController,
   deleteCollectionController,
+  deleteCollectionUtilityController,
   getCollectionBySlugController,
   getCollectionCategoriesController,
   getCollectionUtilitiesController,
@@ -80,6 +84,12 @@ clRouter
     validateUpdateCollectionCategory,
     handleBadRequest,
     updateCollectionCategoryController
+  )
+  .delete(
+    passportJwtAuth,
+    validateDeleteCollectionCategory,
+    handleBadRequest,
+    deleteCollectionCategoryController
   );
 
 clRouter
@@ -103,6 +113,12 @@ clRouter
     validateUpdateCollectionUtility,
     handleBadRequest,
     updateCollectionUtilityController
+  )
+  .delete(
+    passportJwtAuth,
+    validateDeleteCollectionUtility,
+    handleBadRequest,
+    deleteCollectionUtilityController
   );
 
 export default clRouter;
