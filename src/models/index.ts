@@ -47,6 +47,8 @@ import UserProfile from './UserProfile';
 import UserSavedMintingSchedule from './UserSavedMintingSchedule';
 import VerificationType from './VerificationType';
 import WaitingList from './WaitingList';
+import UserPoint from './UserPoint';
+import UserPointPolicy from './UserPointPolicy';
 
 const config = databaseConfig[process.env.NODE_ENV];
 
@@ -117,6 +119,8 @@ const initDatabase = () => {
     UserDevice,
     UserGroup,
     UserOwnedDevice,
+    UserPoint,
+    UserPointPolicy,
     UserProfile,
     UserSavedMintingSchedule,
     VerificationType,

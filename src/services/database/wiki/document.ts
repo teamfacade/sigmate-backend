@@ -27,6 +27,7 @@ import {
   updateCreatedBlockIds,
 } from '../../wiki/block';
 import { updateCollectionBySlug } from '../collection';
+import { grantPoints } from '../points';
 import { deleteBlockById } from './block';
 
 export const getAllBlockIdsFromDocument = async (
@@ -317,6 +318,13 @@ export const auditWikiDocumentById = async (
         // Nothing actually changed
         throw new ConflictError();
       }
+
+      await grantPoints({
+        grantedTo: updatedBy,
+        policy: 'wikiDocumentEdit',
+        targetPk: doc.id,
+        transaction,
+      });
 
       return doc;
     });

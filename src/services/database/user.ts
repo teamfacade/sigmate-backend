@@ -18,6 +18,7 @@ import { GoogleProfile } from '../auth/google';
 import { generateNonce } from '../auth/metamask';
 import { createAccessToken, createRefreshToken } from '../auth/token';
 import { generateReferralCode } from '../user/referral';
+import { grantPoints } from './points';
 
 export const findUserById = async (userId: number) => {
   try {
@@ -223,6 +224,14 @@ export const updateUser = async (user: User, userDTO: UserDTO) => {
           );
           if (!referredByUser) throw new BadRequestError(); // User not found
           await user.$set('referredBy', referredByUser, { transaction });
+
+          // Grant points for referral
+          await grantPoints({
+            grantedTo: referredByUser,
+            policy: 'referral',
+            targetPk: user.id,
+            transaction,
+          });
         }
         delete userDTO.referredByCode;
       }

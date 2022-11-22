@@ -27,6 +27,7 @@ import ConflictError from '../../utils/errors/ConflictError';
 import NotFoundError from '../../utils/errors/NotFoundError';
 import SequelizeError from '../../utils/errors/SequelizeError';
 import UnauthenticatedError from '../../utils/errors/UnauthenticatedError';
+import { grantPoints } from './points';
 
 export const getForumPostVoteCount = async (forumPost: ForumPost) => {
   try {
@@ -244,6 +245,15 @@ export const createForumPost = async (
       if (tags?.length) {
         await setForumPostTagNames(fp, tags, transaction);
       }
+
+      // Grant points
+      await grantPoints({
+        grantedTo: createdBy,
+        policy: 'forumPostCreate',
+        targetPk: fp.id,
+        transaction,
+      });
+
       return await ForumPost.findByPk(fp.id, {
         include: [
           {
@@ -615,6 +625,13 @@ export const createForumPostComment = async (
         ps.push(c.$set('parent', pc, { transaction }));
       }
       await Promise.all(ps);
+
+      await grantPoints({
+        grantedTo: createdBy,
+        policy: 'forumPostCommentCreate',
+        targetPk: c.id,
+        transaction,
+      });
 
       return c.id;
     });
