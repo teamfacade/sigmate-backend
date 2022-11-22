@@ -149,27 +149,15 @@ export const validateCreateForumPost = [
     .bail()
     .isLength({ min: 1, max: 16383 })
     .withMessage('LENGTH'),
-  body('categories')
-    .isArray()
-    .withMessage('NOT_ARRAY')
-    .bail()
-    .custom((value) => {
-      if (value.length === undefined) throw new Error('NOT_ARRAY');
-      for (let i = 0; i < value.length; i++) {
-        if (typeof value[i] !== 'number') {
-          throw new Error('NOT_INT');
-        }
-      }
-      return true;
-    })
-    .toArray(),
-  body('tags')
-    .isArray()
-    .withMessage('NOT_ARRAY')
-    .bail()
-    .custom(isArrayItemsLength({ min: 1, max: 191 }))
-    .withMessage('LENGTH')
-    .toArray(),
+  body('categories').isArray().withMessage('NOT_ARRAY').toArray(),
+  body('categories.*')
+    .isInt({ min: 1, max: Number.MAX_SAFE_INTEGER })
+    .withMessage('NOT_INT'),
+  body('tags').optional().isArray().toArray(),
+  body('tags.*')
+    .isString()
+    .isLength({ min: 1, max: 191 })
+    .withMessage('LENGTH'),
 ];
 
 export const validateDeleteForumPost = param('postId')

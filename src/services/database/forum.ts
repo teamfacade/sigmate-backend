@@ -238,10 +238,12 @@ export const createForumPost = async (
         fp.$set('createdBy', createdBy, { transaction }),
         fp.$set('createdByDevice', createdByDevice, { transaction }),
       ]);
-      await Promise.all([
-        setForumPostCategoryIds(fp, categories, transaction),
-        setForumPostTagNames(fp, tags, transaction),
-      ]);
+      if (categories?.length) {
+        await setForumPostCategoryIds(fp, categories, transaction);
+      }
+      if (tags?.length) {
+        await setForumPostTagNames(fp, tags, transaction);
+      }
       return await ForumPost.findByPk(fp.id, {
         include: [
           {
