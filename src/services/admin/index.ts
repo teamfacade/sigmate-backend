@@ -78,9 +78,7 @@ export const postConfirmedCollectionController = async (
       user
     );
     // execute lambda bot-server
-    await axios.get(
-      'https://frxti63hah4j7sgeq5xrhz6wvu0cccdh.lambda-url.ap-northeast-2.on.aws/'
-    );
+    await axios.get(process.env.LAMBDA_BOT_URL);
     res.status(200).json({
       success: true,
       channel,
@@ -113,9 +111,7 @@ export const updateConfirmedCollectionController = async (
       user
     );
     // execute lambda bot-server
-    await axios.get(
-      'https://frxti63hah4j7sgeq5xrhz6wvu0cccdh.lambda-url.ap-northeast-2.on.aws/'
-    );
+    await axios.get(process.env.LAMBDA_BOT_URL);
     res.status(200).json({
       success: true,
       channel: updatedChannel,

@@ -73,6 +73,7 @@ export const validateCreateWikiDocument = [
     .isLength({ max: 1024 })
     .withMessage('TOO_LONG'),
   body('collection.websiteUrl')
+    .optional()
     .trim()
     .stripLow()
     .notEmpty()
