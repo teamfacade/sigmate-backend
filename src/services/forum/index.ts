@@ -301,12 +301,22 @@ export const getForumPostsByCategoryController = async (
     const category = await getCategoryById(categoryId);
     if (!category) throw new NotFoundError();
     const user = req.user || null;
-    const forumPostsDB = await getForumPostsByCategory(category, pg);
+    const { rows: forumPostsDB, count } = await getForumPostsByCategory(
+      category,
+      pg
+    );
     const forumPosts = await Promise.all(
       forumPostsDB.map((p) => forumPostToJSON(p, user))
     );
 
-    res.status(200).json({ success: true, forumPosts });
+    res.status(200).json(
+      createPgRes({
+        limit: pg.limit,
+        offset: pg.offset,
+        count,
+        data: forumPosts,
+      })
+    );
   } catch (error) {
     next(error);
   }
