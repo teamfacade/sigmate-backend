@@ -16,6 +16,7 @@ import {
   validateDeleteForumPostComment,
   validateDeleteMyForumPostVote,
   validateGetForumPostById,
+  validateGetForumPostCommentReplies,
   validateGetForumPostComments,
   validateGetForumPostsByCategory,
   validateGetMyForumPostVote,
@@ -36,6 +37,7 @@ import {
   deleteMyForumPostVoteController,
   getCategoriesController,
   getForumPostByIdController,
+  getForumPostCommentRepliesController,
   getForumPostCommentsController,
   getForumPostsByCategoryController,
   getMyForumPostVoteController,
@@ -74,6 +76,15 @@ forumRouter
   );
 
 forumRouter
+  .route('/c/:id')
+  .delete(
+    passportJwtAuth,
+    validateDeleteCategory,
+    handleBadRequest,
+    deleteCategoryController
+  );
+
+forumRouter
   .route('/p')
   .post(
     passportJwtAuth,
@@ -96,7 +107,7 @@ forumRouter
     isAuthenticated,
     validateUpdateForumPost,
     handleBadRequest,
-    updateForumPostController
+    updateForumPostController // upload img
   )
   .delete(
     passportJwtAuth,
@@ -159,6 +170,16 @@ forumRouter
     validateDeleteForumPostComment,
     handleBadRequest,
     deleteForumPostCommentController
+  );
+
+forumRouter
+  .route('/cm/:commentId/replies')
+  .get(
+    passportJwtAuthOptional,
+    validateGetForumPostCommentReplies,
+    handleBadRequest,
+    handlePagination,
+    getForumPostCommentRepliesController
   );
 
 forumRouter

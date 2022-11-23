@@ -1,9 +1,15 @@
 import { Credentials } from 'google-auth-library';
+import { DateTime } from 'luxon';
+import { Op } from 'sequelize';
 import { Transaction } from 'sequelize/types';
+import { PaginationOptions } from '../../middlewares/handlePagination';
 import db from '../../models';
 import User, { UserCreationDTO, UserDTO } from '../../models/User';
+import UserAttendance from '../../models/UserAttendance';
 import UserAuth, { UserAuthDTO } from '../../models/UserAuth';
+import UserDevice from '../../models/UserDevice';
 import UserGroup from '../../models/UserGroup';
+import UserPoint from '../../models/UserPoint';
 import UserProfile, {
   UserProfileCreationAttributes,
   UserProfileCreationDTO,
@@ -17,6 +23,7 @@ import { GoogleProfile } from '../auth/google';
 import { generateNonce } from '../auth/metamask';
 import { createAccessToken, createRefreshToken } from '../auth/token';
 import { generateReferralCode } from '../user/referral';
+import { grantPoints } from './points';
 
 export const findUserById = async (userId: number) => {
   try {
@@ -58,7 +65,7 @@ export const findUserByMetamaskWallet = async (metamaskWallet: string) => {
   try {
     return await User.findOne({
       where: { metamaskWallet },
-      include: [{ model: UserProfile }],
+      include: [{ model: UserProfile }, { model: UserGroup }],
     });
   } catch (error) {
     throw new SequelizeError(error as Error);
@@ -182,7 +189,7 @@ export const createUserGoogle = async (
 
   const userProfileDTO: UserProfileCreationDTO = {
     displayName: googleProfile.displayName,
-    profileImageUrl: googleProfile.coverPhoto,
+    profileImageUrl: googleProfile.photo,
   };
 
   return await createUser(userDTO, userAuthDTO, userProfileDTO);
@@ -222,6 +229,14 @@ export const updateUser = async (user: User, userDTO: UserDTO) => {
           );
           if (!referredByUser) throw new BadRequestError(); // User not found
           await user.$set('referredBy', referredByUser, { transaction });
+
+          // Grant points for referral
+          await grantPoints({
+            grantedTo: referredByUser,
+            policy: 'referral',
+            targetPk: user.id,
+            transaction,
+          });
         }
         delete userDTO.referredByCode;
       }
@@ -264,6 +279,10 @@ export const deleteUser = async (user: User | null | undefined) => {
 
       if (adminUser) deletePromises.push(adminUser.destroy({ transaction }));
 
+      await UserPoint.destroy({
+        where: { grantedToId: user.id },
+      });
+
       await Promise.all(deletePromises);
       await user.destroy({ transaction });
     });
@@ -282,6 +301,57 @@ export const getMetaMaskNonce = async (user: User) => {
       await userAuth.update({ metamaskNonce: nonce });
     }
     return nonce;
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+export const getReferredUsers = async (
+  user: User | undefined,
+  pg: PaginationOptions | undefined
+) => {
+  if (!user) throw new UnauthenticatedError();
+  if (!pg) throw new BadRequestError();
+  try {
+    const users = await user.$get('referredUsers', {
+      attributes: ['id', 'userName', 'createdAt'],
+      limit: pg.limit,
+      offset: pg.offset,
+    });
+    const count = await user.$count('referredUsers');
+    return { rows: users, count };
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+export const dailyCheckIn = async (
+  user: User | undefined,
+  device: UserDevice | undefined
+) => {
+  if (!user) throw new UnauthenticatedError();
+  if (!device) throw new ApiError('ERR_DAILY_CHECK_IN_DEVICE');
+  const today = DateTime.now().setZone('utc');
+  try {
+    const att = await UserAttendance.findOne({
+      where: {
+        createdById: user.id,
+        createdAt: {
+          [Op.between]: [
+            today.startOf('day').toJSDate(),
+            today.endOf('day').toJSDate(),
+          ],
+        },
+      },
+    });
+
+    if (att) return null;
+
+    return await UserAttendance.create({
+      createdById: user.id,
+      createdByDeviceId: device.id,
+      createdAt: new Date(),
+    });
   } catch (error) {
     throw new SequelizeError(error as Error);
   }

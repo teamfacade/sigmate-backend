@@ -10,16 +10,22 @@ import {
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
 import Collection from './Collection';
-import User from './User';
-import UserDevice from './UserDevice';
+import CollectionUtility from './CollectionUtility';
+import User, { UserAttributes } from './User';
+import UserDevice, { UserDeviceAttributes } from './UserDevice';
 
 export interface CollectionCategoryAttributes {
   id: number;
   name: string;
   collections?: Collection[];
+  utilities?: CollectionUtility[];
+  createdById?: UserAttributes['id'];
   createdBy?: User;
+  createdByDeviceId?: UserAttributes['id'];
   createdByDevice?: UserDevice;
+  updatedById?: UserAttributes['id'];
   updatedBy?: User;
+  updatedByDeviceId?: UserDeviceAttributes['id'];
   updatedByDevice?: UserDevice;
 }
 
@@ -32,6 +38,21 @@ export interface CollectionCategoryFindOrCreateDTO
   extends Omit<CollectionCategoryCreationAttributes, 'collections'> {
   collection?: Collection;
 }
+
+export type CollectionCategoryCreationDTO = Pick<
+  CollectionCategoryCreationAttributes,
+  'name' | 'createdBy' | 'createdByDevice'
+>;
+
+export type CollectionCategoryUpdateDTO = Pick<
+  CollectionCategoryAttributes,
+  'id' | 'name' | 'updatedBy' | 'updatedByDevice'
+>;
+
+export type CollectionCategoryResponse = Pick<
+  CollectionCategoryAttributes,
+  'id' | 'name'
+>;
 
 @Table({
   tableName: 'collection_categories',
@@ -53,6 +74,9 @@ export default class CollectionCategory extends Model<
   @HasMany(() => Collection, 'collectionCategoryId')
   collections: CollectionCategoryAttributes['collections'];
 
+  @HasMany(() => CollectionUtility, 'collectionCategoryId')
+  utilities: CollectionCategoryAttributes['utilities'];
+
   @BelongsTo(() => User, 'createdById')
   createdBy: CollectionCategoryAttributes['createdBy'];
 
@@ -64,4 +88,11 @@ export default class CollectionCategory extends Model<
 
   @BelongsTo(() => UserDevice, 'updatedByDeviceId')
   updatedByDevice: CollectionCategoryAttributes['updatedByDevice'];
+
+  toResponseJSON(): CollectionCategoryResponse {
+    return {
+      id: this.id,
+      name: this.name,
+    };
+  }
 }

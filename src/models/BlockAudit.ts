@@ -8,24 +8,53 @@ import {
   Default,
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
-import Block from './Block';
-import User from './User';
-import UserDevice from './UserDevice';
+import Block, { BlockAttributes } from './Block';
+import { DocumentAttributes } from './Document';
+import DocumentAudit, { DocumentAuditAttributes } from './DocumentAudit';
+import User, { UserAttributes } from './User';
+import UserDevice, { UserDeviceAttributes } from './UserDevice';
 
 export interface BlockAuditAttributes {
   id: number;
   action: 'c' | 'u' | 'd'; // create, update, delete
   block?: Block;
+  blockId?: BlockAttributes['id'];
+
+  // Multiple block audits can be a part of one document audit
+  documentAuditId?: DocumentAuditAttributes['id'];
+  documentAudit?: DocumentAudit;
+
+  // Attributes that we keep track of
   element?: string;
   style?: { [key: string]: string };
   textContent?: string;
-  structure?: number[];
-  parentId?: number;
+  structure?: BlockAttributes['id'][];
+  parentId?: BlockAttributes['id'];
+  documentId?: DocumentAttributes['id'];
+
+  // Pointer to the last audit of each field
+  // if it was not audited on this version
+  // -- for quick reconstruction of versions
+  lastElementAuditId?: BlockAuditAttributes['id'];
+  lastElementAudit?: BlockAudit;
+  lastStyleAuditId?: BlockAuditAttributes['id'];
+  lastStyleAudit?: BlockAudit;
+  lastTextContentAuditId?: BlockAuditAttributes['id'];
+  lastTextContentAudit?: BlockAudit;
+  lastStructureAuditId?: BlockAuditAttributes['id'];
+  lastStructureAudit?: BlockAudit;
+  lastParentAuditId?: BlockAuditAttributes['id'];
+  lastParentAudit?: BlockAudit;
+
+  createdByDeviceId?: UserDeviceAttributes['id'];
   createdByDevice?: UserDevice;
+  createdById?: UserAttributes['id'];
   createdBy?: User;
   createdAt: Date;
   updatedAt: Date;
+  approvedByDeviceId?: UserDeviceAttributes['id'];
   approvedByDevice?: UserDevice;
+  approvedById?: UserAttributes['id'];
   approvedBy?: User;
   approvedAt?: Date;
   revertedByDevice?: UserDevice;
@@ -59,6 +88,12 @@ export default class BlockAudit extends Model<
   @BelongsTo(() => Block, 'blockId')
   block: BlockAuditAttributes['block'];
 
+  @BelongsTo(() => DocumentAudit, {
+    as: 'documentAudit',
+    foreignKey: 'documentAuditId',
+  })
+  documentAudit: BlockAuditAttributes['documentAudit'];
+
   @Column(DataType.STRING(16))
   element: BlockAuditAttributes['element'];
 
@@ -73,6 +108,9 @@ export default class BlockAudit extends Model<
 
   @Column(DataType.INTEGER)
   parentId: BlockAuditAttributes['parentId'];
+
+  @Column(DataType.INTEGER)
+  documentId: BlockAuditAttributes['documentId'];
 
   @BelongsTo(() => UserDevice, 'createdByDeviceId')
   createdByDevice: BlockAuditAttributes['createdByDevice'];

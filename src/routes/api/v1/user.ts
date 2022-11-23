@@ -4,6 +4,7 @@ import {
   passportJwtAuth,
 } from '../../../middlewares/authMiddlewares';
 import handleBadRequest from '../../../middlewares/handleBadRequest';
+import handlePagination from '../../../middlewares/handlePagination';
 import {
   validateConnectMetaMask,
   validateGetMetaMaskNonce,
@@ -14,6 +15,7 @@ import {
 } from '../../../middlewares/validators/user';
 import {
   checkUserController,
+  dailyCheckInController,
   deleteUserController,
   getUserController,
   patchUserController,
@@ -22,6 +24,7 @@ import {
   connectMetaMaskController,
   getMetaMaskNonceController,
 } from '../../../services/user/connect';
+import { getReferredUsersController } from '../../../services/user/referral';
 
 const userRouter = express.Router();
 
@@ -37,6 +40,10 @@ userRouter
     patchUserController
   )
   .delete(isAuthenticated, deleteUserController);
+
+userRouter
+  .route('/referrals')
+  .get(handlePagination, getReferredUsersController);
 
 userRouter.get(
   '/check',
@@ -57,5 +64,7 @@ userRouter.post(
   handleBadRequest,
   connectMetaMaskController
 );
+
+userRouter.post('/daily-check-in', dailyCheckInController);
 
 export default userRouter;

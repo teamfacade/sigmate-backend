@@ -1,4 +1,5 @@
 import axios, { AxiosError } from 'axios';
+import { isEqual, xor, xorWith } from 'lodash';
 import { BcTokenCreationAttributes } from '../../models/BcToken';
 import {
   CollectionCreationDTO,
@@ -87,7 +88,7 @@ export const fetchCollectionBySlug = async (
   const floorPrice = typeof fp === 'number' ? fp.toString() : fp;
 
   // Since we are fetching from Opensea API
-  const marketplace = 'Opensea';
+  const marketplace = 'opensea';
 
   // Record update time
   const now = new Date();
@@ -98,10 +99,10 @@ export const fetchCollectionBySlug = async (
     'createdBy' | 'createdByDevice'
   > = {
     slug: c.slug,
-    contractAddress: c.primary_asset_contracts[0].address,
+    contractAddress: c.primary_asset_contracts[0]?.address,
     name: c.name,
     description: c.description || undefined,
-    contractSchema: c.primary_asset_contracts[0].schema_name,
+    contractSchema: c.primary_asset_contracts[0]?.schema_name,
     twitterHandle: c.twitter_username || undefined,
     discordUrl: c.discord_url || undefined,
     websiteUrl: c.external_url || undefined,
@@ -114,15 +115,66 @@ export const fetchCollectionBySlug = async (
     marketplace,
     openseaMetadataUpdatedAt: now,
     openseaPriceUpdatedAt: now,
+    infoSource: 'opensea',
   };
 
   if (collection) {
     // Update the collection
     const collectionUpdateDTO: CollectionUpdateDTO = {
-      ...collectionDTO,
       updatedByDevice: device,
       updatedBy: user,
+      openseaMetadataUpdatedAt: collectionDTO.openseaMetadataUpdatedAt,
+      openseaPriceUpdatedAt: collectionDTO.openseaPriceUpdatedAt,
     };
+
+    // Only add to the DTO if the values have changed
+    const cd = collectionDTO;
+    const c = collection;
+    const cud = collectionUpdateDTO;
+    cd.slug !== c.slug && (cud.slug = cd.slug);
+    cd.contractAddress !== c.contractAddress &&
+      (cud.contractAddress = cd.contractAddress);
+    cd.name !== c.name && (cud.name = cd.name);
+    cd.description !== c.description && (cud.description = cd.description);
+    cd.contractSchema !== c.contractSchema &&
+      (cud.contractSchema = cd.contractSchema);
+    cd.twitterHandle !== c.twitterHandle &&
+      (cud.twitterHandle = cd.twitterHandle);
+    cd.discordUrl !== c.discordUrl && (cud.discordUrl = cd.discordUrl);
+    cd.websiteUrl !== c.websiteUrl && (cud.websiteUrl = cd.websiteUrl);
+    cd.telegramUrl !== c.telegramUrl && (cud.telegramUrl = cd.telegramUrl);
+    cd.imageUrl !== c.imageUrl && (cud.imageUrl = cd.imageUrl);
+    cd.bannerImageUrl !== c.bannerImageUrl &&
+      (cud.bannerImageUrl = cd.bannerImageUrl);
+    cd.floorPrice !== c.floorPrice && (cud.floorPrice = cd.floorPrice);
+    cd.marketplace !== c.marketplace && (cud.marketplace = cd.marketplace);
+
+    // Compare collection deployers
+    const cdsDB = await c.$get('collectionDeployers', {
+      attributes: ['address'],
+    });
+    const cds = cdsDB.map((cd) => cd.address);
+    const cdsDiff = xor(cd.collectionDeployers, cds);
+    if (cdsDiff.length) {
+      cud.collectionDeployers = cd.collectionDeployers;
+    }
+
+    // Compare payment tokens
+    const ptsDB = await c.$get('paymentTokens', {
+      attributes: ['name', 'symbol', 'address', 'imageUrl', 'decimals'],
+    });
+    const pts: BcTokenCreationAttributes[] = ptsDB.map((pt) => ({
+      name: pt?.name || '',
+      symbol: pt?.symbol || '',
+      address: pt?.address || '',
+      imageUrl: pt?.imageUrl || '',
+      decimals: pt?.decimals || 0,
+    }));
+    const ptsDiff = xorWith(cd.paymentTokens, pts, isEqual);
+    if (ptsDiff.length) {
+      cud.paymentTokens = cd.paymentTokens;
+    }
+
     collection = await updateCollectionBySlugWithTx(
       collectionSlug,
       collectionUpdateDTO

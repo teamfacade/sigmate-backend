@@ -8,6 +8,8 @@ import {
   Default,
   HasMany,
   HasOne,
+  IsIn,
+  Length,
   Model,
   Table,
   Unique,
@@ -28,8 +30,13 @@ import CollectionUtility, {
 import Document, { DocumentAttributes } from './Document';
 import MintingSchedule from './MintingSchedule';
 import Nft from './Nft';
-import User from './User';
-import UserDevice from './UserDevice';
+import User, { UserAttributes } from './User';
+import UserDevice, { UserDeviceAttributes } from './UserDevice';
+import Channel from './Channel';
+import DiscordAnnouncement from './DiscordAnnouncement';
+import TwitterAnnouncement from './TwitterAnnouncement';
+import axios from 'axios';
+import { DateTime } from 'luxon';
 
 export interface CollectionAttributes {
   id: number;
@@ -58,11 +65,24 @@ export interface CollectionAttributes {
   mintingPriceWl?: string;
   mintingPricePublic?: string;
   floorPrice?: string;
+  floorPriceUnit?: string;
+  floorPriceExchangeNeeded: boolean;
+  floorPriceExchangeRate?: number;
+  floorPriceExchangeRateFetchedAt?: Date;
+  documentId?: DocumentAttributes['id'];
   document?: Document;
+  discordAnnouncement?: DiscordAnnouncement[];
+  twitterAnnouncement?: TwitterAnnouncement[];
+  createdById?: UserAttributes['id'];
   createdBy?: User;
+  createdByDeviceId?: UserDeviceAttributes['id'];
   createdByDevice?: UserDevice;
+  createdAt?: Date;
   updatedBy?: User;
   updatedByDevice?: UserDevice;
+  updatedAt?: Date;
+  deletedBy?: User;
+  deletedByDevice?: UserDevice;
   mintingSchedules?: MintingSchedule[];
   category?: CollectionCategory;
   utility?: CollectionUtility;
@@ -74,9 +94,23 @@ export interface CollectionAttributes {
   // Blocks
   // For verifying collection data
   blocks?: Block[];
+  channel?: Channel;
+  discordAnnouncements?: DiscordAnnouncement[];
+  twitterAnnouncements?: TwitterAnnouncement[];
+
+  // for confirm
+  adminConfirmed?: boolean;
+  adminConfirmedBy?: User;
+  adminConfirmedById?: UserAttributes['id'];
+  infoSource: string; // 'opensea' 'admin' 'user'\
+  infoConfirmedBy?: User;
+  infoConfirmedById?: UserAttributes['id'];
 }
 
-export type CollectionCreationAttributes = Optional<CollectionAttributes, 'id'>;
+export type CollectionCreationAttributes = Optional<
+  CollectionAttributes,
+  'id' | 'floorPriceExchangeNeeded'
+>;
 
 export type BlockCollectionAttrib =
   | 'team'
@@ -92,6 +126,11 @@ export type BlockCollectionAttrib =
   | 'paymentTokens'
   | 'marketplace'
   | '';
+
+export type CollectionResponseConcise = Pick<
+  CollectionAttributes,
+  'id' | 'slug' | 'name' | 'imageUrl' | 'bannerImageUrl'
+>;
 
 export interface CollectionResponse
   extends Pick<
@@ -123,6 +162,9 @@ export interface CollectionResponse
     | 'marketplace'
     | 'openseaMetadataUpdatedAt'
     | 'openseaPriceUpdatedAt'
+    | 'infoSource'
+    | 'infoConfirmedBy'
+    | 'infoConfirmedById'
   > {
   collectionDeployers: (CollectionDeployerAttributes['address'] | null)[];
   paymentTokens?: (BcTokenResponse | null)[];
@@ -162,6 +204,12 @@ export interface CollectionCreationDTO
     | 'marketplace'
     | 'openseaMetadataUpdatedAt'
     | 'openseaPriceUpdatedAt'
+    | 'infoSource'
+    | 'infoConfirmedBy'
+    | 'infoConfirmedById'
+    | 'adminConfirmed'
+    | 'adminConfirmedBy'
+    | 'adminConfirmedById'
   > {
   collectionDeployers: CollectionDeployerAttributes['address'][];
   paymentTokens: BcTokenCreationAttributes[];
@@ -171,6 +219,9 @@ export interface CollectionCreationDTO
   createdByDevice?: UserDevice;
   team?: string;
   history?: string;
+  // for confirm
+  confirmed?: boolean;
+  confirmedBy?: User;
 }
 
 export interface CollectionUpdateDTO
@@ -180,6 +231,12 @@ export interface CollectionUpdateDTO
   > {
   updatedBy?: User;
   updatedByDevice?: UserDevice;
+}
+
+export interface CollectionDeletionDTO
+  extends Pick<CollectionAttributes, 'slug'> {
+  deletedBy?: User;
+  deletedByDevice?: UserDevice;
 }
 
 export const OPENSEA_METADATA_UPDATE_PERIOD = 24 * 60 * 60 * 1000;
@@ -219,6 +276,7 @@ export default class Collection extends Model<
   @BelongsToMany(() => BcToken, () => CollectionPaymentToken)
   paymentTokens: CollectionAttributes['paymentTokens'];
 
+  @Default('ERC721')
   @AllowNull(false)
   @Column(DataType.STRING(16))
   contractSchema!: CollectionAttributes['contractSchema'];
@@ -276,7 +334,21 @@ export default class Collection extends Model<
 
   @Default('0')
   @Column(DataType.STRING)
-  floorPrice?: CollectionAttributes['floorPrice'];
+  floorPrice: CollectionAttributes['floorPrice'];
+
+  @Length({ max: 16 })
+  @Column(DataType.STRING(16))
+  floorPriceUnit: CollectionAttributes['floorPriceUnit'];
+
+  @Default(false)
+  @Column(DataType.BOOLEAN)
+  floorPriceExchangeNeeded!: CollectionAttributes['floorPriceExchangeNeeded'];
+
+  @Column(DataType.DOUBLE)
+  floorPriceExchangeRate: CollectionAttributes['floorPriceExchangeRate'];
+
+  @Column(DataType.DATE)
+  floorPriceExchangeRateFetchedAt: CollectionAttributes['floorPriceExchangeRateFetchedAt'];
 
   @HasOne(() => Document, 'collectionId')
   document: CollectionAttributes['document'];
@@ -292,6 +364,12 @@ export default class Collection extends Model<
 
   @BelongsTo(() => UserDevice, 'updatedByDeviceId')
   updatedByDevice: CollectionAttributes['updatedByDevice'];
+
+  @BelongsTo(() => User, 'deletedById')
+  deletedBy: CollectionAttributes['deletedBy'];
+
+  @BelongsTo(() => UserDevice, 'deletedByDeviceId')
+  deletedByDevice: CollectionAttributes['deletedByDevice'];
 
   @HasMany(() => MintingSchedule, 'collectionId')
   mintingSchedules: CollectionAttributes['mintingSchedules'];
@@ -312,11 +390,91 @@ export default class Collection extends Model<
   @Column(DataType.DATE)
   openseaMetadataUpdatedAt: CollectionAttributes['openseaMetadataUpdatedAt'];
 
+  @HasMany(() => DiscordAnnouncement, 'collectionId')
+  discordAnnouncement: CollectionAttributes['discordAnnouncement'];
+
+  @HasMany(() => TwitterAnnouncement, 'collectionId')
+  twitterAnnouncement: CollectionAttributes['twitterAnnouncement'];
+
   @Column(DataType.DATE)
   openseaPriceUpdatedAt: CollectionAttributes['openseaPriceUpdatedAt'];
 
   @HasMany(() => Block, 'collectionId')
   blocks: CollectionAttributes['blocks'];
+
+  // for admin page
+  @Default(false)
+  @Column(DataType.BOOLEAN)
+  adminConfirmed: CollectionAttributes['adminConfirmed'];
+
+  @BelongsTo(() => User, 'adminConfirmedById')
+  adminConfirmedBy: CollectionAttributes['adminConfirmedBy'];
+
+  @IsIn([['opensea', 'admin', 'user']])
+  @Column(DataType.STRING(16))
+  infoSource?: CollectionAttributes['infoSource'];
+
+  // for admin page
+  @BelongsTo(() => User, 'infoConfirmedById')
+  infoConfirmedBy: CollectionAttributes['infoConfirmedBy'];
+
+  /**
+   * Fetch floor price with appropriate unit exchange.
+   * Uses the Binance ticker API
+   * Exchange rate is refreshed every 10 minutes.
+   */
+  async getFloorPrice() {
+    if (!this.floorPrice || !this.floorPriceExchangeNeeded)
+      return this.floorPrice;
+
+    let shouldFetch = false;
+    if (!this.floorPriceExchangeRateFetchedAt) {
+      shouldFetch = true;
+    } else {
+      const now = DateTime.now().setZone('utc');
+      const lastFetched = DateTime.fromJSDate(
+        this.floorPriceExchangeRateFetchedAt
+      );
+      if (now > lastFetched.plus({ minutes: 10 })) {
+        // More than 10 minutes since last update. Need to fetch again
+        shouldFetch = true;
+      }
+    }
+
+    let exchangeRate = 1;
+    if (shouldFetch) {
+      try {
+        const { data } = await axios.get(
+          'https://api.binance.com/api/v3/ticker/price?symbol=MATICETH'
+        );
+        if (data.price) {
+          exchangeRate = Number.parseFloat(data.price);
+          this.set('floorPriceExchangeRate', exchangeRate);
+          this.set('floorPriceExchangeRateFetchedAt', new Date());
+          await this.save();
+        }
+      } catch (error) {
+        exchangeRate = 1;
+      }
+    } else {
+      exchangeRate = this.floorPriceExchangeRate || 1;
+    }
+
+    const oldFloorPrice = Number.parseFloat(this.floorPrice);
+    if (isNaN(oldFloorPrice)) return this.floorPrice;
+    const newFloorPrice = oldFloorPrice * (1 / exchangeRate);
+    return newFloorPrice.toString();
+  }
+
+  toResponseJSONConcise(): CollectionResponseConcise {
+    return {
+      id: this.id,
+      slug: this.slug,
+      name: this.name,
+      imageUrl: this.imageUrl,
+      bannerImageUrl: this.bannerImageUrl,
+    };
+  }
 
   async toResponseJSON(
     myself: User | null = null
@@ -350,6 +508,7 @@ export default class Collection extends Model<
       'marketplace',
       'openseaMetadataUpdatedAt',
       'openseaPriceUpdatedAt',
+      'infoSource',
     ]);
 
     const [
@@ -406,8 +565,18 @@ export default class Collection extends Model<
       category: category as CollectionResponse['category'],
       utility: utility as CollectionResponse['utility'],
       blocks: blockResponse,
+      floorPrice: await this.getFloorPrice(),
     };
 
     return response;
   }
+
+  @HasOne(() => Channel, { as: 'channel', foreignKey: 'collectionId' })
+  channel: CollectionAttributes['channel'];
+
+  @HasMany(() => DiscordAnnouncement, 'collectionId')
+  discordAnnouncements: CollectionAttributes['discordAnnouncements'];
+
+  @HasMany(() => TwitterAnnouncement, 'collectionId')
+  twitterAnnouncements: CollectionAttributes['twitterAnnouncements'];
 }
