@@ -3,6 +3,7 @@ import {
   createPgRes,
   PaginationOptions,
 } from '../../middlewares/handlePagination';
+import Channel from '../../models/Channel';
 import {
   getAllAnnouncements,
   getLatestDiscordAnnouncement,
@@ -22,7 +23,14 @@ export const getAllAnnouncementsController = async (
   try {
     const { limit, offset } = req.pg as PaginationOptions;
     const cid = req.query.cid as unknown as number;
-    const anns = await getAllAnnouncements(cid, limit, offset);
+    const channel = await Channel.findOne({ where: { collectionId: cid } });
+    if (!channel) throw new NotFoundError();
+    const anns = await getAllAnnouncements(
+      channel.discordChannel || null,
+      channel.twitterChannel || null,
+      limit,
+      offset
+    );
 
     // Check if collection exists
     const cl = await getCollectionById(cid);

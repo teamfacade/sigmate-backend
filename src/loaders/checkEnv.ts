@@ -30,6 +30,8 @@ const envVarNames = [
   'GOOGLE_CLIENT_SECRET',
   'PATH_PUBLIC_KEY',
   'PATH_PRIVATE_KEY',
+  'TWITTER_BEARER_TOKEN',
+  'LAMBDA_BOT_URL',
 ];
 
 const checkEnv = () => {

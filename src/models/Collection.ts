@@ -8,6 +8,7 @@ import {
   Default,
   HasMany,
   HasOne,
+  IsIn,
   Model,
   Table,
   Unique,
@@ -91,9 +92,12 @@ export interface CollectionAttributes {
   twitterAnnouncements?: TwitterAnnouncement[];
 
   // for confirm
-  confirmed?: boolean;
-  confirmedBy?: User;
-  confirmedById?: UserAttributes['id'];
+  adminConfirmed?: boolean;
+  adminConfirmedBy?: User;
+  adminConfirmedById?: UserAttributes['id'];
+  infoSource: string; // 'opensea' 'admin' 'user'\
+  infoConfirmedBy?: User;
+  infoConfirmedById?: UserAttributes['id'];
 }
 
 export type CollectionCreationAttributes = Optional<CollectionAttributes, 'id'>;
@@ -148,6 +152,9 @@ export interface CollectionResponse
     | 'marketplace'
     | 'openseaMetadataUpdatedAt'
     | 'openseaPriceUpdatedAt'
+    | 'infoSource'
+    | 'infoConfirmedBy'
+    | 'infoConfirmedById'
   > {
   collectionDeployers: (CollectionDeployerAttributes['address'] | null)[];
   paymentTokens?: (BcTokenResponse | null)[];
@@ -187,6 +194,12 @@ export interface CollectionCreationDTO
     | 'marketplace'
     | 'openseaMetadataUpdatedAt'
     | 'openseaPriceUpdatedAt'
+    | 'infoSource'
+    | 'infoConfirmedBy'
+    | 'infoConfirmedById'
+    | 'adminConfirmed'
+    | 'adminConfirmedBy'
+    | 'adminConfirmedById'
   > {
   collectionDeployers: CollectionDeployerAttributes['address'][];
   paymentTokens: BcTokenCreationAttributes[];
@@ -368,10 +381,18 @@ export default class Collection extends Model<
   // for admin page
   @Default(false)
   @Column(DataType.BOOLEAN)
-  confirmed: CollectionAttributes['confirmed'];
+  adminConfirmed: CollectionAttributes['adminConfirmed'];
 
-  @BelongsTo(() => User, 'confirmedById')
-  confirmedBy: CollectionAttributes['confirmedBy'];
+  @BelongsTo(() => User, 'adminConfirmedById')
+  adminConfirmedBy: CollectionAttributes['adminConfirmedBy'];
+
+  @IsIn([['opensea', 'admin', 'user']])
+  @Column(DataType.STRING(16))
+  infoSource?: CollectionAttributes['infoSource'];
+
+  // for admin page
+  @BelongsTo(() => User, 'infoConfirmedById')
+  infoConfirmedBy: CollectionAttributes['infoConfirmedBy'];
 
   toResponseJSONConcise(): CollectionResponseConcise {
     return {
@@ -415,6 +436,7 @@ export default class Collection extends Model<
       'marketplace',
       'openseaMetadataUpdatedAt',
       'openseaPriceUpdatedAt',
+      'infoSource',
     ]);
 
     const [

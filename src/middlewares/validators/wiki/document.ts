@@ -1,6 +1,7 @@
 import { body, oneOf, param } from 'express-validator';
 import isInt from 'validator/lib/isInt';
 import isLength from 'validator/lib/isLength';
+import { isCollectionDeployers, isPaymentTokensArray } from '../utils';
 
 export const validateGetWikiDocumentById = param('id')
   .notEmpty()
@@ -22,27 +23,136 @@ export const validateCreateWikiDocument = [
     .withMessage('TOO_LONG')
     .bail(),
   body('parent').optional().isInt().withMessage('NOT_INT').toInt(),
-  body('collection')
+  body('collection').optional().isObject().withMessage('NOT_OBJECT'),
+  body('collection.contractAddress')
     .optional()
-    .isObject()
-    .withMessage('NOT_OBJECT')
+    .trim()
+    .stripLow()
+    .isEthereumAddress()
+    .withMessage('INVALID_ETH_ADDR')
+    .bail(),
+  body('collection.collectionDeployers')
+    .optional()
+    .isArray()
+    .custom(isCollectionDeployers)
+    .toArray(),
+  body('collection.slug')
+    .optional()
+    .trim()
+    .stripLow()
+    .notEmpty()
+    .withMessage('REQUIRED')
     .bail()
-    .custom((value) => {
-      const { slug, marketplace } = value;
-      if (!slug) {
-        throw new Error('collection.slug: REQUIRED');
-      }
-      if (!isLength(slug, { max: 191 })) {
-        throw new Error('collection.slug: TOO_LONG');
-      }
-      if (!marketplace) {
-        throw new Error('collection.marketplace: REQUIRED');
-      }
-      if (!isLength(marketplace, { max: 191 })) {
-        throw new Error('collection.marketplace: TOO_LONG');
-      }
-      return true;
-    }),
+    .isLength({ min: 1, max: 191 })
+    .withMessage('TOO_LONG'),
+  body('collection.name')
+    .optional()
+    .trim()
+    .stripLow()
+    .notEmpty()
+    .withMessage('REQUIRED')
+    .bail()
+    .isLength({ min: 1, max: 191 })
+    .withMessage('TOO_LONG'),
+  body('collection.paymentTokens')
+    .optional()
+    .isArray()
+    .custom(isPaymentTokensArray)
+    .toArray(),
+  body('collection.twitterHandle')
+    .optional()
+    .trim()
+    .stripLow()
+    .isLength({ max: 16 })
+    .withMessage('TOO_LONG')
+    .bail(),
+  body('collection.discordUrl')
+    .optional()
+    .trim()
+    .stripLow()
+    .isLength({ max: 1024 })
+    .withMessage('TOO_LONG'),
+  body('collection.websiteUrl')
+    .optional()
+    .trim()
+    .stripLow()
+    .notEmpty()
+    .withMessage('REQUIRED')
+    .bail()
+    .isURL()
+    .withMessage('NOT_URL')
+    .bail()
+    .isLength({ max: 1024 })
+    .withMessage('TOO_LONG'),
+  body('collection.imageUrl')
+    .optional()
+    .trim()
+    .stripLow()
+    .isURL()
+    .withMessage('NOT_URL')
+    .isLength({ max: 1024 })
+    .withMessage('TOO_LONG'),
+  body('collection.bannerImageUrl')
+    .optional()
+    .trim()
+    .stripLow()
+    .isURL()
+    .withMessage('NOT_URL')
+    .isLength({ max: 1024 })
+    .withMessage('TOO_LONG'),
+  body('collection.mintingPriceWl')
+    .optional()
+    .trim()
+    .stripLow()
+    .isFloat()
+    .withMessage('NOT_FLOAT'),
+  body('collection.mintingPricePublic')
+    .optional()
+    .trim()
+    .stripLow()
+    .isFloat()
+    .withMessage('NOT_FLOAT'),
+  body('collection.floorPrice')
+    .optional()
+    .trim()
+    .stripLow()
+    .isFloat()
+    .withMessage('NOT_FLOAT'),
+  body('collection.marketplace')
+    .optional()
+    .trim()
+    .stripLow()
+    .isLength({ max: 191 })
+    .withMessage('TOO_LONG')
+    .bail(),
+  body('collection.category')
+    .optional()
+    .trim()
+    .stripLow()
+    .isLength({ min: 1, max: 64 })
+    .withMessage('TOO_LONG')
+    .bail(),
+  body('collection.utility')
+    .optional()
+    .trim()
+    .stripLow()
+    .isLength({ min: 1, max: 64 })
+    .withMessage('TOO_LONG')
+    .bail(),
+  body('collection.team')
+    .optional()
+    .trim()
+    .stripLow()
+    .isLength({ min: 1, max: 16383 })
+    .withMessage('TOO_LONG')
+    .bail(),
+  body('collection.history')
+    .optional()
+    .trim()
+    .stripLow()
+    .isLength({ min: 1, max: 16383 })
+    .withMessage('TOO_LONG')
+    .bail(),
   body('nft')
     .optional()
     .isObject()

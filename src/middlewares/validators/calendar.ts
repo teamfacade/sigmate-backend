@@ -46,10 +46,12 @@ export const validateCreateMintingSchedule = [
     .isLength({ max: 16383 })
     .withMessage('TOO_LONG'),
   body('collection') // collectionId
+    .optional()
     .isInt()
     .withMessage('NOT_INT')
     .bail()
     .toInt(),
+  body('document').optional().isInt().withMessage('NOT_INT').bail().toInt(),
   body('mintingPrice')
     .optional()
     .isString()

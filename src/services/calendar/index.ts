@@ -5,10 +5,12 @@ import {
   PaginatedResponse,
   PaginationOptions,
 } from '../../middlewares/handlePagination';
+import Collection from '../../models/Collection';
 import {
   MintingScheduleAttributes,
   MintingScheduleResponse,
 } from '../../models/MintingSchedule';
+import Document from '../../models/Document';
 import ApiError from '../../utils/errors/ApiError';
 import NotFoundError from '../../utils/errors/NotFoundError';
 import UnauthenticatedError from '../../utils/errors/UnauthenticatedError';
@@ -73,7 +75,8 @@ type CreateMintingScheduleReqBody = {
   mintingTime: string; // isISO8601
   mintingUrl?: string; // isURL
   description?: string;
-  collection: number; // collection id
+  collection?: number; // collection id
+  document?: number;
   mintingPrice?: string;
   mintingPriceSymbol?: string;
 };
@@ -95,12 +98,22 @@ export const createMintingScheduleController = async (
       mintingUrl,
       description,
       collection: collectionId,
+      document: documentId,
       mintingPrice,
       mintingPriceSymbol,
     } = req.body as CreateMintingScheduleReqBody;
 
     // Check if collection exists
-    const cl = await getCollectionById(collectionId);
+
+    let cl: Collection | null = null;
+    if (collectionId) {
+      cl = await getCollectionById(collectionId);
+    } else if (documentId) {
+      const doc = await Document.findByPk(documentId);
+      if (doc) {
+        cl = await doc.$get('collection', { attributes: ['id'] });
+      }
+    }
     if (!cl) throw new NotFoundError();
 
     // Create the schedule
@@ -110,7 +123,7 @@ export const createMintingScheduleController = async (
       mintingTime: new Date(mintingTime),
       mintingUrl,
       description,
-      collectionId,
+      collectionId: cl.id,
       mintingPrice,
       mintingPriceSymbol,
       createdBy: u,
