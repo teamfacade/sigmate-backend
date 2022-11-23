@@ -34,6 +34,8 @@ import UserDevice, { UserDeviceAttributes } from './UserDevice';
 import Channel from './Channel';
 import DiscordAnnouncement from './DiscordAnnouncement';
 import TwitterAnnouncement from './TwitterAnnouncement';
+import axios from 'axios';
+import { DateTime } from 'luxon';
 
 export interface CollectionAttributes {
   id: number;
@@ -62,6 +64,9 @@ export interface CollectionAttributes {
   mintingPriceWl?: string;
   mintingPricePublic?: string;
   floorPrice?: string;
+  floorPriceExchangeNeeded: boolean;
+  floorPriceExchangeRate?: number;
+  floorPriceExchangeRateFetchedAt?: Date;
   documentId?: DocumentAttributes['id'];
   document?: Document;
   discordAnnouncement?: DiscordAnnouncement[];
@@ -324,7 +329,17 @@ export default class Collection extends Model<
 
   @Default('0')
   @Column(DataType.STRING)
-  floorPrice?: CollectionAttributes['floorPrice'];
+  floorPrice: CollectionAttributes['floorPrice'];
+
+  @Default(false)
+  @Column(DataType.BOOLEAN)
+  floorPriceExchangeNeeded!: CollectionAttributes['floorPriceExchangeNeeded'];
+
+  @Column(DataType.DOUBLE)
+  floorPriceExchangeRate: CollectionAttributes['floorPriceExchangeRate'];
+
+  @Column(DataType.DATE)
+  floorPriceExchangeRateFetchedAt: CollectionAttributes['floorPriceExchangeRateFetchedAt'];
 
   @HasOne(() => Document, 'collectionId')
   document: CollectionAttributes['document'];
@@ -393,6 +408,54 @@ export default class Collection extends Model<
   // for admin page
   @BelongsTo(() => User, 'infoConfirmedById')
   infoConfirmedBy: CollectionAttributes['infoConfirmedBy'];
+
+  /**
+   * Fetch floor price with appropriate unit exchange.
+   * Uses the Binance ticker API
+   * Exchange rate is refreshed every 10 minutes.
+   */
+  async getFloorPrice() {
+    if (!this.floorPrice || !this.floorPriceExchangeNeeded)
+      return this.floorPrice;
+
+    let shouldFetch = false;
+    if (!this.floorPriceExchangeRateFetchedAt) {
+      shouldFetch = true;
+    } else {
+      const now = DateTime.now().setZone('utc');
+      const lastFetched = DateTime.fromJSDate(
+        this.floorPriceExchangeRateFetchedAt
+      );
+      if (now > lastFetched.plus({ minutes: 10 })) {
+        // More than 10 minutes since last update. Need to fetch again
+        shouldFetch = true;
+      }
+    }
+
+    let exchangeRate = 1;
+    if (shouldFetch) {
+      try {
+        const { data } = await axios.get(
+          'https://api.binance.com/api/v3/ticker/price?symbol=MATICETH'
+        );
+        if (data.price) {
+          exchangeRate = Number.parseFloat(data.price);
+          this.set('floorPriceExchangeRate', exchangeRate);
+          this.set('floorPriceExchangeRateFetchedAt', new Date());
+          await this.save();
+        }
+      } catch (error) {
+        exchangeRate = 1;
+      }
+    } else {
+      exchangeRate = this.floorPriceExchangeRate || 1;
+    }
+
+    const oldFloorPrice = Number.parseFloat(this.floorPrice);
+    if (isNaN(oldFloorPrice)) return this.floorPrice;
+    const newFloorPrice = oldFloorPrice * (1 / exchangeRate);
+    return newFloorPrice.toString();
+  }
 
   toResponseJSONConcise(): CollectionResponseConcise {
     return {
@@ -493,6 +556,7 @@ export default class Collection extends Model<
       category: category as CollectionResponse['category'],
       utility: utility as CollectionResponse['utility'],
       blocks: blockResponse,
+      floorPrice: await this.getFloorPrice(),
     };
 
     return response;
