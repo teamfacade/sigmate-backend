@@ -647,14 +647,14 @@ export const validateUpdateCollectionByUser = [
     .optional()
     .trim()
     .stripLow()
-    .isFloat()
-    .withMessage('NOT_FLOAT'),
+    .isLength({ max: 255 })
+    .withMessage('TOO_LENGTH'),
   body('mintingPricePublic')
     .optional()
     .trim()
     .stripLow()
-    .isFloat()
-    .withMessage('NOT_FLOAT'),
+    .isLength({ max: 255 })
+    .withMessage('TOO_LONG'),
   body('floorPrice')
     .optional()
     .trim()
