@@ -126,7 +126,7 @@ export const validateUpdateForumPost = [
     .isArray()
     .withMessage('NOT_ARRAY')
     .bail()
-    .custom(isArrayItemsLength({ min: 1, max: 191 }))
+    .custom(isArrayItemsLength({ min: 0, max: 191 }))
     .withMessage('LENGTH')
     .toArray(),
 ];
@@ -155,6 +155,7 @@ export const validateCreateForumPost = [
     .withMessage('NOT_INT'),
   body('tags').optional().isArray().toArray(),
   body('tags.*')
+    .optional()
     .isString()
     .isLength({ min: 1, max: 191 })
     .withMessage('LENGTH'),
