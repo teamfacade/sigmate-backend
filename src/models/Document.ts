@@ -111,8 +111,8 @@ export interface DocumentResponse extends DocumentResponseBase {
   nft?: NftResponse;
   lastApprovedAudit?: DocumentAudit | null;
   lastAudit?: DocumentAudit | null;
-  createdBy?: UserPublicResponse;
-  updatedBy?: UserPublicResponse;
+  createdBy?: UserPublicResponse | null;
+  updatedBy?: UserPublicResponse | null;
 }
 
 @Table({

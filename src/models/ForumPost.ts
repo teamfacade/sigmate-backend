@@ -26,8 +26,8 @@ export interface ForumPostAttributes {
   id: number;
   title: string;
   content: string;
-  createdBy: User;
-  createdByDevice: UserDevice;
+  createdBy?: User;
+  createdByDevice?: UserDevice;
   updatedBy?: User;
   updatedByDevice?: UserDevice;
   deletedBy?: User;
@@ -78,8 +78,8 @@ export interface ForumPostResponse
   voteCount?: number;
   commentCount?: number;
   myVote?: ForumPostVoteResponse | null;
-  createdBy: UserPublicResponse;
-  updatedBy: UserPublicResponse;
+  createdBy: UserPublicResponse | null;
+  updatedBy: UserPublicResponse | null;
 }
 
 @Table({
@@ -104,13 +104,13 @@ export default class ForumPost extends Model<
   content!: ForumPostAttributes['content'];
 
   @BelongsTo(() => User, { as: 'createdBy', foreignKey: 'createdById' })
-  createdBy!: ForumPostAttributes['createdBy'];
+  createdBy: ForumPostAttributes['createdBy'];
 
   @BelongsTo(() => UserDevice, {
     as: 'createdByDevice',
     foreignKey: 'createdByDeviceId',
   })
-  createdByDevice!: ForumPostAttributes['createdByDevice'];
+  createdByDevice: ForumPostAttributes['createdByDevice'];
 
   @BelongsTo(() => User, { as: 'updatedBy', foreignKey: 'updatedById' })
   updatedBy: ForumPostAttributes['updatedBy'];
@@ -136,7 +136,7 @@ export default class ForumPost extends Model<
   @HasMany(() => ForumPostVote, 'forumPostId')
   votes: ForumPostAttributes['votes'];
 
-  @HasMany(() => ForumComment, 'forumPostId')
+  @HasMany(() => ForumComment, { as: 'comments', foreignKey: 'forumPostId' })
   comments: ForumPostAttributes['comments'];
 
   @HasMany(() => ForumReport, 'forumPostId')

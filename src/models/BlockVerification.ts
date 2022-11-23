@@ -1,20 +1,32 @@
 import { BelongsTo, HasOne, Model, Table } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
-import Block from './Block';
+import Block, { BlockAttributes } from './Block';
+import BlockAudit, { BlockAuditAttributes } from './BlockAudit';
 import Opinion, { OpinionAttributes } from './Opinion';
-import User from './User';
-import UserDevice from './UserDevice';
-import VerificationType, { VerificationTypeResponse } from './VerificationType';
+import User, { UserAttributes } from './User';
+import UserDevice, { UserDeviceAttributes } from './UserDevice';
+import VerificationType, {
+  VerificationTypeAttributes,
+  VerificationTypeResponse,
+} from './VerificationType';
 
 export interface BlockVerificationAttributes {
   id: number;
-  verificationType: VerificationType;
+  verificationType?: VerificationType;
+  verificationTypeId?: VerificationTypeAttributes['id'];
   verificationOpinion?: Opinion; // opinion explaining the verification
-  subject: Block;
+  block?: Block;
+  blockId?: BlockAttributes['id'];
+  blockAudit?: BlockAudit;
+  blockAuditId?: BlockAuditAttributes['id'];
   createdByDevice?: UserDevice;
+  createdByDeviceId?: UserDeviceAttributes['id'];
   createdBy?: User;
+  createdById?: UserAttributes['id'];
   deletedByDevice?: UserDevice;
   deletedBy?: User;
+  createdAt?: User;
+  updatedAt?: User;
 }
 
 export type BlockVerificationCreationAttributes = Optional<
@@ -28,6 +40,20 @@ export interface BlockVerificationResponse
   verificationOpinion?: Pick<OpinionAttributes, 'id' | 'createdAt'> | null;
 }
 
+export interface BlockVerificationDTO {
+  verificationType: VerificationTypeAttributes['name'];
+  opinion?: {
+    title?: OpinionAttributes['title'];
+    content: OpinionAttributes['content'];
+  };
+  block?: OpinionAttributes['block'];
+  blockId?: OpinionAttributes['blockId'];
+  createdBy?: BlockVerificationAttributes['createdBy'];
+  createdById?: BlockVerificationAttributes['createdById'];
+  createdByDevice?: BlockVerificationAttributes['createdByDevice'];
+  createdByDeviceId?: BlockVerificationAttributes['createdByDeviceId'];
+}
+
 @Table({
   tableName: 'block_verifications',
   modelName: 'BlockVerification',
@@ -39,14 +65,17 @@ export default class BlockVerification extends Model<
   BlockVerificationAttributes,
   BlockVerificationCreationAttributes
 > {
-  @BelongsTo(() => VerificationType, 'vtypeId')
+  @BelongsTo(() => VerificationType, 'verificationTypeId')
   verificationType!: BlockVerificationAttributes['verificationType'];
 
   @HasOne(() => Opinion, 'blockVerificationId')
   verificationOpinion: BlockVerificationAttributes['verificationOpinion'];
 
   @BelongsTo(() => Block, 'blockId')
-  subject!: BlockVerificationAttributes['subject'];
+  block: BlockVerificationAttributes['block'];
+
+  @BelongsTo(() => BlockAudit, 'blockAuditId')
+  blockAudit: BlockVerificationAttributes['blockAudit'];
 
   @BelongsTo(() => UserDevice, {
     as: 'createdByDevice',

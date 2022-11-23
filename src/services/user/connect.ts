@@ -96,7 +96,7 @@ type ConnectMetaMaskFailResponse = {
 type ConnectMetaMaskSuccessResponse = {
   success: true;
   metamaskWallet: string;
-  user: UserResponse;
+  user: UserResponse | null;
 };
 
 export const connectMetaMaskController = async (

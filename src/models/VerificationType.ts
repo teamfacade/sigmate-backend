@@ -1,4 +1,12 @@
-import { Column, DataType, HasMany, Model, Table } from 'sequelize-typescript';
+import {
+  Column,
+  DataType,
+  HasMany,
+  Model,
+  Table,
+  Unique,
+} from 'sequelize-typescript';
+import { Optional } from 'sequelize/types';
 import BlockVerification from './BlockVerification';
 import OpinionVerification from './OpinionVerification';
 import UrlVerification from './UrlVerification';
@@ -11,6 +19,11 @@ export interface VerificationTypeAttributes {
   opinionVerifications?: OpinionVerification[];
   urlVerifications?: UrlVerification[];
 }
+
+type VerificationTypeCreationAttributes = Optional<
+  VerificationTypeAttributes,
+  'id'
+>;
 
 export type VerificationTypeResponse = Pick<
   VerificationTypeAttributes,
@@ -26,7 +39,10 @@ export type VerificationTypeResponse = Pick<
   charset: 'utf8mb4',
   collate: 'utf8mb4_general_ci',
 })
-export default class VerificationType extends Model<VerificationTypeAttributes> {
+export default class VerificationType extends Model<
+  VerificationTypeAttributes,
+  VerificationTypeCreationAttributes
+> {
   @Column({
     type: DataType.INTEGER,
     primaryKey: true,
@@ -34,6 +50,7 @@ export default class VerificationType extends Model<VerificationTypeAttributes> 
   })
   id!: VerificationTypeAttributes['id'];
 
+  @Unique('verification_type_name')
   @Column(DataType.STRING(191))
   name!: VerificationTypeAttributes['name'];
 

@@ -57,8 +57,9 @@ export type ImageCreationAttributes = Optional<
 >;
 
 export interface ImageResponse {
+  id: string;
   url: string;
-  createdBy?: UserPublicResponse;
+  createdBy?: UserPublicResponse | null;
 }
 
 @Table({
@@ -117,13 +118,17 @@ export default class Image extends Model<
   @HasMany(() => Category, 'thumbnailId')
   thumbnailCategories: ImageAttributes['thumbnailCategories'];
 
+  get url() {
+    return process.env.AWS_S3_IMAGE_BASEURL + '/' + this.folder + '/' + this.id;
+  }
+
   async toResponseJSON(): Promise<ImageResponse> {
-    const url: string =
-      process.env.AWS_S3_IMAGE_BASEURL + this.folder + '/' + this.id;
+    const url: string = this.url;
     const createdBy = this.createdBy || (await this.$get('createdBy'));
     const createdByJSON = await createdBy?.toResponseJSONPublic();
 
     return {
+      id: this.id,
       url,
       createdBy: createdByJSON,
     };
