@@ -21,7 +21,8 @@ type TA = {
 };
 
 export const getAllAnnouncements = async (
-  id: number,
+  discord_channel: string | null,
+  twitter_channel: string | null,
   limit = 50,
   offset = 0
 ) => {
@@ -30,11 +31,11 @@ export const getAllAnnouncements = async (
     const union = `
       SELECT 'd' AS opt, content, timestamp, content_id AS contentId
       FROM ${config.database}.discord_announcements 
-      WHERE collection_id = ${id}
+      WHERE discord_channel = ${discord_channel || 'NULL'}
       UNION
       SELECT 't' AS opt, content, timestamp, content_id AS contentId
       FROM ${config.database}.twitter_announcements
-      WHERE collection_id = ${id}
+      WHERE twitter_channel = ${twitter_channel || 'NULL'}
       ORDER BY timestamp DESC, contentId+0 ASC
       LIMIT ${limit} OFFSET ${offset};`;
 
