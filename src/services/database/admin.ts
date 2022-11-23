@@ -1,3 +1,4 @@
+import { Op } from 'sequelize';
 import Channel from '../../models/Channel';
 import Collection from '../../models/Collection';
 import SequelizeError from '../../utils/errors/SequelizeError';
@@ -19,7 +20,7 @@ export const getUnconfirmedCollections = async (pg: PaginationOptions) => {
   try {
     return await Collection.findAndCountAll({
       attributes: ['id', 'name', 'discordUrl', 'twitterHandle'],
-      where: { adminConfirmed: 0 },
+      where: { adminConfirmed: { [Op.not]: 1 } },
       limit: pg.limit,
       offset: pg.offset,
     });
@@ -33,6 +34,9 @@ export const getConfirmedCollections = async (pg: PaginationOptions) => {
     return await Collection.findAndCountAll({
       attributes: ['id', 'name', 'discordUrl', 'twitterHandle'],
       where: { adminConfirmed: 1 },
+      include: [
+        { model: Channel, as: 'channel', attributes: ['discordChannel'] },
+      ],
       limit: pg.limit,
       offset: pg.offset,
     });

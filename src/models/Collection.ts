@@ -9,6 +9,7 @@ import {
   HasMany,
   HasOne,
   IsIn,
+  Length,
   Model,
   Table,
   Unique,
@@ -64,6 +65,7 @@ export interface CollectionAttributes {
   mintingPriceWl?: string;
   mintingPricePublic?: string;
   floorPrice?: string;
+  floorPriceUnit?: string;
   floorPriceExchangeNeeded: boolean;
   floorPriceExchangeRate?: number;
   floorPriceExchangeRateFetchedAt?: Date;
@@ -105,7 +107,10 @@ export interface CollectionAttributes {
   infoConfirmedById?: UserAttributes['id'];
 }
 
-export type CollectionCreationAttributes = Optional<CollectionAttributes, 'id'>;
+export type CollectionCreationAttributes = Optional<
+  CollectionAttributes,
+  'id' | 'floorPriceExchangeNeeded'
+>;
 
 export type BlockCollectionAttrib =
   | 'team'
@@ -330,6 +335,10 @@ export default class Collection extends Model<
   @Default('0')
   @Column(DataType.STRING)
   floorPrice: CollectionAttributes['floorPrice'];
+
+  @Length({ max: 16 })
+  @Column(DataType.STRING(16))
+  floorPriceUnit: CollectionAttributes['floorPriceUnit'];
 
   @Default(false)
   @Column(DataType.BOOLEAN)
@@ -562,7 +571,7 @@ export default class Collection extends Model<
     return response;
   }
 
-  @HasOne(() => Channel, 'collectionId')
+  @HasOne(() => Channel, { as: 'channel', foreignKey: 'collectionId' })
   channel: CollectionAttributes['channel'];
 
   @HasMany(() => DiscordAnnouncement, 'collectionId')
