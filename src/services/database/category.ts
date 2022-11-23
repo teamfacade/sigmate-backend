@@ -33,7 +33,7 @@ export const getCategories = async (page: number, limit = 50) => {
     return await Category.findAll({
       limit,
       offset: limit * (page - 1),
-      include: [{ model: Image, attributes: ['id', 'url'] }],
+      include: [{ model: Image, attributes: ['id', 'folder'] }],
     });
   } catch (error) {
     throw new SequelizeError(error as Error);
