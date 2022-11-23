@@ -51,6 +51,7 @@ export interface CategoryResponseConcise {
 }
 
 export interface CategoryResponse extends CategoryResponseConcise {
+  thumbnail?: string;
   description?: CategoryAttributes['description'];
   parent?: CategoryAttributes['parent'];
 }

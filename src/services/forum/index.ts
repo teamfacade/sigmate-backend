@@ -59,7 +59,7 @@ import ForumCommentVote, {
 } from '../../models/ForumCommentVote';
 import { createPgRes } from '../../middlewares/handlePagination';
 
-export const categoryToJSON = (category: Category, all = false) => {
+export const categoryToJSON = async (category: Category, all = false) => {
   const categoryJSON = category.toJSON();
   if (all) return categoryJSON;
   const categoryResponse: CategoryResponse = {
@@ -67,6 +67,7 @@ export const categoryToJSON = (category: Category, all = false) => {
     name: categoryJSON.name,
     description: categoryJSON.description,
     parent: categoryJSON.parent || undefined,
+    thumbnail: category.thumbnail?.url,
   };
   return categoryResponse;
 };

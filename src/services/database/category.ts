@@ -4,6 +4,7 @@ import Category, {
   CategoryCreationAttributes,
   CategoryDeleteDTO,
 } from '../../models/Category';
+import Image from '../../models/Image';
 import User from '../../models/User';
 import UserDevice from '../../models/UserDevice';
 import BadRequestError from '../../utils/errors/BadRequestError';
@@ -29,7 +30,11 @@ export const getCategories = async (page: number, limit = 50) => {
   if (typeof limit !== 'number' || limit <= 0) return null;
 
   try {
-    return await Category.findAll({ limit, offset: limit * (page - 1) });
+    return await Category.findAll({
+      limit,
+      offset: limit * (page - 1),
+      include: [{ model: Image, attributes: ['id', 'url'] }],
+    });
   } catch (error) {
     throw new SequelizeError(error as Error);
   }
