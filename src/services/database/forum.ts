@@ -118,7 +118,7 @@ export const getForumPostsByCategory = async (
   if (!category) throw new NotFoundError();
   const { limit, offset } = paginationOptions;
   try {
-    return await category.$get('forumPosts', {
+    const rows = await category.$get('forumPosts', {
       limit,
       offset,
       order: [['createdAt', 'DESC']],
@@ -137,6 +137,9 @@ export const getForumPostsByCategory = async (
         { model: UserDevice, as: 'createdByDevice' },
       ],
     });
+    const count = await category.$count('forumPosts');
+
+    return { rows, count };
   } catch (error) {
     throw new SequelizeError(error as Error);
   }
