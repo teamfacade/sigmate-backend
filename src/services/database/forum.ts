@@ -557,12 +557,12 @@ export const getForumPostComments = async (
 
   try {
     const rows = await forumPost.$get('comments', {
+      where: { parentId: null },
       include: [
         { model: User, as: 'createdBy' },
         {
           model: ForumComment,
           as: 'replies',
-          where: { parentId: null },
           include: [{ model: User, as: 'createdBy' }],
           limit: 5,
           order: [['createdAt', 'DESC']],
