@@ -1,10 +1,15 @@
 import { Credentials } from 'google-auth-library';
+import { DateTime } from 'luxon';
+import { Op } from 'sequelize';
 import { Transaction } from 'sequelize/types';
 import { PaginationOptions } from '../../middlewares/handlePagination';
 import db from '../../models';
 import User, { UserCreationDTO, UserDTO } from '../../models/User';
+import UserAttendance from '../../models/UserAttendance';
 import UserAuth, { UserAuthDTO } from '../../models/UserAuth';
+import UserDevice from '../../models/UserDevice';
 import UserGroup from '../../models/UserGroup';
+import UserPoint from '../../models/UserPoint';
 import UserProfile, {
   UserProfileCreationAttributes,
   UserProfileCreationDTO,
@@ -18,6 +23,7 @@ import { GoogleProfile } from '../auth/google';
 import { generateNonce } from '../auth/metamask';
 import { createAccessToken, createRefreshToken } from '../auth/token';
 import { generateReferralCode } from '../user/referral';
+import { grantPoints } from './points';
 
 export const findUserById = async (userId: number) => {
   try {
@@ -223,6 +229,14 @@ export const updateUser = async (user: User, userDTO: UserDTO) => {
           );
           if (!referredByUser) throw new BadRequestError(); // User not found
           await user.$set('referredBy', referredByUser, { transaction });
+
+          // Grant points for referral
+          await grantPoints({
+            grantedTo: referredByUser,
+            policy: 'referral',
+            targetPk: user.id,
+            transaction,
+          });
         }
         delete userDTO.referredByCode;
       }
@@ -265,6 +279,10 @@ export const deleteUser = async (user: User | null | undefined) => {
 
       if (adminUser) deletePromises.push(adminUser.destroy({ transaction }));
 
+      await UserPoint.destroy({
+        where: { grantedToId: user.id },
+      });
+
       await Promise.all(deletePromises);
       await user.destroy({ transaction });
     });
@@ -302,6 +320,38 @@ export const getReferredUsers = async (
     });
     const count = await user.$count('referredUsers');
     return { rows: users, count };
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+export const dailyCheckIn = async (
+  user: User | undefined,
+  device: UserDevice | undefined
+) => {
+  if (!user) throw new UnauthenticatedError();
+  if (!device) throw new ApiError('ERR_DAILY_CHECK_IN_DEVICE');
+  const today = DateTime.now().setZone('utc');
+  try {
+    const att = await UserAttendance.findOne({
+      where: {
+        createdById: user.id,
+        createdAt: {
+          [Op.between]: [
+            today.startOf('day').toJSDate(),
+            today.endOf('day').toJSDate(),
+          ],
+        },
+      },
+    });
+
+    if (att) return null;
+
+    return await UserAttendance.create({
+      createdById: user.id,
+      createdByDeviceId: device.id,
+      createdAt: new Date(),
+    });
   } catch (error) {
     throw new SequelizeError(error as Error);
   }

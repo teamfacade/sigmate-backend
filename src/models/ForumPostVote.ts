@@ -31,7 +31,7 @@ export type ForumPostVoteCreationAttributes = Optional<
 
 export interface ForumPostVoteResponse
   extends Pick<ForumPostVoteAttributes, 'id' | 'like'> {
-  createdBy: UserPublicResponse;
+  createdBy: UserPublicResponse | null;
   createdAt: Date;
 }
 

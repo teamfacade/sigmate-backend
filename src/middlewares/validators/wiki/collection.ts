@@ -191,14 +191,14 @@ export const validateCreateCollection = [
     .optional()
     .trim()
     .stripLow()
-    .isFloat()
-    .withMessage('NOT_FLOAT'),
+    .isLength({ max: 255 })
+    .withMessage('TOO_LONG'),
   body('mintingPricePublic')
     .optional()
     .trim()
     .stripLow()
-    .isFloat()
-    .withMessage('NOT_FLOAT'),
+    .isLength({ max: 255 })
+    .withMessage('TOO_LONG'),
   body('floorPrice')
     .optional()
     .trim()
@@ -424,14 +424,14 @@ export const validateUpdateCollection = [
     .optional()
     .trim()
     .stripLow()
-    .isFloat()
-    .withMessage('NOT_FLOAT'),
+    .isLength({ max: 255 })
+    .withMessage('TOO_LONG'),
   body('mintingPricePublic')
     .optional()
     .trim()
     .stripLow()
-    .isFloat()
-    .withMessage('NOT_FLOAT'),
+    .isLength({ max: 255 })
+    .withMessage('TOO_LONG'),
   body('floorPrice')
     .optional()
     .trim()
@@ -647,14 +647,14 @@ export const validateUpdateCollectionByUser = [
     .optional()
     .trim()
     .stripLow()
-    .isFloat()
-    .withMessage('NOT_FLOAT'),
+    .isLength({ max: 255 })
+    .withMessage('TOO_LENGTH'),
   body('mintingPricePublic')
     .optional()
     .trim()
     .stripLow()
-    .isFloat()
-    .withMessage('NOT_FLOAT'),
+    .isLength({ max: 255 })
+    .withMessage('TOO_LONG'),
   body('floorPrice')
     .optional()
     .trim()

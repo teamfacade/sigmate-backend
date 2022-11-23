@@ -29,6 +29,7 @@ import {
   deleteForumPostVote,
   getForumCommentById,
   getForumPostById,
+  getForumPostCommentReplies,
   getForumPostComments,
   getForumPostCommentStats,
   getForumPostsByCategory,
@@ -56,8 +57,9 @@ import ForumComment, {
 import ForumCommentVote, {
   ForumCommentVoteResponse,
 } from '../../models/ForumCommentVote';
+import { createPgRes } from '../../middlewares/handlePagination';
 
-export const categoryToJSON = (category: Category, all = false) => {
+export const categoryToJSON = async (category: Category, all = false) => {
   const categoryJSON = category.toJSON();
   if (all) return categoryJSON;
   const categoryResponse: CategoryResponse = {
@@ -65,6 +67,7 @@ export const categoryToJSON = (category: Category, all = false) => {
     name: categoryJSON.name,
     description: categoryJSON.description,
     parent: categoryJSON.parent || undefined,
+    thumbnail: category.thumbnail?.url,
   };
   return categoryResponse;
 };
@@ -107,10 +110,24 @@ const forumPostToJSON = async (
   forumResponse.createdBy = await userPublicInfoToJSON(createdBy);
   updatedBy &&
     (forumResponse.updatedBy = await userPublicInfoToJSON(updatedBy));
-  if (forumPost.comments) {
-    const crs = await Promise.all(
-      forumPost.comments.map((c) => forumCommentToJSON(c))
-    );
+  const comments = await forumPost.$get('comments', {
+    attributes: ['id', 'content', 'createdAt', 'parentId'],
+    where: { parentId: null },
+    include: [
+      { model: User, as: 'createdBy' },
+      {
+        model: ForumComment,
+        as: 'replies',
+        include: [{ model: User, as: 'createdBy' }],
+        order: [['createdAt', 'DESC']],
+        limit: 5,
+      },
+    ],
+    limit: 10,
+    order: [['createdAt', 'DESC']],
+  });
+  if (comments) {
+    const crs = await Promise.all(comments.map((c) => forumCommentToJSON(c)));
     forumResponse.comments = crs as ForumCommentResponse[];
   }
   return forumResponse;
@@ -136,7 +153,7 @@ const forumCommentVoteToJSON = async (v: ForumCommentVote) => {
     id: vj.id,
     like: vj.like,
     createdAt: v.createdAt,
-    createdBy: await userPublicInfoToJSON(createdBy),
+    createdBy: createdBy ? await userPublicInfoToJSON(createdBy) : createdBy,
   };
   return vr;
 };
@@ -153,7 +170,7 @@ const forumCommentToJSON = async (
     id: c.id,
     content: c.content,
     createdAt: c.createdAt,
-    createdBy: await userPublicInfoToJSON(createdBy as User),
+    createdBy: createdBy ? await userPublicInfoToJSON(createdBy) : createdBy,
     voteCount,
     replyCount,
     parentId,
@@ -468,17 +485,65 @@ export const getForumPostCommentsController = async (
     const postId = req.params.postId as unknown as number;
     const pg = req.pg;
     if (!pg) throw new BadRequestError();
+    const { limit, offset } = pg;
     const fp = await getForumPostById(postId);
     if (!fp) throw new NotFoundError();
-    const cs = await getForumPostComments(fp, pg);
+    const { rows: cs, count } = await getForumPostComments(fp, pg);
     const crs = await Promise.all(cs.map((c) => forumCommentToJSON(c)));
-    res.status(200).json({
-      success: true,
-      forumPost: {
-        id: fp.id,
-        comments: crs,
-      },
+    res.status(200).json(
+      createPgRes({
+        limit,
+        offset,
+        count,
+        data: {
+          id: fp.id,
+          comments: crs,
+        },
+      })
+    );
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const getForumPostCommentRepliesController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    if (!req.pg) throw new BadRequestError();
+    const commentId = req.params.commentId;
+    if (!commentId) {
+      throw new BadRequestError({
+        validationErrors: [
+          {
+            location: 'params',
+            value: commentId,
+            msg: 'REQUIRED',
+          },
+        ],
+      });
+    }
+    const forumComment = await ForumComment.findByPk(commentId, {
+      attributes: ['id'],
     });
+    if (!forumComment) throw new NotFoundError('ERR_FORUM_COMMENT_NOT_FOUND');
+    const { rows: replies, count } = await getForumPostCommentReplies(
+      forumComment,
+      req.pg
+    );
+    const crs = await Promise.all(
+      replies.map((reply) => forumCommentToJSON(reply))
+    );
+    res.status(200).json(
+      createPgRes({
+        limit: req.pg.limit,
+        offset: req.pg.offset,
+        count,
+        data: crs,
+      })
+    );
   } catch (error) {
     next(error);
   }

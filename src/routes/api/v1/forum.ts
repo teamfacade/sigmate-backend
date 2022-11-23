@@ -16,6 +16,7 @@ import {
   validateDeleteForumPostComment,
   validateDeleteMyForumPostVote,
   validateGetForumPostById,
+  validateGetForumPostCommentReplies,
   validateGetForumPostComments,
   validateGetForumPostsByCategory,
   validateGetMyForumPostVote,
@@ -36,6 +37,7 @@ import {
   deleteMyForumPostVoteController,
   getCategoriesController,
   getForumPostByIdController,
+  getForumPostCommentRepliesController,
   getForumPostCommentsController,
   getForumPostsByCategoryController,
   getMyForumPostVoteController,
@@ -168,6 +170,16 @@ forumRouter
     validateDeleteForumPostComment,
     handleBadRequest,
     deleteForumPostCommentController
+  );
+
+forumRouter
+  .route('/cm/:commentId/replies')
+  .get(
+    passportJwtAuthOptional,
+    validateGetForumPostCommentReplies,
+    handleBadRequest,
+    handlePagination,
+    getForumPostCommentRepliesController
   );
 
 forumRouter

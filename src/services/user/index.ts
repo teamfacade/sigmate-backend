@@ -12,6 +12,7 @@ import User, {
 import { UserProfileAttributes } from '../../models/UserProfile';
 import UnauthenticatedError from '../../utils/errors/UnauthenticatedError';
 import {
+  dailyCheckIn,
   deleteUser,
   findUserByReferralCode,
   findUserByUserName,
@@ -19,6 +20,8 @@ import {
 } from '../database/user';
 
 export const userToJSON = (user: User) => {
+  if (!user) return null;
+
   const {
     id,
     userName,
@@ -100,9 +103,11 @@ export const userPublicAttributes = [
 ];
 
 export const userPublicInfoToJSON = async (
-  user: User
-): Promise<UserPublicResponse> => {
-  const p = user.primaryProfile || (await user.$get('primaryProfile'));
+  user: User | null
+): Promise<UserPublicResponse | null> => {
+  if (!user) return null;
+  const p = user?.primaryProfile || (await user?.$get('primaryProfile'));
+  if (!p) return null;
   const primaryProfile = _.pick(p, [
     'id',
     'displayName',
@@ -263,6 +268,33 @@ export const checkUserController = async (
     }
 
     res.status(response.success ? 200 : 400).json(response);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const dailyCheckInController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const att = await dailyCheckIn(req.user, req.device);
+    if (att) {
+      res.status(200).json({
+        success: true,
+        attendance: {
+          createdAt: att.createdAt,
+        },
+      });
+    } else {
+      res.status(409).json({
+        success: false,
+        attendance: {
+          msg: 'ALREADY_CHECKED_IN',
+        },
+      });
+    }
   } catch (error) {
     next(error);
   }

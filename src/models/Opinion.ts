@@ -8,13 +8,16 @@ import {
   Table,
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
-import Block from './Block';
-import BlockVerification from './BlockVerification';
+import Block, { BlockAttributes } from './Block';
+import BlockAudit, { BlockAuditAttributes } from './BlockAudit';
+import BlockVerification, {
+  BlockVerificationAttributes,
+} from './BlockVerification';
 import Document from './Document';
 import OpinionVerification from './OpinionVerification';
 import UrlVerification from './UrlVerification';
-import User from './User';
-import UserDevice from './UserDevice';
+import User, { UserAttributes } from './User';
+import UserDevice, { UserDeviceAttributes } from './UserDevice';
 
 export interface OpinionAttributes {
   id: number;
@@ -22,13 +25,20 @@ export interface OpinionAttributes {
   content: string;
   document?: Document;
   block?: Block;
+  blockId?: BlockAttributes['id'];
+  blockAudit?: BlockAudit;
+  blockAuditId?: BlockAuditAttributes['id'];
   blockVerification?: BlockVerification;
+  blockVerificationId?: BlockVerificationAttributes['id'];
   opinionVerification?: OpinionVerification;
   urlVerification?: UrlVerification;
   opinionVerifications?: OpinionVerification[]; // verifications made on this opinion
-  createdByDevice: UserDevice;
+  createdByDevice?: UserDevice;
+  createdByDeviceId?: UserDeviceAttributes['id'];
   createdBy?: User;
-  createdAt: Date;
+  createdById?: UserAttributes['id'];
+  createdAt?: Date;
+  updatedAt?: Date;
 }
 
 export type OpinionCreationAttributes = Optional<
@@ -60,6 +70,9 @@ export default class Opinion extends Model<
 
   @BelongsTo(() => Block, 'blockId')
   block: OpinionAttributes['block'];
+
+  @BelongsTo(() => BlockAudit, 'blockAuditId')
+  blockAudit: OpinionAttributes['blockAudit'];
 
   @BelongsTo(() => BlockVerification, 'blockVerificationId')
   blockVerification: OpinionAttributes['blockVerification'];
