@@ -105,7 +105,10 @@ export interface CollectionAttributes {
   infoConfirmedById?: UserAttributes['id'];
 }
 
-export type CollectionCreationAttributes = Optional<CollectionAttributes, 'id'>;
+export type CollectionCreationAttributes = Optional<
+  CollectionAttributes,
+  'id' | 'floorPriceExchangeNeeded'
+>;
 
 export type BlockCollectionAttrib =
   | 'team'
@@ -562,7 +565,7 @@ export default class Collection extends Model<
     return response;
   }
 
-  @HasOne(() => Channel, 'collectionId')
+  @HasOne(() => Channel, { as: 'channel', foreignKey: 'collectionId' })
   channel: CollectionAttributes['channel'];
 
   @HasMany(() => DiscordAnnouncement, 'collectionId')
