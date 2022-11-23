@@ -69,6 +69,7 @@ export const categoryToJSON = async (category: Category, all = false) => {
     parent: categoryJSON.parent || undefined,
     thumbnail: category.thumbnail?.url,
   };
+  console.log(categoryResponse);
   return categoryResponse;
 };
 
@@ -203,7 +204,7 @@ export const getCategoriesController = async (
       const categories = await getCategories(page, limit);
       res.status(200).json({
         success: true,
-        categories: categories?.map((c) => categoryToJSON(c)),
+        categories: await Promise.all(categories.map((c) => categoryToJSON(c))),
       });
     } else {
       res.status(400).send();
