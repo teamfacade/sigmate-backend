@@ -24,6 +24,7 @@ import UserDevice from '../../models/UserDevice';
 import ApiError from '../../utils/errors/ApiError';
 import BadRequestError from '../../utils/errors/BadRequestError';
 import ConflictError from '../../utils/errors/ConflictError';
+import ForbiddenError from '../../utils/errors/ForbiddenError';
 import NotFoundError from '../../utils/errors/NotFoundError';
 import SequelizeError from '../../utils/errors/SequelizeError';
 import UnauthenticatedError from '../../utils/errors/UnauthenticatedError';
@@ -179,6 +180,23 @@ export const setForumPostCategoryIds = async (
   }
 };
 
+const getNoticeCategory = async () => {
+  try {
+    const [category] = await Category.findOrCreate({
+      where: { name: 'Notice' },
+      defaults: {
+        name: 'Notice',
+        description:
+          'Stay tuned for official announcements from the Sigmate team!',
+      },
+    });
+
+    return category;
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
 export const setForumPostTagNames = async (
   forumPost: ForumPost,
   tagNames: ForumTagAttributes['name'][],
@@ -229,6 +247,14 @@ export const createForumPost = async (
 ) => {
   const { title, content, categories, tags, createdBy, createdByDevice } =
     forumPostCreationDTO;
+
+  // Only admins can create post in the notice category
+  if (!createdBy.isAdmin) {
+    const noticeCategory = await getNoticeCategory();
+    if (categories.indexOf(noticeCategory.id) >= 0) {
+      throw new ForbiddenError();
+    }
+  }
 
   try {
     return await db.sequelize.transaction(async (transaction) => {
@@ -334,9 +360,26 @@ export const updateForumPost = async (
   try {
     const forumPostId = await db.sequelize.transaction(async (transaction) => {
       // Look for the forum post
-      const fp = await ForumPost.findByPk(forumPostDTO.id, { transaction });
+      const fp = await ForumPost.findByPk(forumPostDTO.id, {
+        include: [
+          {
+            model: User,
+            as: 'createdBy',
+            attributes: ['id'],
+          },
+        ],
+        transaction,
+      });
       if (!fp) throw new NotFoundError();
       const ps: Promise<unknown>[] = [];
+
+      // Authorize the edit
+      if (!updatedBy.isAdmin) {
+        // If not an admin, can only update my forum post
+        if (updatedBy.id !== fp.createdBy?.id) {
+          throw new ForbiddenError();
+        }
+      }
 
       // If content is edited, record the time
       if (forumPostDTO.content) {
@@ -392,8 +435,25 @@ export const deleteForumPost = async (
 ) => {
   try {
     return await db.sequelize.transaction(async (transaction) => {
-      const fp = await ForumPost.findByPk(forumPostId, { transaction });
+      const fp = await ForumPost.findByPk(forumPostId, {
+        include: [
+          {
+            model: User,
+            as: 'createdBy',
+          },
+        ],
+        transaction,
+      });
       if (!fp) throw new NotFoundError();
+
+      // Authorize the forum post delete
+      if (!deletedBy.isAdmin) {
+        // If not an admin, can only delete my forum post
+        if (fp.createdBy?.id !== deletedBy.id) {
+          throw new ForbiddenError();
+        }
+      }
+
       await Promise.all([
         fp.$set('deletedBy', deletedBy, { transaction }),
         fp.$set('deletedByDevice', deletedByDevice, { transaction }),
