@@ -9,6 +9,7 @@ import {
   HasMany,
   HasOne,
   IsIn,
+  Length,
   Model,
   Table,
   Unique,
@@ -64,6 +65,7 @@ export interface CollectionAttributes {
   mintingPriceWl?: string;
   mintingPricePublic?: string;
   floorPrice?: string;
+  floorPriceUnit?: string;
   floorPriceExchangeNeeded: boolean;
   floorPriceExchangeRate?: number;
   floorPriceExchangeRateFetchedAt?: Date;
@@ -333,6 +335,10 @@ export default class Collection extends Model<
   @Default('0')
   @Column(DataType.STRING)
   floorPrice: CollectionAttributes['floorPrice'];
+
+  @Length({ max: 16 })
+  @Column(DataType.STRING(16))
+  floorPriceUnit: CollectionAttributes['floorPriceUnit'];
 
   @Default(false)
   @Column(DataType.BOOLEAN)
