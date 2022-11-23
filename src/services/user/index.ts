@@ -103,10 +103,11 @@ export const userPublicAttributes = [
 ];
 
 export const userPublicInfoToJSON = async (
-  user: User
+  user: User | null
 ): Promise<UserPublicResponse | null> => {
   if (!user) return null;
-  const p = user.primaryProfile || (await user.$get('primaryProfile'));
+  const p = user?.primaryProfile || (await user?.$get('primaryProfile'));
+  if (!p) return null;
   const primaryProfile = _.pick(p, [
     'id',
     'displayName',

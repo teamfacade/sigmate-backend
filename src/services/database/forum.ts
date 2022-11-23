@@ -116,10 +116,11 @@ export const getForumPostsByCategory = async (
   paginationOptions: PaginationOptions
 ) => {
   if (!category) throw new NotFoundError();
+  const { limit, offset } = paginationOptions;
   try {
     return await category.$get('forumPosts', {
-      limit: paginationOptions.limit,
-      offset: paginationOptions.offset,
+      limit,
+      offset,
       order: [['createdAt', 'DESC']],
       include: [
         {
@@ -134,22 +135,6 @@ export const getForumPostsByCategory = async (
         },
         { model: User, as: 'createdBy' },
         { model: UserDevice, as: 'createdByDevice' },
-        {
-          model: ForumComment,
-          attributes: ['id', 'content', 'createdAt', 'parentId'],
-          where: { parentId: null },
-          include: [
-            { model: User, as: 'createdBy' },
-            {
-              model: ForumComment,
-              as: 'replies',
-              include: [{ model: User, as: 'createdBy' }],
-              order: [['createdAt', 'DESC']],
-            },
-          ],
-          limit: 10,
-          order: [['createdAt', 'DESC']],
-        },
       ],
     });
   } catch (error) {
@@ -249,7 +234,7 @@ export const createForumPost = async (
     forumPostCreationDTO;
 
   // Only admins can create post in the notice category
-  if (!createdBy.isAdmin) {
+  if (!createdBy?.isAdmin) {
     const noticeCategory = await getNoticeCategory();
     if (categories.indexOf(noticeCategory.id) >= 0) {
       throw new ForbiddenError();
@@ -571,7 +556,7 @@ export const getForumPostComments = async (
   const { limit, offset } = pg;
 
   try {
-    return await forumPost.$get('comments', {
+    const rows = await forumPost.$get('comments', {
       include: [
         { model: User, as: 'createdBy' },
         {
@@ -579,15 +564,37 @@ export const getForumPostComments = async (
           as: 'replies',
           where: { parentId: null },
           include: [{ model: User, as: 'createdBy' }],
-          limit: 10,
+          limit: 5,
           order: [['createdAt', 'DESC']],
         },
-        { model: ForumComment, as: 'parent', attributes: ['id'] },
       ],
       limit,
       offset,
       order: [['createdAt', 'DESC']],
     });
+    const count = await forumPost.$count('comments');
+    return { rows, count };
+  } catch (error) {
+    throw new SequelizeError(error as Error);
+  }
+};
+
+export const getForumPostCommentReplies = async (
+  forumComment: ForumComment,
+  pg: PaginationOptions
+) => {
+  if (!forumComment) throw new NotFoundError('ERR_FORUM_COMMNET_NOT_FOUND');
+  try {
+    const rows = await forumComment.$get('replies', {
+      include: [{ model: User, as: 'createdBy' }],
+      limit: pg.limit,
+      offset: pg.offset,
+      order: [['createdAt', 'DESC']],
+    });
+
+    const count = await forumComment.$count('replies');
+
+    return { rows, count };
   } catch (error) {
     throw new SequelizeError(error as Error);
   }
@@ -626,7 +633,7 @@ export const getForumCommentById = async (id: ForumCommentAttributes['id']) => {
           attributes: ['id', 'content'],
           where: { parentId: null },
           include: [{ model: User, as: 'createdBy' }],
-          limit: 10,
+          limit: 5,
           order: [['createdAt', 'DESC']],
         },
       ],

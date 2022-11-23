@@ -230,6 +230,16 @@ export const validateGetForumPostComments = param('postId')
   .bail()
   .toInt();
 
+export const validateGetForumPostCommentReplies = param('commentId')
+  .trim()
+  .escape()
+  .stripLow()
+  .notEmpty()
+  .isInt()
+  .withMessage('NOT_INT')
+  .bail()
+  .toInt();
+
 export const validateCreateForumPostComment = [
   param('postId')
     .trim()
