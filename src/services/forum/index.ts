@@ -69,7 +69,6 @@ export const categoryToJSON = async (category: Category, all = false) => {
     parent: categoryJSON.parent || undefined,
     thumbnail: category.thumbnail?.url,
   };
-  console.log(categoryResponse);
   return categoryResponse;
 };
 
