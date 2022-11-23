@@ -119,7 +119,7 @@ export default class Image extends Model<
 
   async toResponseJSON(): Promise<ImageResponse> {
     const url: string =
-      process.env.AWS_S3_IMAGE_BASEURL + this.folder + '/' + this.id;
+      process.env.AWS_S3_IMAGE_BASEURL + '/' + this.folder + '/' + this.id;
     const createdBy = this.createdBy || (await this.$get('createdBy'));
     const createdByJSON = await createdBy?.toResponseJSONPublic();
 
