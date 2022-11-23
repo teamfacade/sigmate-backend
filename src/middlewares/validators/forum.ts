@@ -102,7 +102,7 @@ export const validateUpdateForumPost = [
   body('content')
     .optional()
     .trim()
-    .stripLow()
+    .stripLow(true)
     .bail()
     .isLength({ min: 1, max: 16383 })
     .withMessage('LENGTH'),
@@ -143,7 +143,7 @@ export const validateCreateForumPost = [
     .bail(),
   body('content')
     .trim()
-    .stripLow()
+    .stripLow(true)
     .notEmpty()
     .withMessage('REQUIRED')
     .bail()
