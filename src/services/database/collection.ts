@@ -414,6 +414,10 @@ export const updateCollectionBySlug = async (
         marketplace: collectionDTO.marketplace,
         openseaMetadataUpdatedAt: collectionDTO.openseaMetadataUpdatedAt,
         openseaPriceUpdatedAt: collectionDTO.openseaPriceUpdatedAt,
+        adminConfirmed: collectionDTO.adminConfirmed,
+        adminConfirmedById:
+          collectionDTO.adminConfirmedById ||
+          collectionDTO.adminConfirmedBy?.id,
         infoSource: collectionDTO.infoSource,
         infoConfirmedById:
           collectionDTO.infoConfirmedById || collectionDTO.infoConfirmedBy?.id,

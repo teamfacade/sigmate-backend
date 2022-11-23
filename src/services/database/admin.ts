@@ -7,7 +7,10 @@ import UserDevice from '../../models/UserDevice';
 import UnauthenticatedError from '../../utils/errors/UnauthenticatedError';
 import ApiError from '../../utils/errors/ApiError';
 import { UpdateCollectionReqBody } from '../../services/wiki/collection';
-import { getCollectionBySlug } from './collection';
+import {
+  getCollectionBySlug,
+  updateCollectionBySlugWithTx,
+} from './collection';
 import { auditWikiDocumentById } from './wiki/document';
 import { PaginationOptions } from '../../middlewares/handlePagination';
 
@@ -66,17 +69,23 @@ export const updateConfirmedCollection = async (
   collectionId: number,
   discordUrl: string,
   twitterHandle: string,
-  user: User | undefined
+  user: User | undefined,
+  device: UserDevice | undefined
 ) => {
   try {
-    const cl = await Collection.findByPk(collectionId);
+    const cl = await Collection.findByPk(collectionId, {
+      attributes: ['id', 'slug'],
+    });
     if (!cl) throw new NotFoundError('ERR_CL_NOT_FOUND');
     if (!user) throw new UnauthenticatedError();
-    return await cl.update({
+
+    return await updateCollectionBySlugWithTx(cl.slug, {
       adminConfirmed: true,
       adminConfirmedById: user.id,
       discordUrl,
       twitterHandle,
+      updatedBy: user,
+      updatedByDevice: device,
     });
   } catch (error) {
     throw new SequelizeError(error as Error);

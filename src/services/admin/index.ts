@@ -7,9 +7,9 @@ import {
   getConfirmedCollections,
 } from '../database/admin';
 import { updateChannel } from '../database/channel';
-import axios from 'axios';
 import BadRequestError from '../../utils/errors/BadRequestError';
 import { createPgRes } from '../../middlewares/handlePagination';
+import { activateBotServer } from '../bot';
 
 export const getUnconfirmedCollectionsController = async (
   req: Request,
@@ -62,6 +62,7 @@ export const postConfirmedCollectionController = async (
 ) => {
   try {
     const user = req.user;
+    const device = req.device;
     const { collectionId, discordUrl, discordChannel, twitterHandle } =
       req.body;
     const twitterChannel = await getTwitterId(twitterHandle);
@@ -75,10 +76,11 @@ export const postConfirmedCollectionController = async (
       collectionId,
       discordUrl,
       twitterHandle,
-      user
+      user,
+      device
     );
     // execute lambda bot-server
-    await axios.get(process.env.LAMBDA_BOT_URL);
+    activateBotServer();
     res.status(200).json({
       success: true,
       channel,
@@ -95,6 +97,7 @@ export const updateConfirmedCollectionController = async (
 ) => {
   try {
     const user = req.user;
+    const device = req.device;
     const { collectionId, discordUrl, discordChannel, twitterHandle } =
       req.body;
     const twitterChannel = await getTwitterId(twitterHandle);
@@ -108,10 +111,12 @@ export const updateConfirmedCollectionController = async (
       collectionId,
       discordUrl,
       twitterHandle,
-      user
+      user,
+      device
     );
     // execute lambda bot-server
-    await axios.get(process.env.LAMBDA_BOT_URL);
+    activateBotServer();
+
     res.status(200).json({
       success: true,
       channel: updatedChannel,

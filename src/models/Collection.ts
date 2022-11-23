@@ -197,6 +197,9 @@ export interface CollectionCreationDTO
     | 'infoSource'
     | 'infoConfirmedBy'
     | 'infoConfirmedById'
+    | 'adminConfirmed'
+    | 'adminConfirmedBy'
+    | 'adminConfirmedById'
   > {
   collectionDeployers: CollectionDeployerAttributes['address'][];
   paymentTokens: BcTokenCreationAttributes[];
