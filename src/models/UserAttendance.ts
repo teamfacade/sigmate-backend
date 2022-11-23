@@ -8,13 +8,15 @@ import {
   Table,
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
-import User from './User';
-import UserDevice from './UserDevice';
+import User, { UserAttributes } from './User';
+import UserDevice, { UserDeviceAttributes } from './UserDevice';
 
 export interface UserAttendanceAttributes {
   id: number;
-  createdBy: User;
-  createdByDevice: UserDevice;
+  createdBy?: User;
+  createdById?: UserAttributes['id'];
+  createdByDevice?: UserDevice;
+  createdByDeviceId?: UserDeviceAttributes['id'];
   createdAt: Date;
 }
 

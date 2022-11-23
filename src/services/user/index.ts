@@ -12,6 +12,7 @@ import User, {
 import { UserProfileAttributes } from '../../models/UserProfile';
 import UnauthenticatedError from '../../utils/errors/UnauthenticatedError';
 import {
+  dailyCheckIn,
   deleteUser,
   findUserByReferralCode,
   findUserByUserName,
@@ -266,6 +267,33 @@ export const checkUserController = async (
     }
 
     res.status(response.success ? 200 : 400).json(response);
+  } catch (error) {
+    next(error);
+  }
+};
+
+export const dailyCheckInController = async (
+  req: Request,
+  res: Response,
+  next: NextFunction
+) => {
+  try {
+    const att = await dailyCheckIn(req.user, req.device);
+    if (att) {
+      res.status(200).json({
+        success: true,
+        attendance: {
+          createdAt: att.createdAt,
+        },
+      });
+    } else {
+      res.status(409).json({
+        success: false,
+        attendance: {
+          msg: 'ALREADY_CHECKED_IN',
+        },
+      });
+    }
   } catch (error) {
     next(error);
   }

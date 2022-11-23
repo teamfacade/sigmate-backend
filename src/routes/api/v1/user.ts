@@ -15,6 +15,7 @@ import {
 } from '../../../middlewares/validators/user';
 import {
   checkUserController,
+  dailyCheckInController,
   deleteUserController,
   getUserController,
   patchUserController,
@@ -63,5 +64,7 @@ userRouter.post(
   handleBadRequest,
   connectMetaMaskController
 );
+
+userRouter.post('/daily-check-in', dailyCheckInController);
 
 export default userRouter;
