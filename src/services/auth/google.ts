@@ -7,15 +7,16 @@ import { createUserGoogle } from '../database/user';
 import { AuthResponse, sigmateLogin } from '.';
 import { userToJSON } from '../user';
 
-const redirectUri =
-  process.env.NODE_ENV === 'development'
-    ? 'http://localhost:3000/auth'
-    : 'https://beta.sigmate.io/auth';
+const redirectUri = {
+  development: 'http://localhost:3000/auth',
+  test: 'https://beta.sigmate.io/auth',
+  production: 'https://sigmate.io/auth',
+};
 
 export const oauth2Client = new google.auth.OAuth2(
   process.env.GOOGLE_CLIENT_ID,
   process.env.GOOGLE_CLIENT_SECRET,
-  redirectUri
+  redirectUri[process.env.NODE_ENV || 'production']
 );
 
 const scope = [
