@@ -24,10 +24,9 @@ export const getAllAnnouncementsController = async (
     const { limit, offset } = req.pg as PaginationOptions;
     const cid = req.query.cid as unknown as number;
     const channel = await Channel.findOne({ where: { collectionId: cid } });
-    if (!channel) throw new NotFoundError();
     const anns = await getAllAnnouncements(
-      channel.discordChannel || null,
-      channel.twitterChannel || null,
+      channel?.discordChannel || null,
+      channel?.twitterChannel || null,
       limit,
       offset
     );
