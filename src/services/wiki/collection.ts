@@ -44,6 +44,7 @@ import {
 } from '../database/wiki/document';
 import { createPgRes } from '../../middlewares/handlePagination';
 import ConflictError from '../../utils/errors/ConflictError';
+import { sendNewCollectionToSlack } from '../3p/slack';
 
 type GetCollectionBySlugRequestQuery = {
   create?: boolean;
@@ -362,6 +363,8 @@ export const createCollectionController = async (
       success: true,
       collection: await cl.toResponseJSON(u),
     });
+
+    if (cl) sendNewCollectionToSlack(cl);
   } catch (error) {
     next(error);
   }

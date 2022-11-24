@@ -353,7 +353,7 @@ export default class Collection extends Model<
   @HasOne(() => Document, 'collectionId')
   document: CollectionAttributes['document'];
 
-  @BelongsTo(() => User, 'createdById')
+  @BelongsTo(() => User, { as: 'createdBy', foreignKey: 'createdById' })
   createdBy: CollectionAttributes['createdBy'];
 
   @BelongsTo(() => UserDevice, 'createdByDeviceId')

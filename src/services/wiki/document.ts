@@ -14,6 +14,7 @@ import BadRequestError from '../../utils/errors/BadRequestError';
 import NotFoundError from '../../utils/errors/NotFoundError';
 import UnauthenticatedError from '../../utils/errors/UnauthenticatedError';
 import { fetchCollectionBySlug } from '../3p/collection';
+import { sendNewCollectionToSlack } from '../3p/slack';
 import {
   createCollectionWithTx,
   getCollectionBySlug,
@@ -239,6 +240,8 @@ export const createWikiDocumentController = async (
     };
 
     res.status(201).json(response);
+
+    if (cl) sendNewCollectionToSlack(cl);
   } catch (error) {
     next(error);
   }
