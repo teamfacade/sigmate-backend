@@ -226,7 +226,7 @@ export const createWikiDocumentController = async (
 
     // Create the document and associate the collection with it
     doc = await createWikiDocument({
-      title,
+      title: title || cl?.name || cl?.slug || '',
       parentId: parentId || undefined,
       collection: collectionReq ? cl || undefined : undefined,
       nft: nftReq ? nft || undefined : undefined,
