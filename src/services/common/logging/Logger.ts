@@ -57,10 +57,6 @@ export default class Logger extends BaseService {
   static createDynamoLogEntry(
     info: sigmate.Logger.LogInfo
   ): sigmate.Logger.DynamoDBLogEntry {
-    if (info.status && !info.status?.formatted) {
-      info = Logger.formatStatus().transform(info) as sigmate.Logger.LogInfo;
-    }
-
     const reqDataExists =
       Boolean(info.request?.query) ||
       Boolean(info.request?.params) ||
@@ -116,38 +112,6 @@ export default class Logger extends BaseService {
 
     return entry;
   }
-
-  static statusMap: Record<
-    sigmate.Logger.RequestStatus | sigmate.Logger.ActionStatus,
-    string
-  > = {
-    STARTED: 'S',
-    IN_PROGRESS: 'P',
-    FINISHED: 'F',
-    ERROR: 'E',
-    DELAYED: 'D',
-    UNDEFINED: '-',
-  };
-
-  // Formats
-  static formatStatus = format((info) => {
-    const { status } = info as sigmate.Logger.LogInfo;
-    if (!status) return info;
-
-    const {
-      request = 'UNDEFINED',
-      action = 'UNDEFINED',
-      dAction = 'UNDEFINED',
-    } = status;
-
-    const rs = request in Logger.statusMap ? Logger.statusMap[request] : '-';
-    const as = action in Logger.statusMap ? Logger.statusMap[action] : '-';
-    const das = dAction in Logger.statusMap ? Logger.statusMap[dAction] : '-';
-
-    info.status.formatted = `${rs}${as}${das}`;
-
-    return info;
-  });
 
   static formatMessage = format((info) => {
     info.level = info.level.toUpperCase();
@@ -300,11 +264,7 @@ export default class Logger extends BaseService {
     // Initialize logger
     const il = winston.createLogger({
       level: 'info',
-      format: combine(
-        Logger.formatStatus(),
-        Logger.formatMessage(),
-        Logger.printIssue
-      ),
+      format: combine(Logger.formatMessage(), Logger.printIssue),
     });
 
     // Add transport for console

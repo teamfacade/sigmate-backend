@@ -3,7 +3,13 @@ import { Request, Response } from 'express';
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
 import multer from 'multer';
 
+type RequestStatus = 0 | 1 | 2 | 3;
 export default class RequestService {
+  static NOT_STARTED: 0 = 0;
+  static STARTED: 1 = 1;
+  static FINISHED: 2 = 2;
+  static ERROR: 3 = 3;
+
   /**
    * Unique ID for this client's request.
    * Use uuid v4.
@@ -13,7 +19,7 @@ export default class RequestService {
   /**
    * Current status of this request
    */
-  status: sigmate.Logger.RequestStatus = 'UNDEFINED';
+  status: RequestStatus = RequestService.NOT_STARTED;
 
   /**
    * Express Request object

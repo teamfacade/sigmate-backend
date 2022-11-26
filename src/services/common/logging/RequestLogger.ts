@@ -22,7 +22,7 @@ export default class RequestLogger extends Logger {
    */
   public logStart(message = '') {
     this.log({
-      level: 'http',
+      level: 'silly',
       message,
       userId: this.auth.user.model?.id as number | undefined,
       deviceId: this.auth.device.model?.id as number | undefined,
@@ -40,32 +40,13 @@ export default class RequestLogger extends Logger {
     });
   }
 
-  public logProgress(message = '', info: sigmate.Logger.LogInfoParam = {}) {
-    this.log({
-      level: info.level || 'info',
-      message,
-      userId: this.auth.user.model?.id as number | undefined,
-      deviceId: this.auth.device.model?.id as number | undefined,
-      status: {
-        request: 'IN_PROGRESS',
-      },
-      request: {
-        id: this.request.id,
-        method: this.request.method,
-        endpoint: this.request.endpoint,
-        ...info.request,
-      },
-      ...info,
-    });
-  }
-
   public logFinish(message = '', info: sigmate.Logger.LogInfoParam = {}) {
     let response: NonNullable<sigmate.Logger.LogInfo['request']>['response'] =
       undefined;
     if (this.request?.response?.status) {
       response = {
         status: this.request.response.status,
-        body: this.request.response.body,
+        // do not include body on logs of successful requests
         duration: this.request.response.duration,
         size: this.request.response.size,
       };
