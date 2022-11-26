@@ -12,11 +12,11 @@ type DeviceDTO = Pick<DeviceAttributes, 'ipv4' | 'ipv6'> &
   Omit<UserAgentAttributes, 'id'>;
 
 export default class DeviceService extends BaseService {
-  device?: Device;
+  model?: Device;
 
   constructor(device: Device | undefined = undefined) {
     super();
-    if (device) this.device = device;
+    if (device) this.model = device;
   }
 
   private parseIp(ip: string | undefined): Pick<DeviceDTO, 'ipv4' | 'ipv6'> {
@@ -133,7 +133,7 @@ export default class DeviceService extends BaseService {
       })
     );
 
-    this.device = device;
+    this.model = device;
     return device;
   }
 }

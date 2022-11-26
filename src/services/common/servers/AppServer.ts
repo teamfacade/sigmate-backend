@@ -5,7 +5,7 @@ import checkEnv from '../../../utils/checkEnv';
 import BaseServer from './BaseServer';
 import requestIp from 'request-ip';
 import AuthService from '../auth/AuthService';
-import LoggerService from '../logging/LoggerService';
+import Logger from '../logging/Logger';
 import { Server } from 'http';
 import { checkServices, setService } from '../..';
 import DatabaseService from '../database/DatabaseService';
@@ -63,7 +63,7 @@ export default class AppServer extends BaseServer {
   server?: Server;
   db?: DatabaseService;
   app: Express;
-  logger: LoggerService;
+  logger: Logger;
 
   /**
    * In the server constructor...
@@ -86,8 +86,8 @@ export default class AppServer extends BaseServer {
     AppServer.checkEnv();
 
     super();
-    LoggerService.start();
-    const logger = new LoggerService();
+    Logger.start();
+    const logger = new Logger();
     this.logger = logger;
     setService('logger', logger);
 

@@ -79,7 +79,7 @@ export default class MetamaskAuthService extends AuthService {
       await this.signup({ metamaskWallet });
     } else {
       // Returning user
-      if (!this.user.user?.auth) throw new AuthError('USER/UNAUTHENTICATED');
+      if (!this.user.model?.auth) throw new AuthError('USER/UNAUTHENTICATED');
       const nonce = await this.generateMetamaskNonce();
       await this.user.update({ metamaskNonce: nonce });
       return nonce;
@@ -101,8 +101,8 @@ export default class MetamaskAuthService extends AuthService {
     if (!metamaskWallet) throw new AuthError('METAMASK/WALLET');
     if (!signature) throw new AuthError('METAMASK/SIGNATURE');
     await this.user.find({ metamaskWallet }, { set: true });
-    if (!this.user.user?.auth) throw new AuthError('USER/UNAUTHENTICATED');
-    const nonce = this.user.user.auth.metamaskNonce;
+    if (!this.user.model?.auth) throw new AuthError('USER/UNAUTHENTICATED');
+    const nonce = this.user.model.auth.metamaskNonce;
     if (!nonce) throw new AuthError('METAMASK/NONCE');
 
     const verified = this.verifyMetamaskSignature(
@@ -111,7 +111,7 @@ export default class MetamaskAuthService extends AuthService {
       signature
     );
     if (verified) {
-      if (!this.user.user.isMetamaskVerified) {
+      if (!this.user.model.isMetamaskVerified) {
         await this.user.update({ isMetamaskVerified: true });
       }
     } else {

@@ -15,6 +15,7 @@ import {
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
 import isLocale from 'validator/lib/isLocale';
+import { MYSQL_TEXT_MAX_LENGTH } from '../middlewares/validators/common';
 import Device from './Device.model';
 import UserAuth, { UserAuthAttribs } from './UserAuth.model';
 import UserDevice from './UserDevice.model';
@@ -151,6 +152,7 @@ export default class User extends Model<UserAttribs, UserCAttribs> {
   @Column(DataType.STRING)
   displayName: UserAttribs['displayName'];
 
+  @Length({ msg: 'LENGTH', max: MYSQL_TEXT_MAX_LENGTH })
   @Column(DataType.TEXT)
   bio: UserAttribs['bio'];
 
@@ -182,9 +184,11 @@ export default class User extends Model<UserAttribs, UserCAttribs> {
   @Column(DataType.STRING(USER_GOOGLE_ID_LENGTH + USER_DELETE_SUFFIX_LENGTH))
   googleAccountId: UserAttribs['googleAccountId'];
 
+  @Length({ msg: 'LENGTH', max: 16 })
   @Column(DataType.STRING(16))
   twitterHandle: UserAttribs['twitterHandle'];
 
+  @Length({ msg: 'LENGTH', max: 64 })
   @Column(DataType.STRING(64))
   discordAccount: UserAttribs['discordAccount'];
 
@@ -207,6 +211,7 @@ export default class User extends Model<UserAttribs, UserCAttribs> {
   lastLoginAt?: UserAttribs['lastLoginAt'];
 
   @Is('isLocale', isLocale)
+  @Length({ msg: 'LENGTH', max: 10 })
   @Column(DataType.STRING(10))
   locale: UserAttribs['locale'];
 
@@ -270,8 +275,4 @@ export default class User extends Model<UserAttribs, UserCAttribs> {
 
   @BelongsTo(() => UserAuth, { as: 'auth', foreignKey: 'authId' })
   auth: UserAttribs['auth'];
-
-  // JS Attributes (NOT synced to DB)
-  accessToken?: string;
-  refreshToken?: string;
 }

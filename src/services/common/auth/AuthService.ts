@@ -142,7 +142,7 @@ export default class AuthService extends BaseService {
   device: DeviceService;
 
   get isAuthenticated() {
-    return Boolean(this.user.user);
+    return Boolean(this.user.model);
   }
 
   constructor({ user, device, system }: AuthServiceOptions) {
@@ -171,9 +171,9 @@ export default class AuthService extends BaseService {
     type: TokenType,
     iat: number | undefined = undefined
   ) {
-    if (!this.user.user?.group) throw new AuthError('USER/UNAUTHENTICATED');
-    const user = this.user.user;
-    const group = this.user.user.group;
+    if (!this.user.model?.group) throw new AuthError('USER/UNAUTHENTICATED');
+    const user = this.user.model;
+    const group = this.user.model.group;
     const payload: sigmate.Auth.JwtPayload = {
       type, // Token type
       group: group.id, // User group id
@@ -209,28 +209,19 @@ export default class AuthService extends BaseService {
     transaction: Transaction | undefined = undefined
   ) {
     // Generate a new token
-    if (!this.user.user?.auth) throw new AuthError('USER/UNAUTHENTICATED');
-    const auth = this.user.user.auth;
-    let accessToken = '';
-    let refreshToken = '';
-
+    if (!this.user.model?.auth) throw new AuthError('USER/UNAUTHENTICATED');
+    const auth = this.user.model.auth;
+    const iat = Math.floor(new Date().getTime() / 1000);
     // Access token
     if (type === 'a' || type === 'both') {
-      accessToken = await this.generateToken('a');
-      const { iat } = jwt.decode(accessToken) as SigmateJwtPayload;
       auth.set('sigmateAccessTokenIat', iat);
     }
     // Refresh token
     if (type === 'both' || type === 'r') {
-      refreshToken = await this.generateToken('r');
-      const { iat } = jwt.decode(refreshToken) as SigmateJwtPayload;
       auth.set('sigmateRefreshTokenIat', iat);
     }
-
     // Update the DB
     await services.db.run(() => auth.save({ transaction }));
-
-    return { accessToken, refreshToken };
   }
 
   /**
@@ -285,13 +276,37 @@ export default class AuthService extends BaseService {
     });
   }
 
+  private isTokenExpired(type: TokenType) {
+    const auth = this.user.model?.auth;
+    if (!auth) throw new AuthError('USER/UNAUTHENTICATED');
+    const now = Math.floor(new Date().getTime() / 1000) * 1000;
+    let iat: number | undefined = undefined;
+    let exp: number | undefined = undefined;
+    if (type === 'a') {
+      iat = auth.sigmateAccessTokenIat;
+      exp = ms(AuthService.JWT_EXP_ACC);
+    } else if (type === 'r') {
+      iat = auth.sigmateRefreshTokenIat;
+      exp = ms(AuthService.JWT_EXP_REF);
+    }
+    if (!iat) return true;
+    if (!exp) {
+      const error = new Error(
+        `AuthService.isTokenExpired: Unexpected token type '${type}'`
+      );
+      throw new AuthError('OTHER', error);
+    }
+    exp += iat;
+    return now > exp;
+  }
+
   /**
    * **[DB]** Return the current user's Sigmate tokens.
    * @param renew If the latest issued token is expired, renew the token
    * @returns Sigmate access and refresh tokens
    */
   public async getSigmateTokens(renew = true) {
-    const auth = this.user.user?.auth;
+    const auth = this.user.model?.auth;
     if (!auth) throw new AuthError('USER/UNAUTHENTICATED');
     let shouldRenewAccess = false;
     let shouldRenewRefresh = false;
@@ -299,43 +314,20 @@ export default class AuthService extends BaseService {
     let refreshToken = '';
 
     if (renew) {
-      // Check if any of the tokens need renewing
-      const now = Math.floor(new Date().getTime() / 1000) * 1000;
-      if (auth.sigmateAccessTokenIat) {
-        const exp =
-          auth.sigmateAccessTokenIat * 1000 + ms(AuthService.JWT_EXP_ACC);
-        if (now > exp) shouldRenewAccess = true; // expired
-      } else {
-        shouldRenewAccess = true;
-      }
-      if (auth.sigmateRefreshTokenIat) {
-        const exp =
-          auth.sigmateRefreshTokenIat * 1000 + ms(AuthService.JWT_EXP_REF);
-        if (now > exp) shouldRenewRefresh = true; // expired
-      } else {
-        shouldRenewRefresh = true;
-      }
+      shouldRenewAccess = this.isTokenExpired('a');
+      shouldRenewRefresh = this.isTokenExpired('r');
       const shouldRenewBoth = shouldRenewAccess && shouldRenewRefresh;
-      if (shouldRenewAccess || shouldRenewRefresh) {
-        // Perform the renewal
-        const type = shouldRenewBoth ? 'both' : shouldRenewAccess ? 'a' : 'r';
-        const tokens = await this.renewToken(type);
-
-        // Obtain the renewed tokens
-        accessToken = tokens.accessToken;
-        refreshToken = tokens.refreshToken;
+      if (shouldRenewBoth) {
+        await this.renewToken('both');
+      } else if (shouldRenewAccess) {
+        await this.renewToken('a');
+      } else if (shouldRenewRefresh) {
+        await this.renewToken('r');
       }
     }
 
-    // If no renewal took place, token values will still be an empty string
-    // Obtain the old tokens
-    if (!accessToken && auth.sigmateAccessTokenIat) {
-      accessToken = await this.generateToken('a', auth.sigmateAccessTokenIat);
-    }
-    if (!refreshToken && auth.sigmateRefreshTokenIat) {
-      refreshToken = await this.generateToken('r', auth.sigmateRefreshTokenIat);
-    }
-
+    accessToken = await this.generateToken('a', auth.sigmateAccessTokenIat);
+    refreshToken = await this.generateToken('r', auth.sigmateRefreshTokenIat);
     return { accessToken, refreshToken };
   }
 
@@ -411,6 +403,6 @@ export default class AuthService extends BaseService {
     }
 
     // Auth success! Set user.
-    this.user.user = user;
+    this.user.model = user;
   }
 }

@@ -47,6 +47,11 @@ export default abstract class BaseAction<
   startedAt?: number;
   endedAt?: number;
 
+  get duration() {
+    if (!this.startedAt || !this.endedAt) return undefined;
+    return this.endedAt - this.startedAt;
+  }
+
   get execTime() {
     if (this.startedAt && this.endedAt) {
       return this.endedAt - this.startedAt;

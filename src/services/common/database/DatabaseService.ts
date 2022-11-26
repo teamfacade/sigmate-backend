@@ -5,7 +5,7 @@ import wait from '../../../utils/wait';
 import BaseService from '../base/BaseService';
 import SequelizeError from '../errors/SequelizeError';
 import ServerError from '../errors/ServerError';
-import DatabaseLoggerService from '../logging/DatabaseLoggerService';
+import DatabaseLogger from '../logging/DatabaseLogger';
 
 const env = process.env.NODE_ENV;
 
@@ -18,7 +18,7 @@ export default class DatabaseService extends BaseService {
   /**
    * Ensures only one databaseLogger instance exists for this service
    */
-  static logger?: DatabaseLoggerService;
+  static logger?: DatabaseLogger;
 
   // Connection test related properties
   /** Initial retry delay on bad DB connection (milliseconds) */
@@ -55,7 +55,7 @@ export default class DatabaseService extends BaseService {
   static async start() {
     // Initialize logger
     if (!this.logger) {
-      this.logger = new DatabaseLoggerService();
+      this.logger = new DatabaseLogger();
     }
 
     // Initialize Sequelize instance
@@ -157,7 +157,7 @@ export default class DatabaseService extends BaseService {
   /**
    * Instance variable for easy access to the static sequelize property
    */
-  logger: DatabaseLoggerService;
+  logger: DatabaseLogger;
 
   get transaction() {
     return this.sequelize.transaction;

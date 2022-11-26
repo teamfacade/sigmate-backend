@@ -1,4 +1,4 @@
-import RequestService from '../services/RequestService';
+import RequestService from '../services/common/RequestService';
 
 declare global {
   namespace Express {

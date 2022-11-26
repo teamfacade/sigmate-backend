@@ -1,12 +1,12 @@
 import BaseAction from '../base/BaseAction';
-import LoggerService from './LoggerService';
+import Logger from './Logger';
 
 type ActionLogInfo = Omit<sigmate.Logger.LogInfo, 'action'> &
   Required<Pick<sigmate.Logger.LogInfo, 'action'>>;
 
 type ActionLogInfoBase = Omit<ActionLogInfo, 'level' | 'message'>;
 
-export default class ActionLoggerService<A, R> extends LoggerService {
+export default class ActionLoggerService<A, R> extends Logger {
   action: BaseAction<A, R>;
 
   constructor(action: BaseAction<A, R>) {
@@ -16,8 +16,8 @@ export default class ActionLoggerService<A, R> extends LoggerService {
 
   getActionInfo(): ActionLogInfoBase {
     return {
-      userId: this.action.auth.user.user?.id || -1,
-      deviceId: this.action.auth.device.device?.id || -1,
+      userId: this.action.auth.user.model?.id || -1,
+      deviceId: this.action.auth.device.model?.id || -1,
       status: {
         action: this.action.status,
       },
@@ -63,6 +63,7 @@ export default class ActionLoggerService<A, R> extends LoggerService {
       ...info,
       level: 'verbose',
       message: '',
+      duration: this.action.duration,
       action: {
         ...info.action,
         // For action finish, the results of the action, returned by the

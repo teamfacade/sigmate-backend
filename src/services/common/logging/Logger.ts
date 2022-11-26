@@ -1,4 +1,4 @@
-import winston, { format, Logger } from 'winston';
+import winston, { format, Logger as WinstonLogger } from 'winston';
 import WinstonCloudWatch from 'winston-cloudwatch';
 import { CloudWatchLogs } from '@aws-sdk/client-cloudwatch-logs';
 import { DynamoDB } from '@aws-sdk/client-dynamodb';
@@ -23,7 +23,7 @@ type DebugLoggerOptions = {
   console?: boolean;
 };
 
-export default class LoggerService extends BaseService {
+export default class Logger extends BaseService {
   // ************ STATIC ************
 
   // For key shortening and expansion on DynamoDB
@@ -43,11 +43,11 @@ export default class LoggerService extends BaseService {
 
   // Loggers
   /** Logs issues that need review (<info) */
-  protected static issueLogger?: Logger = undefined;
+  protected static issueLogger?: WinstonLogger = undefined;
   /** Logs kept for analytics (<verbose) */
-  protected static analyticsLogger?: Logger = undefined;
+  protected static analyticsLogger?: WinstonLogger = undefined;
   /** Logs for debugging purposes (<silly) */
-  protected static debugLogger?: Logger = undefined;
+  protected static debugLogger?: WinstonLogger = undefined;
 
   static getDynamoUserAttribute = (
     userId: sigmate.Logger.LogInfo['userId'],
@@ -58,9 +58,7 @@ export default class LoggerService extends BaseService {
     info: sigmate.Logger.LogInfo
   ): sigmate.Logger.DynamoDBLogEntry {
     if (info.status && !info.status?.formatted) {
-      info = LoggerService.formatStatus().transform(
-        info
-      ) as sigmate.Logger.LogInfo;
+      info = Logger.formatStatus().transform(info) as sigmate.Logger.LogInfo;
     }
 
     const reqDataExists =
@@ -76,7 +74,7 @@ export default class LoggerService extends BaseService {
         : undefined;
 
     const entry: sigmate.Logger.DynamoDBLogEntry = {
-      user: LoggerService.getDynamoUserAttribute(info.deviceId, info.userId),
+      user: Logger.getDynamoUserAttribute(info.deviceId, info.userId),
       timestamp: info.timestamp
         ? new Date(info.timestamp).getTime()
         : new Date().getTime(),
@@ -142,16 +140,9 @@ export default class LoggerService extends BaseService {
       dAction = 'UNDEFINED',
     } = status;
 
-    const rs =
-      request in LoggerService.statusMap
-        ? LoggerService.statusMap[request]
-        : '-';
-    const as =
-      action in LoggerService.statusMap ? LoggerService.statusMap[action] : '-';
-    const das =
-      dAction in LoggerService.statusMap
-        ? LoggerService.statusMap[dAction]
-        : '-';
+    const rs = request in Logger.statusMap ? Logger.statusMap[request] : '-';
+    const as = action in Logger.statusMap ? Logger.statusMap[action] : '-';
+    const das = dAction in Logger.statusMap ? Logger.statusMap[dAction] : '-';
 
     info.status.formatted = `${rs}${as}${das}`;
 
@@ -211,7 +202,7 @@ export default class LoggerService extends BaseService {
   });
 
   static formatAnalytics = format((info) => {
-    return LoggerService.createDynamoLogEntry(info as sigmate.Logger.LogInfo);
+    return Logger.createDynamoLogEntry(info as sigmate.Logger.LogInfo);
   });
 
   static colorizeLog = colorize({
@@ -263,11 +254,11 @@ export default class LoggerService extends BaseService {
   // ************ INSTANCE ************
 
   /** Logs issues that need review (<info) */
-  protected issueLogger?: Logger;
+  protected issueLogger?: WinstonLogger;
   /** Logs kept for analytics (<verbose) */
-  protected analyticsLogger?: Logger;
+  protected analyticsLogger?: WinstonLogger;
   /** Logs for debugging purposes (<silly) */
-  protected debugLogger?: Logger;
+  protected debugLogger?: WinstonLogger;
   /**
    * Set to `true` when the `close()` method is called.
    * Prevents the logging to an already closed logger.
@@ -275,7 +266,7 @@ export default class LoggerService extends BaseService {
   public closed = false;
 
   constructor() {
-    if (!LoggerService.started) {
+    if (!Logger.started) {
       throw new Error('LoggerService initialized before start');
     }
     super();
@@ -293,8 +284,8 @@ export default class LoggerService extends BaseService {
   }
 
   protected initIssueLogger(options: IssueLoggerOptions = {}) {
-    if (LoggerService.issueLogger) {
-      this.issueLogger = LoggerService.issueLogger;
+    if (Logger.issueLogger) {
+      this.issueLogger = Logger.issueLogger;
       return;
     }
 
@@ -302,7 +293,7 @@ export default class LoggerService extends BaseService {
     const { console = true, cloudWatchLogs = false } = options;
 
     // A logger must have at least one transport
-    if (!console && (!cloudWatchLogs || !LoggerService.cloudWatchLogs)) {
+    if (!console && (!cloudWatchLogs || !Logger.cloudWatchLogs)) {
       throw new Error('No transport specified for issueLogger');
     }
 
@@ -310,9 +301,9 @@ export default class LoggerService extends BaseService {
     const il = winston.createLogger({
       level: 'info',
       format: combine(
-        LoggerService.formatStatus(),
-        LoggerService.formatMessage(),
-        LoggerService.printIssue
+        Logger.formatStatus(),
+        Logger.formatMessage(),
+        Logger.printIssue
       ),
     });
 
@@ -320,19 +311,19 @@ export default class LoggerService extends BaseService {
     if (console) {
       il.add(
         new winston.transports.Console({
-          format: combine(LoggerService.printDebug),
+          format: combine(Logger.printDebug),
         })
       );
     }
 
     // Add transport for AWS CloudWatch Logs
-    if (cloudWatchLogs && LoggerService.cloudWatchLogs) {
+    if (cloudWatchLogs && Logger.cloudWatchLogs) {
       // Initialize a AWS CloudWatch Logs client (only once per server)
       il.add(
         new WinstonCloudWatch({
-          cloudWatchLogs: LoggerService.cloudWatchLogs,
-          logGroupName: LoggerService.CLOUDWATCH_LOG_GROUP_DEV,
-          logStreamName: LoggerService.CLOUDWATCH_LOG_STREAM_DEV,
+          cloudWatchLogs: Logger.cloudWatchLogs,
+          logGroupName: Logger.CLOUDWATCH_LOG_GROUP_DEV,
+          logStreamName: Logger.CLOUDWATCH_LOG_STREAM_DEV,
         })
       );
     }
@@ -342,8 +333,8 @@ export default class LoggerService extends BaseService {
   }
 
   protected initAnalyticsLogger(options: AnalyticsLoggerOptions = {}) {
-    if (LoggerService.analyticsLogger) {
-      this.analyticsLogger = LoggerService.analyticsLogger;
+    if (Logger.analyticsLogger) {
+      this.analyticsLogger = Logger.analyticsLogger;
       return;
     }
 
@@ -351,22 +342,22 @@ export default class LoggerService extends BaseService {
     const { dynamoDB = true } = options;
 
     // A logger must have at least one transport
-    if (!dynamoDB || !LoggerService.dynamoDB) {
+    if (!dynamoDB || !Logger.dynamoDB) {
       throw new Error('No transport specified for analyticsLogger');
     }
 
     // Initialize logger
     const al = winston.createLogger({
       level: 'verbose',
-      format: combine(timestamp(), LoggerService.formatAnalytics()),
+      format: combine(timestamp(), Logger.formatAnalytics()),
     });
 
-    if (dynamoDB && LoggerService.dynamoDB) {
+    if (dynamoDB && Logger.dynamoDB) {
       // Add transport for AWS DynamoDB
       al.add(
         new WinstonDynamoDB({
-          tableName: LoggerService.DYNAMODB_TABLE_PROD,
-          dynamoDBInstance: LoggerService.dynamoDB,
+          tableName: Logger.DYNAMODB_TABLE_PROD,
+          dynamoDBInstance: Logger.dynamoDB,
         })
       );
     }
@@ -376,8 +367,8 @@ export default class LoggerService extends BaseService {
   }
 
   protected initDebugLogger(options: DebugLoggerOptions = {}) {
-    if (LoggerService.debugLogger) {
-      this.debugLogger = LoggerService.debugLogger;
+    if (Logger.debugLogger) {
+      this.debugLogger = Logger.debugLogger;
       return;
     }
 
@@ -394,7 +385,7 @@ export default class LoggerService extends BaseService {
       level: 'silly',
       format: combine(
         timestamp({ format: 'HH:mm:ss.SSS' }), // 16:44:44.123
-        LoggerService.formatMessage()
+        Logger.formatMessage()
       ),
     });
 
@@ -402,7 +393,7 @@ export default class LoggerService extends BaseService {
     if (console) {
       dl.add(
         new winston.transports.Console({
-          format: combine(LoggerService.colorizeLog, LoggerService.printDebug),
+          format: combine(Logger.colorizeLog, Logger.printDebug),
         })
       );
     }
@@ -444,7 +435,7 @@ export default class LoggerService extends BaseService {
       status: info.status,
       server: {
         id: server.id,
-        event: LoggerService.EVENT_SERVER,
+        event: Logger.EVENT_SERVER,
       },
     });
   }
@@ -497,7 +488,7 @@ export default class LoggerService extends BaseService {
       message,
       server: {
         id: server.id,
-        event: LoggerService.EVENT_SERVER_ERROR,
+        event: Logger.EVENT_SERVER_ERROR,
         error: serverError,
       },
       error: originError,

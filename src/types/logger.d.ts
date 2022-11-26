@@ -9,12 +9,7 @@ declare namespace sigmate.Logger {
     | 'silly';
 
   type ActionType = 'SERVICE' | 'DATABASE';
-  type ActionStatus =
-    | 'STARTED'
-    | 'IN_PROGRESS'
-    | 'FINISHED'
-    | 'ERROR'
-    | 'UNDEFINED';
+  type ActionStatus = 'NOT STARTED' | 'STARTED' | 'FINISHED' | 'ERROR';
   type RequestStatus = ActionStatus | 'DELAYED';
   // type TransactionStatus = 'STARTED' | 'IN_PROGRESS' | 'COMMIT' | 'ROLLBACK';
 
@@ -22,6 +17,7 @@ declare namespace sigmate.Logger {
     timestamp?: Date;
     level: LogLevel;
     message: string;
+    duration?: number;
     /** Id of the User model. 0: System, -1: Unauthorized */
     userId?: number;
     /** Id of the UserDevice model. 0: System */

@@ -1,13 +1,13 @@
-import { randomBytes } from 'crypto';
+import { randomInt } from 'crypto';
 import { CustomValidator, ValidationChain } from 'express-validator';
 import { Transaction, WhereOptions } from 'sequelize/types';
 import isURL from 'validator/lib/isURL';
 import services from '..';
+import getValidationChain from '../../middlewares/validators/common';
 import User, {
   UserAttribs,
   UserCAttribs,
   USER_DELETE_SUFFIX_LENGTH,
-  USER_METAMASK_MAX_LENGTH,
   USER_USERNAME_MAX_LENGTH,
   USER_USERNAME_MIN_LENGTH,
 } from '../../models/User.model';
@@ -58,10 +58,10 @@ type UserUpdateDTO = Pick<
   >;
 
 export default class UserService extends ModelService {
-  user?: User;
+  model?: User;
   constructor(user: User | null | undefined = undefined) {
     super();
-    this.user = user || undefined;
+    this.model = user || undefined;
   }
 
   /**
@@ -88,7 +88,7 @@ export default class UserService extends ModelService {
     } else {
       throw new AuthError('USER/FIND');
     }
-    if (options?.set && user) this.user = user;
+    if (options?.set && user) this.model = user;
     return user;
   }
 
@@ -129,10 +129,16 @@ export default class UserService extends ModelService {
    */
   private async generateReferralCode() {
     return new Promise<string>((resolve, reject) => {
-      randomBytes(6, (err, buf) => {
-        if (err) reject(err);
-        resolve(buf.toString('hex'));
-      });
+      // randomBytes(6, (err, buf) => {
+      //   if (err) reject(err);
+      //   resolve(buf.toString('hex'));
+      // });
+      try {
+        const code = randomInt(100000000000, 999999999999).toString();
+        resolve(code);
+      } catch (error) {
+        reject(error);
+      }
     });
   }
 
@@ -191,7 +197,7 @@ export default class UserService extends ModelService {
       return user;
     });
 
-    this.user = user;
+    this.model = user;
     return user;
   }
 
@@ -199,9 +205,9 @@ export default class UserService extends ModelService {
     dto: UserUpdateDTO,
     transaction: Transaction | undefined = undefined
   ) {
-    if (!this.user?.auth) throw new AuthError('USER/UNAUTHENTICATED');
-    const user = this.user;
-    const auth = this.user.auth;
+    if (!this.model?.auth) throw new AuthError('USER/UNAUTHENTICATED');
+    const user = this.model;
+    const auth = this.model.auth;
 
     if (dto.userName) {
       user.set('userName', dto.userName);
@@ -255,11 +261,21 @@ export default class UserService extends ModelService {
     await services.db.run(() => auth.save({ transaction }));
   }
 
-  public isUserNameAvailable: CustomValidator = async (value) => {
+  /**
+   * Custom validator to check if user name is available (not taken by another user)
+   * @param value userName
+   * @returns True if available, false otherwise
+   */
+  private isUserNameAvailable: CustomValidator = async (value) => {
     return await this.exists({ userName: value });
   };
 
-  public followsUserNamePolicy: CustomValidator = (value) => {
+  /**
+   * Custom validator to check if userName follows username policy
+   * @param value userName
+   * @returns True if test passed, false otherwise
+   */
+  private followsUserNamePolicy: CustomValidator = (value) => {
     // Check length
     if (value.length < USER_USERNAME_MIN_LENGTH) throw new Error('TOO_SHORT');
     if (value.length > USER_USERNAME_MAX_LENGTH) throw new Error('TOO_LONG');
@@ -297,7 +313,18 @@ export default class UserService extends ModelService {
     return true;
   };
 
-  private getValidator(field: keyof UserAttribs, chain: ValidationChain) {
+  private isTimeDiffWithinLimits: CustomValidator = (value) => {
+    // Assumes isISO8601 was run before this validator
+    // i.e., value is a valid ISO8601 date
+
+    const diff = new Date().getTime() - new Date(value).getTime();
+    return 0 <= diff && diff <= 5 * 60 * 1000; // 5 minutes
+  };
+
+  public getValidator(
+    field: keyof UserAttribs,
+    chain: ValidationChain
+  ): ValidationChain {
     switch (field) {
       case 'userName':
         return chain
@@ -316,28 +343,61 @@ export default class UserService extends ModelService {
           .bail()
           .isEmail()
           .withMessage('NOT_EMAIL');
-      case 'metamaskWallet':
+      case 'displayName':
         return chain
-          .isLength({ max: USER_METAMASK_MAX_LENGTH })
-          .withMessage('TOO_LONG')
-          .isEthereumAddress()
-          .withMessage('NOT_ETH_ADDRESS');
-      // case "referralCode": // other's referral code (not mine)
-      //   return chain
-      //     .
+          .trim()
+          .stripLow()
+          .isLength({ max: 255 })
+          .withMessage('TOO_LONG');
+      case 'bio':
+        return getValidationChain('sql/text', chain);
+      case 'metamaskWallet':
+        return getValidationChain('metamaskWallet', chain);
+      case 'twitterHandle':
+        return getValidationChain('twitterHandle', chain);
+      case 'emailEssential':
+      case 'emailMarketing':
+      case 'cookiesEssential':
+      case 'cookiesAnalytics':
+      case 'cookiesFunctional':
+      case 'cookiesTargeting':
+        return chain.isBoolean().withMessage('NOT_BOOLEAN').toBoolean();
+      case 'agreeTos':
+      case 'agreePrivacy':
+      case 'agreeLegal':
+        return chain
+          .isISO8601()
+          .withMessage('NOT_DATE')
+          .custom(this.isTimeDiffWithinLimits)
+          .withMessage('TIME_DIFF_OUT_OF_LIMITS');
+      case 'referralCode':
+        return chain
+          .isNumeric()
+          .withMessage('NOT_NUMERIC')
+          .isLength({ min: 12, max: 12 })
+          .withMessage('LENGTH')
+          .bail()
+          .custom(async (value) => {
+            // Check if referralcode exists
+            const notExists = await this.isReferralCodeUnique(value);
+            return !notExists;
+          });
+      default:
+        throw new Error(`Validator does not exist for field: '${field}'`);
     }
   }
 
   public getValidators(
     location: 'body' | 'query' | 'param',
-    fields: string[],
-    options: { fieldPrefix?: string | undefined }
+    fields: (keyof UserAttribs)[],
+    options: { fieldPrefix?: string | undefined; optional?: boolean }
   ): ValidationChain[] {
     const chains: ValidationChain[] = [];
     const fieldPrefix = options.fieldPrefix ? options.fieldPrefix : '';
     fields.forEach((field) => {
-      // eslint-disable-next-line
-      const chain = this.VALIDATOR[location](fieldPrefix + field);
+      const chain = UserService.VALIDATOR[location](fieldPrefix + field);
+      if (options.optional) chain.optional();
+      chains.push(this.getValidator(field, chain));
     });
     return chains;
   }

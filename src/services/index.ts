@@ -1,9 +1,9 @@
 import AuthService from './common/auth/AuthService';
 import DatabaseService from './common/database/DatabaseService';
-import LoggerService from './common/logging/LoggerService';
+import Logger from './common/logging/Logger';
 
 type SigmateServices = {
-  logger: LoggerService;
+  logger: Logger;
   db: DatabaseService;
   auth: {
     system: AuthService;
@@ -14,7 +14,7 @@ type SigmateServices = {
  * A global object for other modules to use when importing services
  */
 const services: SigmateServices = {
-  logger: undefined as unknown as LoggerService,
+  logger: undefined as unknown as Logger,
   db: undefined as unknown as DatabaseService,
   auth: undefined as unknown as SigmateServices['auth'],
 };

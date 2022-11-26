@@ -1,5 +1,5 @@
-import LoggerService from './LoggerService';
-export default class DatabaseLoggerService extends LoggerService {
+import Logger from './Logger';
+export default class DatabaseLogger extends Logger {
   static BENCHMARK_LOG_THRESHOLD = 1000;
 
   constructor() {
@@ -19,7 +19,7 @@ export default class DatabaseLoggerService extends LoggerService {
     // Handle benchmark data
     if (typeof duration === 'number' && !isNaN(duration)) {
       message = `(${duration / 1000}s) ` + message;
-      if (duration > DatabaseLoggerService.BENCHMARK_LOG_THRESHOLD) {
+      if (duration > DatabaseLogger.BENCHMARK_LOG_THRESHOLD) {
         level = 'debug';
       }
     }
