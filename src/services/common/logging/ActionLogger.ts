@@ -1,4 +1,4 @@
-import Action from '../base/BaseActionNew';
+import Action from '../Action';
 import Logger from './Logger';
 
 type ActionLogInfo = Omit<sigmate.Logger.LogInfo, 'action'> &
@@ -15,8 +15,9 @@ export default class ActionLogger extends Logger {
   };
 
   static TYPE: Record<number, sigmate.Logger.ActionType> = {
-    0: 'DATABASE',
-    1: 'SERVICE',
+    0: 'SERVICE',
+    1: 'DATABASE',
+    2: 'HTTP',
   };
 
   action: Action;

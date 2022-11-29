@@ -8,7 +8,7 @@ declare namespace sigmate.Logger {
     | 'debug'
     | 'silly';
 
-  type ActionType = 'SERVICE' | 'DATABASE';
+  type ActionType = 'SERVICE' | 'DATABASE' | 'HTTP';
   type ActionStatus = 'NOT STARTED' | 'STARTED' | 'FINISHED' | 'ERROR';
   type RequestStatus = ActionStatus | 'DELAYED';
   // type TransactionStatus = 'STARTED' | 'IN_PROGRESS' | 'COMMIT' | 'ROLLBACK';

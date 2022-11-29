@@ -1,10 +1,10 @@
 import { Transaction, ModelStatic } from 'sequelize/types';
 import { v4 as uuidv4 } from 'uuid';
-import services from '../..';
-import AuthService from '../auth/AuthService';
+import services from '..';
+import AuthService from './auth/AuthService';
 
 type ActionStatus = 0 | 1 | 2 | 3;
-type ActionType = 0 | 1;
+type ActionType = 0 | 1 | 2;
 
 type ActionObject<PrimaryKeyType = number> = {
   model: ModelStatic<any>;
@@ -35,12 +35,27 @@ type ActionOptions<TT = number, ST = number> = {
 };
 
 export default class Action {
-  static DATABASE: 0 = 0;
-  static SERVICE: 1 = 1;
+  /**
+   * (Default) A compound action or an action that does not require
+   * external services
+   */
+  static SERVICE: 0 = 0;
+  /**
+   * Action that contains Sigmate database query calls
+   */
+  static DATABASE: 1 = 1;
+  /**
+   * Action that includes making HTTP request(s) to external service(s)
+   */
+  static HTTP: 2 = 2;
 
+  /** Action was initialized but not started yet */
   static NOT_STARTED: 0 = 0;
+  /** Action has been started and still in progress. */
   static STARTED: 1 = 1;
+  /** Action has completed successfully without any errors. */
   static FINISHED: 2 = 2;
+  /** Action has failed due to an error */
   static ERROR: 3 = 3;
 
   /** Action ID */
@@ -61,25 +76,46 @@ export default class Action {
     return this.status >= Action.FINISHED;
   }
   private __duration: number | undefined = undefined;
+  /** The time it took for the action to complete  */
   get duration() {
     if (this.status === Action.FINISHED) {
       return this.__duration;
     }
     return undefined;
   }
+  /** Transaction that will be used for database calls (if any) */
   transaction?: Transaction = undefined;
+  /**
+   * Transaction will be managed by this Action instance.
+   * When this action starts, a transaction will be started.
+   * If this action finishes successfully --> `COMMIT`
+   * If this action fails due to an error --> `ROLLBACK`
+   * If this action is restarted, the previous transaction
+   * will be rolled back and a new transaction will be started.
+   */
   isManagedTx?: boolean = undefined;
+  /**
+   * A promise that resolves when a managed transaction has
+   * started successfully.
+   */
   startTxPromise?: Promise<Transaction>;
+  /**
+   * An error thrown during action execution, that caused the action to fail.
+   */
   error: unknown = undefined;
+
+  /** Shortcut to global DatabaseService instance */
   get db() {
     return services.db;
   }
 
+  /** The Auth instance used to authorize this action */
   auth: AuthService;
+  /** Shortcut to the User Model instance in Auth */
   get userModel() {
     return this.auth.user.model;
   }
-
+  /** Shortcut to the Device Model instance in Auth */
   get deviceModel() {
     return this.auth.device.model;
   }
@@ -88,8 +124,18 @@ export default class Action {
   source?: ActionObject;
 
   // Compound actions (actions consisting of multiple sub-actions)
+  /**
+   * The parent action that spawned this action
+   */
   parent?: Action;
+  /**
+   * Children action spawned by this action
+   */
   children: Action[] = [];
+  /**
+   * When set as `true`, and this action is not the root action,
+   * the parent action of this action will finish when this action finishes
+   */
   isLastChild?: boolean;
   get isRoot() {
     return this.parent === undefined;

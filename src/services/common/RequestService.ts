@@ -20,39 +20,34 @@ export default class RequestService {
    * Current status of this request
    */
   status: RequestStatus = RequestService.NOT_STARTED;
+  get ended() {
+    return this.status >= RequestService.FINISHED;
+  }
 
   /**
    * Express Request object
    */
   req: Request;
 
-  /**
-   * When the request was received
-   */
-  startedAt?: number;
-  /**
-   * When a response for this request was sent
-   */
-  endedAt?: number;
+  __duration = 0;
+  get duration() {
+    return this.ended ? this.__duration : 0;
+  }
 
   response: NonNullable<sigmate.Logger.LogInfo['request']>['response'];
 
   constructor(req: Request) {
     this.id = uuidv4();
     this.req = req;
-  }
-
-  start() {
-    this.startedAt = performance.now();
-    this.endedAt = undefined;
+    this.__duration = performance.now();
   }
 
   finish(res: Response, payload: any, size = -1) {
-    this.endedAt = performance.now();
+    this.__duration = performance.now() - this.__duration;
     this.response = {
       status: res.statusCode,
       body: payload,
-      duration: this.endedAt - (this.startedAt || this.endedAt),
+      duration: this.duration,
       size:
         size >= 0
           ? size
