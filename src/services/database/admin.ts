@@ -47,6 +47,7 @@ export const getConfirmedCollections = async (pg: PaginationOptions) => {
 
 export const createConfirmedChannel = async (
   collectionId: number,
+  discordAccountId: number,
   discordChannel: string,
   twitterChannel: string,
   twitterHandle: string
@@ -59,6 +60,7 @@ export const createConfirmedChannel = async (
       defaults: {
         collectionId: collectionId,
         name: twitterHandle,
+        discordAccountId: discordAccountId,
         discordChannel: discordChannel,
         twitterChannel: twitterChannel,
       },
