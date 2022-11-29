@@ -9,7 +9,13 @@ export const validateConfirm = [
     .isInt()
     .withMessage('NOT_INT')
     .toInt(),
-  body('discordAccountId').notEmpty().withMessage('REQUIRED').toInt(),
+  body('discordAccountId')
+    .notEmpty()
+    .withMessage('REQUIRED')
+    .isInt()
+    .withMessage('NOT_INT')
+    .bail()
+    .toInt(),
   body('discordUrl')
     .optional()
     .trim()
