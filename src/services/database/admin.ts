@@ -14,12 +14,21 @@ import {
 } from './collection';
 import { auditWikiDocumentById } from './wiki/document';
 import { PaginationOptions } from '../../middlewares/handlePagination';
+import DiscordAccount from '../../models/DiscordAccount';
 
 // for admin page - channel
 export const getUnconfirmedCollections = async (pg: PaginationOptions) => {
   try {
     return await Collection.findAndCountAll({
       attributes: ['id', 'name', 'discordUrl', 'twitterHandle'],
+      include: [
+        {
+          model: Channel,
+          as: 'channel',
+          attributes: ['discordChannel'],
+          include: [{ model: DiscordAccount, attributes: ['id', 'account'] }],
+        },
+      ],
       where: { adminConfirmed: { [Op.not]: 1 } },
       limit: pg.limit,
       offset: pg.offset,
@@ -35,7 +44,12 @@ export const getConfirmedCollections = async (pg: PaginationOptions) => {
       attributes: ['id', 'name', 'discordUrl', 'twitterHandle'],
       where: { adminConfirmed: 1 },
       include: [
-        { model: Channel, as: 'channel', attributes: ['discordChannel'] },
+        {
+          model: Channel,
+          as: 'channel',
+          attributes: ['discordChannel'],
+          include: [{ model: DiscordAccount, attributes: ['id', 'account'] }],
+        },
       ],
       limit: pg.limit,
       offset: pg.offset,
