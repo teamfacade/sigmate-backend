@@ -6,10 +6,11 @@ import ServerError from '../errors/ServerError';
 import Server from './Server';
 import requestIp from 'request-ip';
 import { waitTimeout } from '../../utils';
-import Logger from '../loggers/Logger';
-import { ServerStatus } from '../status';
+import Logger from '../logger/Logger';
+import { ServerStatus } from '../../utils/status';
+import Database from '../Database';
 
-type ErrorTypes = 'INIT' | 'START/LOGGER';
+type ErrorTypes = 'INIT';
 
 export default class AppServer extends Server {
   server?: HttpServer;
@@ -17,12 +18,17 @@ export default class AppServer extends Server {
   logger?: any;
   db?: any;
   auth?: any;
+  /**
+   * Exit code to use when calling `process.exit(exitCode)`
+   * 0: Graceful shutdown
+   * 1: Do not restart (TODO)
+   */
+  exitCode = 0;
 
   constructor() {
     super();
     if (AppServer.initialized) {
       this.onError({
-        type: 'INIT',
         message: 'Instance of AppServer already exists.',
       });
     }
@@ -30,17 +36,23 @@ export default class AppServer extends Server {
   }
 
   async start() {
+    this.status = ServerStatus.STARTING;
     const app = express();
-    // Start logger
+    // Start Logger
     try {
       Logger.start();
     } catch (error) {
-      this.onError({ type: 'START/LOGGER', error });
+      this.onError({ error });
     }
-    // Log server starting
-    // Start db
-    // Start auth
-    // Start server
+    // TODO Log server starting
+    // Start Database
+    try {
+      await Database.start();
+    } catch (error) {
+      this.onError({ error });
+    }
+    // Start Auth
+    // Set up middlewares
     app.use(cors());
     app.use(express.json());
     app.use(express.urlencoded({ extended: true }));
@@ -49,8 +61,10 @@ export default class AppServer extends Server {
     // app.use(logger.mw);
     // app.use(db.mw);
     // app.use(auth.mw);
+
+    // Start HTTP server
+    this.server = app.listen(process.env.PORT || 5100, this.onStart);
     this.app = app;
-    this.onStart();
   }
 
   /**
@@ -62,7 +76,7 @@ export default class AppServer extends Server {
   onStart(): void {
     this.status = ServerStatus.STARTED;
     if (process.send) process.send('ready');
-    // Log server start success
+    // TODO Log server started
   }
 
   onSigint(): void {
@@ -72,38 +86,67 @@ export default class AppServer extends Server {
   }
 
   async close() {
-    // Close Http Server
-    if (this.server) {
-      const server = this.server;
-      const serverClose = new Promise<void>((resolve) => {
-        server.on('close', () => {
-          resolve();
+    this.status = ServerStatus.CLOSING;
+    // TODO Log server closing
+    try {
+      // Close Http Server
+      if (this.server) {
+        const server = this.server;
+        const serverClose = new Promise<void>((resolve) => {
+          server.on('close', () => {
+            resolve();
+          });
         });
-      });
-      server.close();
-      await waitTimeout(serverClose, 10000);
+        server.close();
+        await waitTimeout(serverClose, 10000);
+      }
+      // Close DB
+      await Database.close();
+      // Close Logger
+      await Logger.close();
+    } catch (error) {
+      this.onError({ message: 'Graceful shutdown failed', error });
     }
-
-    // Close Logger
-    // Close DB
     this.status = ServerStatus.CLOSED;
-    // Log server closed
+    // TODO Log server closed
   }
 
-  onError(options: sigmate.Error.HandlerOptions<ErrorTypes>): void {
-    const { type = 'OTHER', error: origin } = options;
-    const message: string = options.message || type;
-    let critical = false;
-    switch (type) {
-      default:
-        critical = true;
-        break;
+  /**
+   * Handle critical errors in the server and gracefully shut down
+   */
+  onError(
+    options: sigmate.Error.HandlerOptions<ErrorTypes> & {
+      needClose?: boolean;
+      preventPm2Restart?: boolean;
     }
-    throw new ServerError({
-      name: 'AppError',
-      message,
-      critical,
-      cause: origin,
-    });
+  ): void {
+    this.status = ServerStatus.FAILED;
+    const { type = 'OTHER', error: cause } = options;
+    let serverError: ServerError | undefined = undefined;
+    if (cause instanceof ServerError) {
+      serverError = cause;
+    } else {
+      const message: string = options.message || type;
+      let critical = false;
+      switch (type) {
+        default:
+          critical = true;
+          break;
+      }
+      serverError = new ServerError({
+        name: 'AppServerError',
+        message,
+        critical,
+        cause,
+      });
+    }
+    throw serverError; // TODO don't throw
+    // TODO Log the SeverError
+    // Prevent restart (if needed)
+    if (options.preventPm2Restart) {
+      this.exitCode = 1;
+      // TODO set up PM2 to not restart on exit code 1
+    }
+    // TODO Exit process
   }
 }

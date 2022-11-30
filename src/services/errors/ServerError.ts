@@ -1,3 +1,10 @@
+export type ServerErrorOptions = {
+  name: string;
+  message: string;
+  critical?: boolean;
+  cause?: unknown;
+};
+
 export default class ServerError extends Error {
   /** Name of the error. Used to classify errors in logging */
   name: string;
@@ -11,12 +18,7 @@ export default class ServerError extends Error {
    * When set, the stack of this Error will also be logged.
    */
   cause?: unknown;
-  constructor(options: {
-    name: string;
-    message: string;
-    critical?: boolean;
-    cause?: unknown;
-  }) {
+  constructor(options: ServerErrorOptions) {
     const { name, message, critical, cause } = options;
     super(message);
     this.name = name;

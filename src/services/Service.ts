@@ -1,15 +1,16 @@
-import { ServiceStatus } from './status';
+import { ServiceStatus } from '../utils/status';
 
 export default abstract class Service {
-  static STATUS = ServiceStatus;
+  static STATE = ServiceStatus;
   static status: typeof ServiceStatus[keyof typeof ServiceStatus] =
     ServiceStatus.INITIALIZED;
   static get started() {
     return this.status >= ServiceStatus.STARTED;
   }
   static get closed() {
-    return this.status >= ServiceStatus.CLOSED;
+    return this.status >= ServiceStatus.CLOSING;
   }
   // static start()
-  abstract onError(options: sigmate.Error.HandlerOptions): void;
+  // static close()
+  // abstract onError(options: sigmate.Error.HandlerOptions): void;
 }

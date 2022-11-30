@@ -2,7 +2,7 @@ import fs from 'fs';
 import path from 'path';
 import { Model, ModelCtor } from 'sequelize-typescript';
 
-const models: ModelCtor<Model<any, any>>[] = [];
+export const models: ModelCtor<Model<any, any>>[] = [];
 
 const imports: Promise<unknown>[] = fs
   .readdirSync(__dirname)
@@ -25,5 +25,3 @@ const imports: Promise<unknown>[] = fs
 export const importModels = async () => {
   await Promise.all(imports);
 };
-
-export default models;

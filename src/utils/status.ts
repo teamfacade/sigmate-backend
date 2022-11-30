@@ -32,9 +32,10 @@ export const RequestStatus = FinishableStates;
 export const ActionStatus = FinishableStates;
 
 export function printStatus(
-  status: typeof AllStates[keyof typeof AllStates],
+  status: typeof AllStates[keyof typeof AllStates] | undefined,
   options: { lower?: boolean; dots?: boolean } = {}
 ) {
+  if (status === undefined) return undefined;
   let fStatus = ''; // return value
   switch (status) {
     case AllStates.INITIALIZED:

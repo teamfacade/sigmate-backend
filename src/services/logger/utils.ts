@@ -1,6 +1,6 @@
 import { ActionTypes } from '../Action';
 import ServerError from '../errors/ServerError';
-import { printStatus } from '../status';
+import { printStatus } from '../../utils/status';
 
 // File sizes
 const MB = 1024 * 1024;
@@ -88,7 +88,7 @@ export const formatMessage = (info: sigmate.Logger.Info) => {
   } else if (action) {
     // ACTION 'AUTH_GOOGLE' failed: USER_NOT_EXIST (159ms)    dd701b16-177b-478a-a8c3-512cf6d7b496
     fMessage += 'ACTION';
-    const { type, name, status, info } = action;
+    const { type, name, status, data: info } = action;
     switch (type) {
       case ActionTypes.DATABASE:
         fMessage += '(DB)';
@@ -144,4 +144,96 @@ export const formatMessage = (info: sigmate.Logger.Info) => {
   }
 
   return fMessage;
+};
+
+export const padLevels = (level: string, padLength: number) => {
+  const length = level.length > 7 ? 7 : level.length;
+  return level + ' '.repeat(padLength - length);
+};
+
+export const printActionType = (
+  type: sigmate.Logger.ActionType | undefined,
+  options: { lower?: boolean } = {}
+) => {
+  let fType = '';
+  switch (type) {
+    case ActionTypes.SERVICE:
+      fType = 'SERVICE';
+      break;
+    case ActionTypes.DATABASE:
+      fType = 'DATABASE';
+      break;
+    case ActionTypes.HTTP:
+      fType = 'HTTP';
+      break;
+    default:
+      return undefined;
+  }
+  if (options.lower) {
+    fType = fType.toLowerCase();
+  }
+  return fType;
+};
+
+export const createDynamoInfo = (
+  info: sigmate.Logger.Info
+): sigmate.Logger.DynamoInfo => {
+  const {
+    timestamp: date,
+    level,
+    message,
+    duration,
+    id,
+    error,
+    server,
+    service,
+    request,
+    action,
+    response,
+  } = info;
+  const timestamp = date ? new Date(date).getTime() : new Date().getTime();
+  let err = '';
+  if (error instanceof Error) {
+    err += `${error.name}: ${error.message}`;
+    if (error instanceof ServerError) {
+      if (error.cause instanceof Error) {
+        err += ` (${error.cause.name}: ${error.cause.message})`;
+      }
+    }
+  } else if (error?.toString) {
+    err = error.toString();
+  }
+
+  return {
+    timestamp,
+    level,
+    message: message || '',
+    duration,
+    id: id?.default,
+    user: `u${id?.user || '-'}d${id?.device || '-'}`,
+    err: err || undefined,
+    serverName: server?.name,
+    serverStatus: printStatus(server?.status),
+    serviceName: service?.name,
+    serviceStatus: printStatus(service?.status),
+    reqMtd: request?.method,
+    reqEpt: request?.endpoint,
+    reqSize: request?.size,
+    reqData: {
+      query: request?.query,
+      params: request?.params,
+      body: request?.body,
+    },
+    resStatus: response?.status,
+    resBody: response?.body,
+    resSize: response?.size,
+    actType: printActionType(action?.type),
+    actName: action?.name,
+    actStatus: printStatus(action?.status),
+    actTModel: action?.target?.model,
+    actTId: action?.target?.id,
+    actSModel: action?.source?.model,
+    actSId: action?.source?.id,
+    actData: action?.data,
+  };
 };

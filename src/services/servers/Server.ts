@@ -1,4 +1,4 @@
-import { ServerStatus } from '../status';
+import { ServerStatus } from '../../utils/status';
 
 export default abstract class Server {
   static STATUS = ServerStatus;
