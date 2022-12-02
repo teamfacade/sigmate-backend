@@ -10,6 +10,8 @@ export default abstract class Service {
   static get closed() {
     return this.status >= ServiceStatus.CLOSING;
   }
+  abstract name: string;
+  abstract get serviceStatus(): typeof Service.status;
   // static start()
   // static close()
   // abstract onError(options: sigmate.Error.HandlerOptions): void;

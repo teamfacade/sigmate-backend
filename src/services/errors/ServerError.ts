@@ -1,28 +1,32 @@
-export type ServerErrorOptions = {
-  name: string;
-  message: string;
-  critical?: boolean;
-  cause?: unknown;
-};
+import Server from '../servers/Server';
 
 export default class ServerError extends Error {
+  static server: Server;
+  server = ServerError.server;
   /** Name of the error. Used to classify errors in logging */
   name: string;
-  /**
-   * Unexpected errors that were not handled properly and
-   * reached the final error handler
-   */
-  critical: boolean;
   /**
    * The original error that caused this ServerError.
    * When set, the stack of this Error will also be logged.
    */
   cause?: unknown;
-  constructor(options: ServerErrorOptions) {
-    const { name, message, critical, cause } = options;
+  /**
+   * Setting this attribute true signifies that this error is
+   * irrecoverable, and the Server, Service, Request, or Action
+   * needs to fail, and shut down.
+   */
+  critical = false;
+  /**
+   * Log level to override the default settings
+   */
+  level: sigmate.Logger.Level;
+
+  constructor(options: sigmate.Error.ServerErrorOptions) {
+    const { name, message, critical, cause, level } = options;
     super(message);
     this.name = name;
     this.critical = critical || false;
+    this.level = level || (critical ? 'error' : 'warn');
     if (cause) this.cause = cause;
   }
 }

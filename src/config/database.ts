@@ -23,6 +23,7 @@ const databaseConfig: DBConfigs = {
       timezone: '+09:00',
     },
     benchmark: true,
+    logging: false,
   },
   test: {
     username: process.env.DB_USERNAME_TEST,
@@ -36,6 +37,7 @@ const databaseConfig: DBConfigs = {
       timezone: '+09:00',
     },
     benchmark: true,
+    logging: false,
   },
   production: {
     username: process.env.DB_USERNAME_PROD,

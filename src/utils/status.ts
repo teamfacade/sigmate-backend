@@ -26,6 +26,8 @@ export const AllStates = Object.freeze({
   ...FinishableStates,
 });
 
+export type AllStateName = keyof typeof AllStates;
+
 export const ServerStatus = ClosableStates;
 export const ServiceStatus = ClosableStates;
 export const RequestStatus = FinishableStates;

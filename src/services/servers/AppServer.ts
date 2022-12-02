@@ -1,3 +1,6 @@
+import dotenv from 'dotenv';
+dotenv.config();
+
 import { Server as HttpServer } from 'http';
 import express, { Express } from 'express';
 import cors from 'cors';
@@ -5,18 +8,20 @@ import passport from 'passport';
 import ServerError from '../errors/ServerError';
 import Server from './Server';
 import requestIp from 'request-ip';
-import { waitTimeout } from '../../utils';
-import Logger from '../logger/Logger';
+import { isEnvVarSet, waitTimeout } from '../../utils';
+import Logger from '../logger';
 import { ServerStatus } from '../../utils/status';
 import Database from '../Database';
+import RequestService from '../Request';
 
 type ErrorTypes = 'INIT';
 
 export default class AppServer extends Server {
+  name = 'APP';
   server?: HttpServer;
   app: Express = undefined as unknown as Express;
-  logger?: any;
-  db?: any;
+  logger: Logger;
+  db: Database;
   auth?: any;
   /**
    * Exit code to use when calling `process.exit(exitCode)`
@@ -33,37 +38,87 @@ export default class AppServer extends Server {
       });
     }
     AppServer.initialized = true;
+    ServerError.server = this;
+    this.logger = new Logger({ checkStart: false });
+    this.db = new Database({ checkStart: false });
+  }
+
+  checkEnv() {
+    const notSetArray: (string | number)[] = [];
+    isEnvVarSet('NODE_ENV', { notSetArray });
+    isEnvVarSet('SERVICE_NAME', { notSetArray });
+    isEnvVarSet('PORT', { notSetArray });
+    isEnvVarSet('DB_PORT', { notSetArray });
+    isEnvVarSet('DB_DATABASE_DEV', { notSetArray });
+    isEnvVarSet('DB_DATABASE_TEST', { notSetArray });
+    isEnvVarSet('DB_DATABASE_PROD', { notSetArray });
+    isEnvVarSet('DB_USERNAME_DEV', { notSetArray });
+    isEnvVarSet('DB_USERNAME_TEST', { notSetArray });
+    isEnvVarSet('DB_USERNAME_PROD', { notSetArray });
+    isEnvVarSet('DB_PASSWORD_DEV', { notSetArray });
+    isEnvVarSet('DB_PASSWORD_TEST', { notSetArray });
+    isEnvVarSet('DB_PASSWORD_PROD', { notSetArray });
+    isEnvVarSet('DB_HOST_DEV', { notSetArray });
+    isEnvVarSet('DB_HOST_TEST', { notSetArray });
+    isEnvVarSet('DB_HOST_PROD', { notSetArray });
+    isEnvVarSet('AWS_BUCKET_NAME', { notSetArray });
+    isEnvVarSet('AWS_ACCESS_KEY', { notSetArray });
+    isEnvVarSet('AWS_SECRET_ACCESS_KEY', { notSetArray });
+    isEnvVarSet('AWS_LOGGER_ACCESS_KEY', { notSetArray });
+    isEnvVarSet('AWS_LOGGER_SECRET_ACCESS_KEY', { notSetArray });
+    isEnvVarSet('AWS_S3_IMAGE_BASEURL', { notSetArray });
+    isEnvVarSet('COOKIE_SECRET', { notSetArray });
+    isEnvVarSet('GOOGLE_CLIENT_ID', { notSetArray });
+    isEnvVarSet('GOOGLE_CLIENT_SECRET', { notSetArray });
+    isEnvVarSet('PATH_PUBLIC_KEY', { notSetArray });
+    isEnvVarSet('PATH_PRIVATE_KEY', { notSetArray });
+    isEnvVarSet('TWITTER_BEARER_TOKEN', { notSetArray });
+    isEnvVarSet('LAMBDA_BOT_URL', { notSetArray });
+
+    if (notSetArray.length) {
+      const varnames = notSetArray.join(', ');
+      this.onError({
+        message: `Required environment variables not set: ${varnames}`,
+      });
+    }
   }
 
   async start() {
     this.status = ServerStatus.STARTING;
-    const app = express();
     // Start Logger
     try {
-      Logger.start();
+      this.logger.start();
     } catch (error) {
       this.onError({ error });
     }
     // TODO Log server starting
+    this.logger.log({ server: this });
+    // Check Environment Variables
+    this.checkEnv();
     // Start Database
     try {
-      await Database.start();
+      await this.db.start();
     } catch (error) {
       this.onError({ error });
     }
     // Start Auth
     // Set up middlewares
+    const app = express();
     app.use(cors());
     app.use(express.json());
     app.use(express.urlencoded({ extended: true }));
     app.use(requestIp.mw());
     app.use(passport.initialize());
+    app.use(RequestService.mw());
     // app.use(logger.mw);
     // app.use(db.mw);
     // app.use(auth.mw);
 
+    // TODO setup routers
+    // TODO setup error handling middlewares
+
     // Start HTTP server
-    this.server = app.listen(process.env.PORT || 5100, this.onStart);
+    this.server = app.listen(process.env.PORT || 5100, this.onStart.bind(this));
     this.app = app;
   }
 
@@ -75,19 +130,23 @@ export default class AppServer extends Server {
    */
   onStart(): void {
     this.status = ServerStatus.STARTED;
+    RequestService.start();
     if (process.send) process.send('ready');
     // TODO Log server started
+    this.logger.log({ server: this });
+    process.on('SIGINT', this.onSigint.bind(this));
   }
 
   onSigint(): void {
+    console.log('SIGINT(^C) received');
     this.close().then(() => {
-      process.exit(0);
+      process.exit(this.exitCode);
     });
   }
 
   async close() {
     this.status = ServerStatus.CLOSING;
-    // TODO Log server closing
+    this.logger.log({ server: this });
     try {
       // Close Http Server
       if (this.server) {
@@ -101,14 +160,18 @@ export default class AppServer extends Server {
         await waitTimeout(serverClose, 10000);
       }
       // Close DB
-      await Database.close();
-      // Close Logger
-      await Logger.close();
+      await this.db.close();
     } catch (error) {
       this.onError({ message: 'Graceful shutdown failed', error });
     }
+    try {
+      // Close Logger
+      await Logger.close();
+    } catch (error) {
+      console.error(error);
+    }
     this.status = ServerStatus.CLOSED;
-    // TODO Log server closed
+    console.log('Server closed.');
   }
 
   /**
@@ -120,28 +183,28 @@ export default class AppServer extends Server {
       preventPm2Restart?: boolean;
     }
   ): void {
-    this.status = ServerStatus.FAILED;
     const { type = 'OTHER', error: cause } = options;
-    let serverError: ServerError | undefined = undefined;
-    if (cause instanceof ServerError) {
-      serverError = cause;
-    } else {
-      const message: string = options.message || type;
-      let critical = false;
-      switch (type) {
-        default:
-          critical = true;
-          break;
-      }
-      serverError = new ServerError({
+
+    let error = cause as ServerError;
+    const critical = true;
+    if (!(cause instanceof ServerError)) {
+      error = new ServerError({
         name: 'AppServerError',
-        message,
+        message: options.message || type,
         critical,
         cause,
       });
     }
-    throw serverError; // TODO don't throw
+    if (critical) {
+      this.status = AppServer.STATE.FAILED;
+    }
     // TODO Log the SeverError
+    if (this.logger.started) {
+      this.logger.log({ error });
+    } else {
+      console.error(error);
+    }
+    // TODO LoggerService may not have started yet
     // Prevent restart (if needed)
     if (options.preventPm2Restart) {
       this.exitCode = 1;

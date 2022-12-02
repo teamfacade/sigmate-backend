@@ -1,7 +1,7 @@
 import { ServerStatus } from '../../utils/status';
 
 export default abstract class Server {
-  static STATUS = ServerStatus;
+  static STATE = ServerStatus;
   /** Ensure that only one instance of Server exists in process */
   static initialized = false;
 
@@ -14,7 +14,8 @@ export default abstract class Server {
     return this.status >= ServerStatus.CLOSED;
   }
   env = process.env.PORT;
-
+  abstract name: string;
+  abstract checkEnv(): void;
   abstract start(): Promise<void>;
   abstract close(): Promise<void>;
   /** Callback to run when the server has been started successfully */

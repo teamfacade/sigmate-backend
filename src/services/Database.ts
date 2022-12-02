@@ -4,8 +4,9 @@ import config from '../config';
 import { models, importModels } from '../models';
 import DatabaseError from './errors/DatabaseError';
 import { wait } from '../utils';
+import Logger from './logger';
 
-type ErrorTypes = 'CONNECT' | 'TEST' | 'NOT_AVAILABLE';
+type ErrorTypes = 'CONNECT' | 'TEST' | 'CLOSED' | 'UNAVAILABLE';
 
 const env = process.env.NODE_ENV;
 
@@ -19,73 +20,94 @@ export default class Database extends Service {
   static TEST_RETRY_MAX = 10;
   static testDelay = this.TEST_DELAY_INIT;
   static testRetries = 0;
+  static testPromise: Promise<void> | undefined = undefined;
+  name = 'DATABASE';
+  logger: Logger = undefined as unknown as Logger;
+  get serviceStatus() {
+    return Database.status;
+  }
+  get sequelize() {
+    return Database.sequelize;
+  }
+  get transaction() {
+    return Database.sequelize.transaction;
+  }
+
+  constructor(options: { checkStart?: boolean } = {}) {
+    super();
+    const { checkStart = true } = options;
+    if (!Database.started && checkStart) {
+      throw new DatabaseError({
+        message: 'Database initialized before start',
+        critical: true,
+        database: this,
+      });
+    }
+  }
 
   /**
    * Connect to the database and test the connection
    */
-  static async start() {
-    this.status = Database.STATE.STARTING;
-    // TODO Log service starting
+  async start() {
+    this.logger = new Logger();
+    Database.status = Database.STATE.STARTING;
+    this.logger.log({ service: this });
     const { database, username, password } = config.database[env];
-    this.sequelize = new Sequelize(
+    Database.sequelize = new Sequelize(
       database,
       username,
       password,
       config.database[env]
     );
     await importModels();
-    this.sequelize.addModels(models);
+    Database.sequelize.addModels(models);
     await this.test();
-    this.status = Database.STATE.STARTED;
-    // TODO Log service started
-  }
-
-  /**
-   * Run the test once (called by static method `test()`)
-   */
-  private static async __test() {
-    try {
-      await this.sequelize.authenticate();
-      this.connected = true;
-      this.testDelay = 100; // reset the test delay
-    } catch (error) {
-      this.connected = false;
-      this.onError({
-        type: 'CONNECT',
-        message: `Database connection failed (${this.testRetries}/${this.TEST_RETRY_MAX}). Retrying...`,
-        error,
-      });
-    }
+    Database.status = Database.STATE.STARTED;
+    this.logger.log({ service: this });
   }
 
   /**
    * Run tests with exponential delay for a certain number of times
    * before giving up.
    */
-  static async test() {
-    while (!this.connected && this.testRetries <= this.TEST_RETRY_MAX) {
-      this.testRetries += 1;
-      await this.__test();
-      await wait(this.testDelay);
-      this.testDelay *= 2;
+  private async __test() {
+    while (
+      !Database.connected &&
+      Database.testRetries <= Database.TEST_RETRY_MAX
+    ) {
+      Database.testRetries += 1;
+      try {
+        await Database.sequelize.authenticate();
+        Database.connected = true;
+        Database.testDelay = 100; // reset the test delay
+      } catch (error) {
+        Database.connected = false;
+        this.onError({
+          type: 'CONNECT',
+          message: `Database connection failed (${Database.testRetries}/${Database.TEST_RETRY_MAX}). Retrying...`,
+          error,
+        });
+      }
+      await wait(Database.testDelay);
+      Database.testDelay *= 2;
     }
-    if (!this.connected) {
+    if (!Database.connected) {
       this.onError({
         type: 'TEST',
-        message: `Database connection failed ${this.testRetries} times in a row. Stopped.`,
+        message: `Database test failed!`,
       });
     }
   }
 
   /**
-   * Close the DB connection
+   * Ensure that only one test runs
    */
-  static async close() {
-    this.status = Database.STATE.CLOSING;
-    // TODO Log service closing
-    await this.sequelize.close();
-    this.status = Database.STATE.CLOSED;
-    // TODO Log service closed
+  public async test() {
+    if (!Database.testPromise) {
+      Database.testPromise = this.__test();
+    }
+    await Database.testPromise;
+    Database.testPromise = undefined;
   }
 
   /**
@@ -93,27 +115,34 @@ export default class Database extends Service {
    * @param worker Function containing the database query call
    * @returns Return value of worker
    */
-  static async run<T>(worker: () => Promise<T>) {
-    if (this.closed) this.onError({ type: 'NOT_AVAILABLE' });
-    if (!this.connected) await wait(this.testDelay);
-    if (!this.connected) this.onError({ type: 'NOT_AVAILABLE' });
-    return worker();
+  async run<T>(worker: () => Promise<T>) {
+    if (Database.closed) this.onError({ type: 'CLOSED' });
+    if (!Database.connected) await wait(Database.testDelay);
+    if (!Database.connected) this.onError({ type: 'UNAVAILABLE' });
+    try {
+      return await worker();
+    } catch (error) {
+      this.onError({ error });
+    }
   }
 
   /**
    * Handle database errors
+   * @throws {DatabaseError}
    */
-  private static onError(
-    options: sigmate.Error.HandlerOptions<ErrorTypes>
-  ): void {
+  private onError(options: sigmate.Error.HandlerOptions<ErrorTypes>): never {
     const { type = 'OTHER', error } = options;
     let message = options.message || type;
     let critical = false;
     switch (type) {
       case 'CONNECT':
+        // error message sent from caller
         break;
-      case 'NOT_AVAILABLE':
-        message = 'Database is not available.';
+      case 'CLOSED':
+        message = 'Database run rejected (Database closed)';
+        break;
+      case 'UNAVAILABLE':
+        message = 'Database run rejected (Database not connected)';
         break;
       case 'TEST':
       default:
@@ -121,8 +150,24 @@ export default class Database extends Service {
         break;
     }
     if (critical) {
-      this.status = Database.STATE.FAILED;
+      Database.status = Database.STATE.FAILED;
     }
-    throw new DatabaseError({ message, critical, cause: error });
+    throw new DatabaseError({
+      database: this,
+      message,
+      critical,
+      cause: error,
+    });
+  }
+
+  /**
+   * Close the DB connection
+   */
+  async close() {
+    Database.status = Database.STATE.CLOSING;
+    // TODO Log service closing
+    await Database.sequelize.close();
+    Database.status = Database.STATE.CLOSED;
+    // TODO Log service closed
   }
 }

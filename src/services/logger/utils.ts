@@ -1,6 +1,7 @@
 import { ActionTypes } from '../Action';
 import ServerError from '../errors/ServerError';
 import { printStatus } from '../../utils/status';
+import RequestError from '../errors/RequestError';
 
 // File sizes
 const MB = 1024 * 1024;
@@ -37,13 +38,29 @@ const formatDuration = (duration: number): string => {
   }
 };
 
+const formatErrorMessage = (error: unknown) => {
+  let fMessage = '';
+  if (error instanceof ServerError) {
+    if (error.cause) {
+      fMessage += `${error.name}: ${error.message}`;
+      fMessage += '\n';
+      fMessage += formatErrorMessage(error.cause);
+    } else {
+      fMessage += `${error.stack}`;
+    }
+  } else if (error instanceof Error) {
+    fMessage += `${error.stack}`;
+  }
+  return fMessage;
+};
+
 export const formatMessage = (info: sigmate.Logger.Info) => {
   const {
+    level,
     duration,
     server,
     service,
     request,
-    response,
     action,
     message,
     id,
@@ -69,7 +86,7 @@ export const formatMessage = (info: sigmate.Logger.Info) => {
       dots: true,
     })}`;
   } else if (request) {
-    const { method, endpoint, query, params } = request;
+    const { method, endpoint, query, params, response } = request;
     if (!response) {
       // REQUEST GET /auth/google 180B    dd701b16-177b-478a-a8c3-512cf6d7b496
       fMessage += 'REQUEST';
@@ -97,6 +114,7 @@ export const formatMessage = (info: sigmate.Logger.Info) => {
         fMessage += '(HTTP)';
         break;
     }
+
     fMessage += ` '${name}' ${printStatus(status, { lower: true })}`;
     if (info) {
       for (const key in info) {
@@ -121,21 +139,19 @@ export const formatMessage = (info: sigmate.Logger.Info) => {
   }
 
   if (error) {
-    if (server || service || request || action || response) {
+    if (server || service || request || action) {
       fMessage += '\n\t';
     }
-
-    if (error instanceof ServerError) {
-      fMessage += `${error.name}: ${error.message}`;
-      if (error.cause) {
-        if (error.cause instanceof Error) {
-          fMessage += `\n\t${error.cause.stack}`;
-        } else {
-          fMessage += `\n\t${error.cause.toString()}`;
+    fMessage += formatErrorMessage(error);
+    if (level === 'silly' || level === 'debug') {
+      if (error instanceof RequestError) {
+        if (error.validationErrors) {
+          data.validationErrors = error.validationErrors;
+        }
+        if (error.fields) {
+          data.fields = error.fields;
         }
       }
-    } else if (error instanceof Error) {
-      fMessage += `\n\t${error.stack}`;
     }
   }
 
@@ -189,7 +205,6 @@ export const createDynamoInfo = (
     service,
     request,
     action,
-    response,
   } = info;
   const timestamp = date ? new Date(date).getTime() : new Date().getTime();
   let err = '';
@@ -200,8 +215,8 @@ export const createDynamoInfo = (
         err += ` (${error.cause.name}: ${error.cause.message})`;
       }
     }
-  } else if (error?.toString) {
-    err = error.toString();
+  } else {
+    err = `UNEXPECTED ERROR TYPE (${typeof error})`;
   }
 
   return {
@@ -224,9 +239,9 @@ export const createDynamoInfo = (
       params: request?.params,
       body: request?.body,
     },
-    resStatus: response?.status,
-    resBody: response?.body,
-    resSize: response?.size,
+    resStatus: request?.response?.status,
+    resBody: request?.response?.body,
+    resSize: request?.response?.size,
     actType: printActionType(action?.type),
     actName: action?.name,
     actStatus: printStatus(action?.status),

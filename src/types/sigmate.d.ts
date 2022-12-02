@@ -5,6 +5,26 @@ declare namespace sigmate {
       error?: unknown;
       message?: string;
     };
+
+    export interface ServerErrorOptions {
+      /** Name of the error. Used to classify errors in logging */
+      name: string;
+      message: string;
+      /**
+       * Unexpected errors that is not recoverable and endangers the entire
+       * server instance (needs immediate action)
+       */
+      critical?: boolean;
+      /**
+       * Log level to override the default settings
+       */
+      level?: sigmate.Logger.Level;
+      /**
+       * The original error that caused this ServerError.
+       * When set, the stack of this Error will also be logged.
+       */
+      cause?: unknown;
+    }
   }
 
   namespace Logger {
@@ -13,8 +33,8 @@ declare namespace sigmate {
 
     type Level =
       | 'error'
-      | 'warn'
-      | 'info'
+      | 'warn' // default for all errors
+      | 'info' // default for all other logs
       | 'http'
       | 'verbose'
       | 'debug'
@@ -40,14 +60,6 @@ declare namespace sigmate {
 
     type Status = AllStates[keyof AllStates];
 
-    // type Source =
-    //   | 'SERVER'
-    //   | 'SERVICE'
-    //   | 'REQUEST'
-    //   | 'ACTION'
-    //   | 'ACTION(HTTP)'
-    //   | 'ACTION(DB)';
-
     // format
     // timestamp level message
     // message
@@ -66,19 +78,24 @@ declare namespace sigmate {
       error?: unknown; // log the stack
       server?: {
         name: string;
-        status?: Status;
+        status: Status;
       };
       service?: {
         name: string;
-        status?: Status;
+        status: Status;
       };
       request?: {
-        method: HttpMethod;
+        method: string;
         endpoint: string;
         size: number; // bytes, size of body
-        query?: Record<string, any>;
-        params?: Record<string, any>;
-        body?: Record<string, any>;
+        query?: Record<string, unknown>;
+        params?: Record<string, unknown>;
+        body?: Record<string, unknown>;
+        response?: {
+          status: number; // HTTP Status code
+          size: number; // bytes, size of payload
+          body?: Record<string, any>;
+        };
       };
       action?: {
         type: ActionType;
@@ -92,12 +109,7 @@ declare namespace sigmate {
           model: string;
           id: string;
         };
-        data?: Record<string, any>;
-      };
-      response?: {
-        status: number; // HTTP Status code
-        size: number; // bytes, size of payload
-        body?: Record<string, any>;
+        data?: Record<string, unknown>;
       };
     }
 

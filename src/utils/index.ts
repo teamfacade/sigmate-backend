@@ -1,17 +1,20 @@
 type EnvVarName = keyof NodeJS.ProcessEnv;
 
 type CheckEnvOptions = {
-  throws?: boolean;
+  /**
+   * Array of the names of the environment variables that are not set
+   */
+  notSetArray?: (string | number)[];
 };
 
-export function checkEnv(varname: EnvVarName, options: CheckEnvOptions = {}) {
-  const { throws = true } = options;
+export function isEnvVarSet(
+  varname: EnvVarName,
+  options: CheckEnvOptions = {}
+) {
   const isEnvSet = process.env[varname] !== undefined;
-
-  if (throws && !isEnvSet) {
-    throw new Error(`Environment variable '${varname}' has not been set.`);
+  if (!isEnvSet && options.notSetArray) {
+    options.notSetArray.push(varname);
   }
-
   return isEnvSet;
 }
 

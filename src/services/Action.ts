@@ -1,5 +1,8 @@
 import { Transaction, ModelStatic, Model, Identifier } from 'sequelize/types';
 import { ActionStatus } from '../utils/status';
+import Database from './Database';
+import ActionError from './errors/ActionError';
+import RequestError from './errors/RequestError';
 
 export const ActionTypes = Object.freeze({
   SERVICE: 0,
@@ -41,6 +44,14 @@ type ActionOptions<TPKT extends Identifier, SPKT extends Identifier> = {
   source?: ActionObject<SPKT>;
 };
 
+type ErrorTypes =
+  | 'TX START FAILED'
+  | 'ALREADY ENDED'
+  | 'PARENT ALREADY ENDED'
+  | 'CHILD FAILED'
+  | 'TX COMMIT FAILED'
+  | 'TX ROLLBACK FAILED';
+
 export default class Action<
   TPKT extends Identifier = number,
   SPKT extends Identifier = number,
@@ -63,6 +74,7 @@ export default class Action<
   type: typeof ActionTypes[keyof typeof ActionTypes];
   name: string;
   status: typeof ActionStatus[keyof typeof ActionStatus];
+  database: Database;
   // TODO auth: AuthService;
   get started() {
     return this.status >= Action.STATE.STARTED;
@@ -83,8 +95,11 @@ export default class Action<
   /**
    * Transaction will be managed by this Action instance.
    * When this action starts, a transaction will be started.
+   *
    * If this action finishes successfully --> `COMMIT`
+   *
    * If this action fails due to an error --> `ROLLBACK`
+   *
    * If this action is restarted, the previous transaction
    * will be rolled back and a new transaction will be started.
    */
@@ -116,13 +131,18 @@ export default class Action<
    * the parent action of this action will finish when this action finishes
    */
   isLastChild?: boolean;
+  /**
+   * Data to write to the logs for debugging
+   */
+  data?: Record<string, unknown>;
 
   constructor(options: ActionOptions<TPKT, SPKT>) {
     const { type, name, transaction, isLastChild, target, source } = options;
     this.type = type || Action.TYPE.SERVICE;
     this.name = name;
     this.status = Action.STATE.INITIALIZED;
-    // TODO this.auth = auth;
+    this.database = new Database();
+    // TODO this.auth = new Auth();
     this.isLastChild = isLastChild;
     this.target = target;
     this.source = source;
@@ -150,9 +170,9 @@ export default class Action<
     this.__duration = performance.now();
     if (this.isManagedTx && !this.transaction) {
       try {
-        // TODO this.transaction = await this.db.sequelize.transaction();
+        this.transaction = await Database.transaction();
       } catch (error) {
-        this.onError(error);
+        this.onError({ type: 'TX START FAILED', error });
       }
     }
     this.status = Action.STATE.STARTED;
@@ -171,29 +191,33 @@ export default class Action<
     return child;
   }
 
+  public setTarget(target: ActionObject<TPKT>) {
+    this.target = { ...this.target, ...target };
+  }
+
+  public setSource(source: ActionObject<SPKT>) {
+    this.source = { ...this.source, ...source };
+  }
+
   public async run<T>(
     worker: (
-      action: Action<TPKT, SPKT>,
-      transaction: Transaction | undefined
+      action: typeof this,
+      transaction: typeof this.transaction
     ) => Promise<T>
   ) {
-    if (this.ended || this.parent?.ended) {
-      throw new Error('ACTION_ALREDY_ENDED');
-    }
+    if (this.ended || this.parent?.ended) return;
     if (!this.started) await this.start();
-    let res: Awaited<T>;
+    let res: Awaited<ReturnType<typeof worker>>;
     try {
       if (this.type === Action.TYPE.DATABASE) {
-        // TODO res = await this.db.run(() => worker(this, this.transaction));
+        res = await this.database.run(() => worker(this, this.transaction));
       } else {
         res = await worker(this, this.transaction);
       }
-
       await this.onFinish();
       return res;
     } catch (error) {
-      await this.onError(error);
-      throw new Error('ACTION_ERROR');
+      await this.onError({ error });
     }
   }
 
@@ -206,7 +230,7 @@ export default class Action<
       try {
         await this.transaction?.commit();
       } catch (error) {
-        await this.onError(error);
+        await this.onError({ type: 'TX COMMIT FAILED', error });
       }
     }
     this.status = Action.STATE.FINISHED;
@@ -216,18 +240,79 @@ export default class Action<
     }
   }
 
-  private async onError(error: unknown = undefined) {
-    if (error !== undefined) this.error = error;
-    if (!this.parent) {
-      try {
-        await this.transaction?.rollback();
-      } catch (error) {
-        throw new Error('ACTION_TX_ROLLBACK_ERROR');
-      }
-    } else {
-      await this.parent?.onError(error);
-    }
+  private async onError(options: sigmate.Error.HandlerOptions<ErrorTypes>) {
     this.status = Action.STATE.FAILED;
+
+    const { type, error: cause } = options;
+    let error: RequestError = cause as RequestError;
+
+    if (!(cause instanceof RequestError)) {
+      let message = options.message;
+      let critical = false;
+      let level: sigmate.Logger.Level | undefined = undefined;
+
+      if (!message) {
+        switch (type) {
+          case 'ALREADY ENDED':
+            message = 'Action already ended.';
+            break;
+          case 'PARENT ALREADY ENDED':
+            if (this.parent) {
+              message = `Parent action '${this.parent?.name}' already ended`;
+            } else {
+              message = `Received 'PARENT ALREADY ENDED', but parent action not found.`;
+              level = 'warn';
+            }
+            break;
+          case 'CHILD FAILED':
+            message = "Received 'CHILD FAILED' but child action not found.";
+            level = 'warn';
+            break;
+          case 'TX START FAILED':
+            message = 'Transaction start failed';
+            break;
+          case 'TX COMMIT FAILED':
+            message = 'Transaction commit failed';
+            level = 'warn';
+            break;
+          case 'TX ROLLBACK FAILED':
+            message = 'Transaction rollback failed';
+            critical = true;
+            break;
+          default:
+            message = 'Unexpected ActionError';
+            critical = true;
+            break;
+        }
+      }
+
+      error = new ActionError({
+        action: this,
+        message,
+        critical,
+        level,
+        cause,
+        status: 500,
+      });
+    }
+
     this.onEnd();
+
+    if (this.parent) {
+      // Children: Ask parent to solve their problems for them
+      await this.parent.onError({ type: 'CHILD FAILED', error });
+    } else {
+      // Parents
+      if (this.transaction && type !== 'TX ROLLBACK FAILED') {
+        try {
+          await this.transaction.rollback();
+        } catch (txError) {
+          this.onError({ type: 'TX ROLLBACK FAILED', error: txError });
+        }
+      }
+
+      // Throw the error (to be logged elsewhere)
+      throw error;
+    }
   }
 }
