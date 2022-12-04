@@ -49,6 +49,7 @@ import VerificationType from './VerificationType';
 import WaitingList from './WaitingList';
 import UserPoint from './UserPoint';
 import UserPointPolicy from './UserPointPolicy';
+import DiscordAccounts from './DiscordAccount';
 
 const config = databaseConfig[process.env.NODE_ENV];
 
@@ -90,6 +91,7 @@ const initDatabase = () => {
     CollectionCategory,
     CollectionUtility,
     DiscordAnnouncement,
+    DiscordAccounts,
     Document,
     DocumentAudit,
     DocumentAuditCategory,
