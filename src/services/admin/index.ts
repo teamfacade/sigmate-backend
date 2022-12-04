@@ -63,11 +63,17 @@ export const postConfirmedCollectionController = async (
   try {
     const user = req.user;
     const device = req.device;
-    const { collectionId, discordUrl, discordChannel, twitterHandle } =
-      req.body;
+    const {
+      collectionId,
+      discordAccountId,
+      discordUrl,
+      discordChannel,
+      twitterHandle,
+    } = req.body;
     const twitterChannel = await getTwitterId(twitterHandle);
     const channel = await createConfirmedChannel(
       collectionId,
+      discordAccountId,
       discordChannel,
       twitterChannel,
       twitterHandle
@@ -98,11 +104,17 @@ export const updateConfirmedCollectionController = async (
   try {
     const user = req.user;
     const device = req.device;
-    const { collectionId, discordUrl, discordChannel, twitterHandle } =
-      req.body;
+    const {
+      collectionId,
+      discordAccountId,
+      discordUrl,
+      discordChannel,
+      twitterHandle,
+    } = req.body;
     const twitterChannel = await getTwitterId(twitterHandle);
     const updatedChannel = await updateChannel(
       collectionId,
+      discordAccountId,
       twitterChannel,
       discordChannel,
       twitterHandle

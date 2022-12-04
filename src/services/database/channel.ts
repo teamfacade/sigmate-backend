@@ -14,6 +14,7 @@ export const getAllChannels = async () => {
 
 export const updateChannel = async (
   collectionId: number,
+  discordAccountId: number,
   twitterChannel: string,
   discordChannel: string,
   twitterHandle: string
@@ -21,7 +22,9 @@ export const updateChannel = async (
   try {
     const ch = await Channel.findOne({ where: { collectionId } });
     if (!ch) throw new NotFoundError('ERR_CL_NOT_FOUND');
-
+    if (discordAccountId) {
+      ch.set('discordAccountId', discordAccountId);
+    }
     if (twitterChannel) {
       ch.set('twitterChannel', twitterChannel);
     }
