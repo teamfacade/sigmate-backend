@@ -19,8 +19,8 @@ export interface UserGroupAttribs {
 type UserGroupCAttribs = Optional<UserGroupAttribs, 'id'>;
 
 @Table({
-  modelName: 'user_groups',
-  tableName: 'UserGroup',
+  modelName: 'UserGroup',
+  tableName: 'user_groups',
   timestamps: false,
   underscored: true,
   paranoid: false,

@@ -1,8 +1,10 @@
 import { NextFunction, Request, Response } from 'express';
+import { validationResult } from 'express-validator';
 import { v4 as uuidv4 } from 'uuid';
 import onHeaders from 'on-headers';
 import Service from './Service';
 import { RequestStatus } from '../utils/status';
+import Logger from './logger';
 
 type RequestOptions = {
   req: Request;
@@ -11,12 +13,15 @@ type RequestOptions = {
 
 type SendOptions = {
   status?: number;
-  json?: Record<string, unknown>;
+  json?: object;
 };
 
 export default class RequestService extends Service {
+  static logger: Logger;
+
   static start() {
     this.status = RequestService.STATE.STARTED;
+    this.logger = new Logger();
   }
 
   public static mw() {
@@ -46,7 +51,7 @@ export default class RequestService extends Service {
     return this.req.method;
   }
   get endpoint() {
-    return (this.req.route.path as string) || '';
+    return this.req.route?.path || this.req.originalUrl || '';
   }
   get query() {
     return this.req.query;
@@ -83,18 +88,22 @@ export default class RequestService extends Service {
   get serviceStatus() {
     return RequestService.status;
   }
+  logger: Logger;
 
   constructor(options: RequestOptions) {
     super();
     this.req = options.req;
     this.res = options.res;
+    this.logger = RequestService.logger;
+    this.logger.log({ request: this });
   }
 
   /** Event handler: on response send */
   async onSend(res: Response) {
     const contentLength =
       (res.getHeader('Content-Length') as string | undefined) || '0';
-    const size = Number.parseInt(contentLength);
+    let size = Number.parseInt(contentLength);
+    if (isNaN(size)) size = 0;
     if (!this.response) {
       this.response = {
         size,
@@ -109,13 +118,15 @@ export default class RequestService extends Service {
     } else {
       this.status = RequestStatus.FAILED;
     }
+    this.__duration = performance.now() - this.__duration;
+    this.logger.log({ request: this });
   }
   /**
    * Response send method to use instead of built-in Express methods
    * so that the response body can be captured and logged
    */
   send(options: SendOptions) {
-    const { status = 200, json: body } = options;
+    const { status = 200, json: body = {} } = options;
     if (!this.response) {
       this.response = {
         size: 0,
@@ -125,6 +136,14 @@ export default class RequestService extends Service {
     } else {
       this.response.body = body;
     }
-    this.res.status(status).json(body || {});
+    const response: Record<string, unknown> = {
+      requestId: this.id,
+      ...body,
+    };
+    const errors = validationResult(this.req);
+    if (!errors.isEmpty()) {
+      response.validationErrors = errors.array();
+    }
+    this.res.status(status).json(response);
   }
 }

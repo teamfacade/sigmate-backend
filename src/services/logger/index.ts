@@ -17,14 +17,20 @@ import ActionError from '../errors/ActionError';
 import RequestError from '../errors/RequestError';
 import DatabaseError from '../errors/DatabaseError';
 import { ServerStatus } from '../../utils/status';
+import { Identifier } from 'sequelize/types';
 
 type ErrorTypes = 'INIT' | 'NOT_STARTED' | 'LOGGER_CLOSE';
 
-type LogArgs = {
+type LogArgs<
+  TPKT extends Identifier = number,
+  SPKT extends Identifier = number,
+  PTPKT extends Identifier = TPKT,
+  PSPKT extends Identifier = SPKT
+> = {
   server?: Server;
   service?: Service;
   request?: Request;
-  action?: Action;
+  action?: Action<TPKT, SPKT, PTPKT, PSPKT>;
   message?: string;
   error?: unknown;
 };
@@ -70,7 +76,7 @@ export default class Logger extends Service {
   private static printableLog = printf((info) => {
     const { timestamp, level } = info;
     const message = formatMessage(info as sigmate.Logger.Info);
-    return `${timestamp} ${padLevels(level.toUpperCase(), 7)} ${message}`;
+    return `${timestamp} ${padLevels(level, 7)} ${message}`;
   });
 
   private static dynamoLog = format((info) => {
@@ -186,16 +192,16 @@ export default class Logger extends Service {
     }
 
     const dl = winston.createLogger({
-      level: 'debug',
-      format: combine(timestamp({ format: 'HH:mm:ss' }), Logger.printableLog),
+      level: process.env.DEBUG_LOG_LEVEL || 'debug',
+      format: combine(
+        timestamp({ format: 'HH:mm:ss' }),
+        Logger.printableLog,
+        Logger.colorizeLog
+      ),
     });
 
     if (console) {
-      dl.add(
-        new winston.transports.Console({
-          format: Logger.colorizeLog,
-        })
-      );
+      dl.add(new winston.transports.Console());
     }
 
     Logger.debugLogger = dl;
@@ -221,161 +227,6 @@ export default class Logger extends Service {
         break;
     }
     Logger.status = Logger.STATE.STARTED;
-    // TODO Log service started
-  }
-
-  private getServerInfo(
-    server: Server | undefined
-  ): sigmate.Logger.Info['server'] {
-    if (!server) return undefined;
-    return {
-      name: server.name,
-      status: server.status,
-    };
-  }
-
-  private getServiceInfo(
-    service: Service | undefined
-  ): sigmate.Logger.Info['service'] {
-    if (!service) return undefined;
-    return {
-      name: service.name,
-      status: service.serviceStatus,
-    };
-  }
-
-  private getActionInfo(
-    action: Action | undefined
-  ): sigmate.Logger.Info['action'] {
-    if (!action) return undefined;
-    return {
-      type: action.type,
-      name: action.name,
-      status: action.status,
-      target: action.target
-        ? {
-            model: action.target.model.name,
-            id: `${action.target.id}`,
-          }
-        : undefined,
-      source: action.source
-        ? {
-            model: action.source.model.name,
-            id: `${action.source.id}`,
-          }
-        : undefined,
-      data: action.data,
-    };
-  }
-
-  private getRequestInfo(
-    request: Request | undefined
-  ): sigmate.Logger.Info['request'] {
-    if (!request) return undefined;
-    return {
-      method: request.method,
-      endpoint: request.endpoint,
-      size: request.size,
-      query: request.query,
-      params: request.params,
-      body: request.body,
-      response: request.response
-        ? {
-            status: request.response.status,
-            size: request.response.size,
-            body: request.response.body,
-          }
-        : undefined,
-    };
-  }
-
-  private getErrorInfo(error: unknown): sigmate.Logger.Info {
-    let level: sigmate.Logger.Level = 'warn';
-    let message = 'UNCAUGHT_ERROR';
-
-    if (error instanceof ServerError) {
-      level = error.level;
-      message = error.critical ? '<CRITICAL>' : '';
-    }
-
-    if (error instanceof ActionError) {
-      return {
-        level,
-        message,
-        action: this.getActionInfo(error.action),
-        error,
-      };
-    } else if (error instanceof RequestError) {
-      return {
-        level,
-        message,
-        request: this.getRequestInfo(error.request),
-        error,
-      };
-    } else if (error instanceof DatabaseError) {
-      return {
-        level,
-        message,
-        service: this.getServiceInfo(error.database),
-        error,
-      };
-    } else if (error instanceof LoggerError) {
-      return {
-        level,
-        message,
-        service: this.getServiceInfo(this),
-        error,
-      };
-    } else if (error instanceof ServerError) {
-      return {
-        level,
-        message,
-        server: this.getServerInfo(error.server),
-        error,
-      };
-    } else if (error instanceof Error) {
-      return {
-        level,
-        message,
-        error,
-      };
-    } else {
-      return {
-        level: 'error',
-        message: 'UNEXPECTED_ERROR_TYPE',
-      };
-    }
-  }
-
-  public async log(args: LogArgs) {
-    const { server, service, request, action, error } = args;
-    let info: sigmate.Logger.Info;
-    if (error) {
-      info = this.getErrorInfo(error);
-    } else {
-      info = {
-        level: 'info',
-        message: args.message || '',
-      };
-      if (server) {
-        info.server = this.getServerInfo(server);
-        if (server.status <= ServerStatus.STARTING) {
-          info.level = 'debug';
-        }
-      } else if (service) {
-        info.service = this.getServiceInfo(service);
-        info.level = 'debug';
-      } else if (request) {
-        info.request = this.getRequestInfo(request);
-        info.level = 'http';
-      } else if (action) {
-        info.action = this.getActionInfo(action);
-        info.level = 'verbose';
-      }
-    }
-    this.issueLogger?.log(info);
-    this.analyticsLogger?.log(info);
-    this.debugLogger?.log(info);
   }
 
   /**
@@ -499,5 +350,177 @@ export default class Logger extends Service {
   }
   get onError() {
     return Logger.onError;
+  }
+
+  private getServerInfo(
+    server: Server | undefined
+  ): sigmate.Logger.Info['server'] {
+    if (!server) return undefined;
+    return {
+      name: server.name,
+      status: server.status,
+    };
+  }
+
+  private getServiceInfo(
+    service: Service | undefined
+  ): sigmate.Logger.Info['service'] {
+    if (!service) return undefined;
+    return {
+      name: service.name,
+      status: service.serviceStatus,
+    };
+  }
+
+  private getActionInfo<
+    TPKT extends Identifier = number,
+    SPKT extends Identifier = number,
+    PTPKT extends Identifier = TPKT,
+    PSPKT extends Identifier = SPKT
+  >(
+    action: Action<TPKT, SPKT, PTPKT, PSPKT> | undefined
+  ): sigmate.Logger.Info['action'] {
+    if (!action) return undefined;
+    return {
+      type: action.type,
+      name: action.name,
+      status: action.status,
+      target: action.target
+        ? {
+            model: action.target.model.name,
+            id: `${action.target.id}`,
+          }
+        : undefined,
+      source: action.source
+        ? {
+            model: action.source.model.name,
+            id: `${action.source.id}`,
+          }
+        : undefined,
+      data: action.data,
+      depth: action.depth,
+    };
+  }
+
+  private getRequestInfo(
+    request: Request | undefined
+  ): sigmate.Logger.Info['request'] {
+    if (!request) return undefined;
+    return {
+      method: request.method,
+      endpoint: request.endpoint,
+      size: request.size,
+      query: request.query,
+      params: request.params,
+      body: request.body,
+      response: request.response
+        ? {
+            status: request.response.status,
+            size: request.response.size,
+            body: request.response.body,
+          }
+        : undefined,
+    };
+  }
+
+  private getErrorInfo(error: unknown): sigmate.Logger.Info {
+    let level: sigmate.Logger.Level | undefined = undefined;
+    let message = '<UNCAUGHT>';
+
+    if (error instanceof ServerError) {
+      level = error.level;
+      message = error.critical ? '<CRITICAL>' : '';
+    }
+
+    if (error instanceof ActionError) {
+      return {
+        level: level || 'verbose',
+        message,
+        action: this.getActionInfo(error.action),
+        error,
+      };
+    } else if (error instanceof RequestError) {
+      return {
+        level: level || 'http',
+        message,
+        request: this.getRequestInfo(error.request),
+        error,
+      };
+    } else if (error instanceof DatabaseError) {
+      return {
+        level: level || 'debug',
+        message,
+        service: this.getServiceInfo(error.database),
+        error,
+      };
+    } else if (error instanceof LoggerError) {
+      return {
+        level: level || 'debug',
+        message,
+        service: this.getServiceInfo(this),
+        error,
+      };
+    } else if (error instanceof ServerError) {
+      return {
+        level: level || 'warn',
+        message,
+        server: this.getServerInfo(error.server),
+        error,
+      };
+    } else if (error instanceof Error) {
+      return {
+        level: level || 'warn',
+        message,
+        error,
+      };
+    } else {
+      return {
+        level: 'error',
+        message: 'UNEXPECTED_ERROR_TYPE',
+      };
+    }
+  }
+
+  public async log<
+    TPKT extends Identifier = number,
+    SPKT extends Identifier = number,
+    PTPKT extends Identifier = TPKT,
+    PSPKT extends Identifier = SPKT
+  >(args: LogArgs<TPKT, SPKT, PTPKT, PSPKT>) {
+    const { server, service, request, action, error } = args;
+    let info: sigmate.Logger.Info;
+    if (error) {
+      info = this.getErrorInfo(error);
+    } else {
+      info = {
+        level: 'info',
+        message: args.message || '',
+      };
+      if (server) {
+        info.server = this.getServerInfo(server);
+        if (server.status <= ServerStatus.STARTING) {
+          info.level = 'debug';
+        }
+      } else if (service) {
+        info.service = this.getServiceInfo(service);
+        info.level = 'debug';
+      } else if (request) {
+        info.request = this.getRequestInfo(request);
+        info.id = {
+          default: request.id,
+        };
+        // TODO auth user and device IDs
+        info.level = 'http';
+        info.duration = request.duration;
+      } else if (action) {
+        info.action = this.getActionInfo(action);
+        // TODO auth user and device IDs
+        info.level = action.ended ? 'verbose' : 'debug';
+        info.duration = action.duration;
+      }
+    }
+    this.issueLogger?.log(info);
+    this.analyticsLogger?.log(info);
+    this.debugLogger?.log(info);
   }
 }

@@ -12,10 +12,11 @@ import {
   BelongsTo,
   HasMany,
   BelongsToMany,
+  HasOne,
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
 import isLocale from 'validator/lib/isLocale';
-import { MYSQL_TEXT_MAX_LENGTH } from '../middlewares/validators/common';
+import { MYSQL_TEXT_MAX_LENGTH } from '../middlewares/validators';
 import Device from './Device.model';
 import UserAuth, { UserAuthAttribs } from './UserAuth.model';
 import UserDevice from './UserDevice.model';
@@ -43,18 +44,19 @@ export interface UserAttribs {
   // Profile
   displayName?: string;
   bio?: string;
-  profileImageUrl?: string; // external image
+  profileImageUrl?: string | null; // external image
   // profileImage?: any; // TODO uploaded image
 
   metamaskWallet?: string;
-  isMetamaskVerified?: boolean;
-  googleAccount?: string;
+  isMetamaskVerified?: boolean | null;
+  /** Email of Google OAuth account */
+  googleAccount?: string | null;
   /** ID for Google OAuth */
-  googleAccountId?: string;
+  googleAccountId?: string | null;
   twitterHandle?: string;
   discordAccount?: string;
 
-  isMetamaskWalletPublic: boolean;
+  isMetamaskWalletPublic: boolean | null;
   isTwitterHandlePublic: boolean;
   isDiscordAccountPublic: boolean;
 
@@ -254,7 +256,6 @@ export default class User extends Model<UserAttribs, UserCAttribs> {
   @Column(DataType.DATE)
   agreeLegal: UserAttribs['agreeLegal'];
 
-  @AllowNull(false)
   @Unique('referralCode')
   @Column(
     DataType.STRING(USER_REFERRAL_CODE_LENGTH + USER_DELETE_SUFFIX_LENGTH)
@@ -273,6 +274,10 @@ export default class User extends Model<UserAttribs, UserCAttribs> {
   @BelongsTo(() => UserGroup, 'groupId')
   group: UserAttribs['group'];
 
-  @BelongsTo(() => UserAuth, { as: 'auth', foreignKey: 'authId' })
+  @HasOne(() => UserAuth, {
+    as: 'auth',
+    foreignKey: 'userId',
+    onDelete: 'CASCADE',
+  })
   auth: UserAttribs['auth'];
 }

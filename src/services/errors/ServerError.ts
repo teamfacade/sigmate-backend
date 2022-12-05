@@ -17,16 +17,16 @@ export default class ServerError extends Error {
    */
   critical = false;
   /**
-   * Log level to override the default settings
+   * Log level to override the default log level settings
    */
-  level: sigmate.Logger.Level;
+  level?: sigmate.Logger.Level;
 
   constructor(options: sigmate.Error.ServerErrorOptions) {
     const { name, message, critical, cause, level } = options;
     super(message);
     this.name = name;
     this.critical = critical || false;
-    this.level = level || (critical ? 'error' : 'warn');
+    this.level = level;
     if (cause) this.cause = cause;
   }
 }

@@ -1,8 +1,9 @@
 import { Transaction, ModelStatic, Model, Identifier } from 'sequelize/types';
 import { ActionStatus } from '../utils/status';
 import Database from './Database';
+import Logger from './logger';
 import ActionError from './errors/ActionError';
-import RequestError from './errors/RequestError';
+import ServerError from './errors/ServerError';
 
 export const ActionTypes = Object.freeze({
   SERVICE: 0,
@@ -22,12 +23,17 @@ type ActionObject<
   id?: PrimaryKeyType;
 };
 
-type ActionOptions<TPKT extends Identifier, SPKT extends Identifier> = {
+type ActionOptions<
+  TPKT extends Identifier,
+  SPKT extends Identifier,
+  PTPKT extends Identifier,
+  PSPKT extends Identifier
+> = {
   type?: typeof ActionTypes[keyof typeof ActionTypes];
   /** Name of the action (for logging) */
   name: string;
   /** Auth instance to authorize the action with */
-  // TODO AuthService
+  // TODO auth: AuthService
   /**
    * If set to `true`, a managed transaction will be started.
    * If provided with a started Transaction instance, the transaction will be used.
@@ -42,6 +48,7 @@ type ActionOptions<TPKT extends Identifier, SPKT extends Identifier> = {
   isLastChild?: boolean;
   target?: ActionObject<TPKT>;
   source?: ActionObject<SPKT>;
+  parent?: Action<PTPKT, PSPKT>;
 };
 
 type ErrorTypes =
@@ -75,6 +82,8 @@ export default class Action<
   name: string;
   status: typeof ActionStatus[keyof typeof ActionStatus];
   database: Database;
+  logger: Logger;
+  httpStatusCode?: number;
   // TODO auth: AuthService;
   get started() {
     return this.status >= Action.STATE.STARTED;
@@ -114,9 +123,20 @@ export default class Action<
    */
   error: unknown = undefined;
 
-  target?: ActionObject<TPKT>;
-  source?: ActionObject<SPKT>;
-
+  __target?: ActionObject<TPKT>;
+  get target() {
+    return this.__target?.id ? this.__target : undefined;
+  }
+  set target(value) {
+    this.__target = value;
+  }
+  __source?: ActionObject<SPKT>;
+  get source() {
+    return this.__source?.id ? this.__source : undefined;
+  }
+  set source(value) {
+    this.__source = value;
+  }
   // Compound actions (actions consisting of multiple sub-actions)
   /**
    * The parent action that spawned this action
@@ -135,33 +155,35 @@ export default class Action<
    * Data to write to the logs for debugging
    */
   data?: Record<string, unknown>;
+  depth: number;
 
-  constructor(options: ActionOptions<TPKT, SPKT>) {
-    const { type, name, transaction, isLastChild, target, source } = options;
+  constructor(options: ActionOptions<TPKT, SPKT, PTPKT, PSPKT>) {
+    const { type, name, transaction, isLastChild, target, source, parent } =
+      options;
     this.type = type || Action.TYPE.SERVICE;
     this.name = name;
     this.status = Action.STATE.INITIALIZED;
-    this.database = new Database();
-    // TODO this.auth = new Auth();
+    this.database = parent ? parent.database : new Database();
+    this.logger = parent ? parent.logger : new Logger();
+    // TODO this.auth = parent ? parent.auth : options.auth;
     this.isLastChild = isLastChild;
     this.target = target;
     this.source = source;
-    if (this.transaction) {
+    this.depth = 0;
+    if (parent) {
+      this.isManagedTx = false;
+      this.transaction = parent.transaction;
+      this.parent = parent;
+      parent.children.push(this);
+      this.depth = parent.depth + 1;
+    }
+    if (transaction) {
       if (typeof transaction === 'boolean') {
-        this.isManagedTx = true;
+        if (!parent) this.isManagedTx = true;
       } else {
         this.isManagedTx = false;
-        this.transaction = transaction;
+        this.transaction = parent?.transaction || transaction;
       }
-    }
-  }
-
-  public reset() {
-    this.status = Action.STATE.INITIALIZED;
-    this.__duration = undefined;
-    this.error = undefined;
-    if (this.isManagedTx) {
-      this.transaction = undefined;
     }
   }
 
@@ -170,54 +192,68 @@ export default class Action<
     this.__duration = performance.now();
     if (this.isManagedTx && !this.transaction) {
       try {
-        this.transaction = await Database.transaction();
+        this.transaction = await this.database.sequelize.transaction();
       } catch (error) {
         this.onError({ type: 'TX START FAILED', error });
       }
     }
     this.status = Action.STATE.STARTED;
+    this.logger.log({ action: this });
   }
 
-  public createChild<CTPKT extends Identifier, CSPKT extends Identifier>(
-    options: Omit<ActionOptions<CTPKT, CSPKT>, 'auth' | 'transaction'>
-  ) {
-    const child = new Action<CTPKT, CSPKT, TPKT, SPKT>({
-      ...options,
-      // TODO auth: this.auth,
-      transaction: this.transaction,
-    });
-    this.children.push(child);
-    child.parent = this;
-    return child;
+  public setTarget(target: Partial<ActionObject<TPKT>>) {
+    const model = this.__target?.model || target.model;
+    if (model) {
+      this.target = {
+        model,
+        id: this.target?.id || target.id,
+      };
+    } else {
+      this.onError({
+        message: 'Cannot set target. Set target model first.',
+      });
+    }
   }
 
-  public setTarget(target: ActionObject<TPKT>) {
-    this.target = { ...this.target, ...target };
-  }
-
-  public setSource(source: ActionObject<SPKT>) {
-    this.source = { ...this.source, ...source };
+  public setSource(source: Partial<ActionObject<SPKT>>) {
+    const model = this.__source?.model || source.model;
+    if (model) {
+      this.source = {
+        model,
+        id: this.source?.id || source.id,
+      };
+    } else {
+      this.onError({
+        message: 'Cannot set source. Set source model first.',
+      });
+    }
   }
 
   public async run<T>(
     worker: (
-      action: typeof this,
-      transaction: typeof this.transaction
+      transaction: typeof this.transaction,
+      action: typeof this
     ) => Promise<T>
   ) {
-    if (this.ended || this.parent?.ended) return;
+    if (this.ended) {
+      this.onError({ type: 'ALREADY ENDED' });
+    }
+    if (this.parent?.ended) {
+      this.onError({ type: 'PARENT ALREADY ENDED' });
+    }
     if (!this.started) await this.start();
+    // TODO Authorize action
     let res: Awaited<ReturnType<typeof worker>>;
     try {
       if (this.type === Action.TYPE.DATABASE) {
-        res = await this.database.run(() => worker(this, this.transaction));
+        res = await this.database.run(() => worker(this.transaction, this));
       } else {
-        res = await worker(this, this.transaction);
+        res = await worker(this.transaction, this);
       }
       await this.onFinish();
       return res;
     } catch (error) {
-      await this.onError({ error });
+      this.onError({ error });
     }
   }
 
@@ -226,93 +262,94 @@ export default class Action<
   }
 
   private async onFinish() {
+    if (this.status === Action.STATE.FINISHED) return;
     if (!this.parent) {
       try {
         await this.transaction?.commit();
       } catch (error) {
-        await this.onError({ type: 'TX COMMIT FAILED', error });
+        this.onError({ type: 'TX COMMIT FAILED', error });
       }
     }
     this.status = Action.STATE.FINISHED;
     this.onEnd();
+    this.logger.log({ action: this });
     if (this.parent && this.isLastChild) {
       await this.parent.onFinish();
     }
   }
 
-  private async onError(options: sigmate.Error.HandlerOptions<ErrorTypes>) {
+  public onError(options: sigmate.Error.HandlerOptions<ErrorTypes>): never {
     this.status = Action.STATE.FAILED;
 
     const { type, error: cause } = options;
-    let error: RequestError = cause as RequestError;
-
-    if (!(cause instanceof RequestError)) {
-      let message = options.message;
-      let critical = false;
-      let level: sigmate.Logger.Level | undefined = undefined;
-
-      if (!message) {
-        switch (type) {
-          case 'ALREADY ENDED':
-            message = 'Action already ended.';
-            break;
-          case 'PARENT ALREADY ENDED':
-            if (this.parent) {
-              message = `Parent action '${this.parent?.name}' already ended`;
-            } else {
-              message = `Received 'PARENT ALREADY ENDED', but parent action not found.`;
-              level = 'warn';
-            }
-            break;
-          case 'CHILD FAILED':
-            message = "Received 'CHILD FAILED' but child action not found.";
-            level = 'warn';
-            break;
-          case 'TX START FAILED':
-            message = 'Transaction start failed';
-            break;
-          case 'TX COMMIT FAILED':
-            message = 'Transaction commit failed';
-            level = 'warn';
-            break;
-          case 'TX ROLLBACK FAILED':
-            message = 'Transaction rollback failed';
-            critical = true;
-            break;
-          default:
-            message = 'Unexpected ActionError';
-            critical = true;
-            break;
-        }
-      }
-
-      error = new ActionError({
-        action: this,
-        message,
-        critical,
-        level,
-        cause,
-        status: 500,
-      });
+    let message = options.message;
+    const critical = true;
+    let level: sigmate.Logger.Level | undefined = undefined;
+    if (cause instanceof ServerError) {
+      if (cause.level) level = cause.level;
     }
+    if (cause instanceof ActionError) {
+      if (cause.action?.name) {
+        message =
+          `Child action '${cause.action.name}' failed` +
+          (message ? ` ${message}` : '');
+      }
+    }
+
+    switch (type) {
+      case 'ALREADY ENDED':
+        message = 'Action already ended.';
+        break;
+      case 'PARENT ALREADY ENDED':
+        if (this.parent) {
+          message = `Parent action '${this.parent.name}' already ended`;
+        } else {
+          message = `Received 'PARENT ALREADY ENDED', but parent action not found.`;
+          level = 'warn';
+        }
+        break;
+      case 'TX START FAILED':
+        message = 'Transaction start failed';
+        break;
+      case 'TX COMMIT FAILED':
+        message = 'Transaction commit failed';
+        level = 'warn';
+        break;
+      case 'TX ROLLBACK FAILED':
+        message = 'Transaction rollback failed';
+        break;
+      default:
+        message = message || 'Unexpected ActionError';
+        break;
+    }
+
+    const error = new ActionError({
+      level,
+      message,
+      critical,
+      action: this,
+      cause,
+      status: this.httpStatusCode,
+    });
 
     this.onEnd();
-
-    if (this.parent) {
-      // Children: Ask parent to solve their problems for them
-      await this.parent.onError({ type: 'CHILD FAILED', error });
-    } else {
+    if (!this.parent) {
       // Parents
-      if (this.transaction && type !== 'TX ROLLBACK FAILED') {
-        try {
-          await this.transaction.rollback();
-        } catch (txError) {
-          this.onError({ type: 'TX ROLLBACK FAILED', error: txError });
-        }
+      if (this.transaction?.rollback && type !== 'TX ROLLBACK FAILED') {
+        this.transaction
+          .rollback()
+          .then(() => {
+            this.logger.log({ error });
+          })
+          .catch((error) => {
+            this.onError({ type: 'TX ROLLBACK FAILED', error });
+          });
+      } else {
+        this.logger.log({ error });
       }
-
-      // Throw the error (to be logged elsewhere)
-      throw error;
+    } else {
+      this.logger.log({ action: this });
     }
+    throw error;
   }
 }

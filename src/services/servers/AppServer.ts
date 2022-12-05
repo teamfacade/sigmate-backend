@@ -13,6 +13,10 @@ import Logger from '../logger';
 import { ServerStatus } from '../../utils/status';
 import Database from '../Database';
 import RequestService from '../Request';
+import v2Router from '../../routes/api/v2';
+import awsRouter from '../../routes/aws';
+import Token from '../auth/Token';
+import User from '../auth/User';
 
 type ErrorTypes = 'INIT';
 
@@ -98,6 +102,18 @@ export default class AppServer extends Server {
     // Start Database
     try {
       await this.db.start();
+      await this.db.sequelize.sync({ force: false, alter: true });
+    } catch (error) {
+      this.onError({ error });
+    }
+    try {
+      RequestService.start();
+    } catch (error) {
+      this.onError({ error });
+    }
+    try {
+      new Token({ type: 'ACCESS', checkStart: false }).start();
+      passport.use(Token.PASSPORT_STRATEGY_JWT);
     } catch (error) {
       this.onError({ error });
     }
@@ -107,16 +123,28 @@ export default class AppServer extends Server {
     app.use(cors());
     app.use(express.json());
     app.use(express.urlencoded({ extended: true }));
-    app.use(requestIp.mw());
-    app.use(passport.initialize());
-    app.use(RequestService.mw());
-    // app.use(logger.mw);
-    // app.use(db.mw);
-    // app.use(auth.mw);
+    app.use('/api/v2', RequestService.mw());
+    app.use('/api/v2', requestIp.mw());
+    app.use('/api/v2', passport.initialize());
+    app.use('/api/v2', (req, res, next) => {
+      passport.authenticate('jwt', { session: false }, (err, user) => {
+        if (err) return next(err);
+        if (user) {
+          req.user = user;
+        } else {
+          req.user = new User();
+        }
+        next();
+      })(req, res, next);
+    });
 
     // TODO setup routers
+    app.use('/api/v2', v2Router);
+    app.use('/aws', awsRouter);
     // TODO setup error handling middlewares
-
+    // app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+    //   res.status(500).json({ success: false });
+    // });
     // Start HTTP server
     this.server = app.listen(process.env.PORT || 5100, this.onStart.bind(this));
     this.app = app;
@@ -184,6 +212,9 @@ export default class AppServer extends Server {
     }
   ): void {
     const { type = 'OTHER', error: cause } = options;
+    // if (process.env.NODE_ENV === 'development') {
+    //   console.error(cause);
+    // }
 
     let error = cause as ServerError;
     const critical = true;

@@ -2,9 +2,9 @@ import {
   AllowNull,
   Column,
   DataType,
-  Index,
   Model,
   Table,
+  Unique,
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
 
@@ -33,7 +33,7 @@ export default class UserAgent extends Model<
   UserAgentAttributes,
   UserAgentCreationAttributes
 > {
-  @Index('uaHash')
+  @Unique('uaHash')
   @Column(DataType.STRING(32))
   uaHash!: UserAgentAttributes['uaHash'];
 

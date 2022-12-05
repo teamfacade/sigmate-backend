@@ -1,7 +1,9 @@
+import util from 'util';
 import { ActionTypes } from '../Action';
 import ServerError from '../errors/ServerError';
 import { printStatus } from '../../utils/status';
 import RequestError from '../errors/RequestError';
+import { BaseError } from 'sequelize';
 
 // File sizes
 const MB = 1024 * 1024;
@@ -31,11 +33,12 @@ const formatSize = (size: number) => {
  * @returns Formatted duration string
  */
 const formatDuration = (duration: number): string => {
-  if (duration < MILLISECOND) {
-    return `${duration}ms`;
-  } else {
-    return `${(duration / MILLISECOND).toFixed(2)}s`;
+  let unit = 'ms';
+  if (duration > MILLISECOND) {
+    duration /= MILLISECOND;
+    unit = 's';
   }
+  return `${duration.toFixed(2)}${unit}`;
 };
 
 const formatErrorMessage = (error: unknown) => {
@@ -44,13 +47,18 @@ const formatErrorMessage = (error: unknown) => {
     if (error.cause) {
       fMessage += `${error.name}: ${error.message}`;
       fMessage += '\n';
-      fMessage += formatErrorMessage(error.cause);
+      if (error.cause instanceof BaseError) {
+        fMessage += util.inspect(error.cause);
+      } else {
+        fMessage += formatErrorMessage(error.cause);
+      }
     } else {
       fMessage += `${error.stack}`;
     }
   } else if (error instanceof Error) {
     fMessage += `${error.stack}`;
   }
+  // fMessage = util.inspect(error);
   return fMessage;
 };
 
@@ -89,13 +97,15 @@ export const formatMessage = (info: sigmate.Logger.Info) => {
     const { method, endpoint, query, params, response } = request;
     if (!response) {
       // REQUEST GET /auth/google 180B    dd701b16-177b-478a-a8c3-512cf6d7b496
-      fMessage += 'REQUEST';
-      fMessage += ` ${method} ${endpoint} ${formatSize(request.size || 0)}`;
+      // fMessage += 'REQUEST';
+      fMessage += `${method} ${endpoint} ${formatSize(request.size || 0)}`;
     } else {
       // RESPONSE 401 /auth/google 362B: USER_NOT_EXIST (300ms)    dd701b16-177b-478a-a8c3-512cf6d7b496
-      fMessage += 'RESPONSE';
+      // fMessage += 'RESPONSE';
       const { status } = response;
-      fMessage += ` ${status} ${endpoint} ${formatSize(response.size || 0)}`;
+      fMessage += `${status} ${method} ${endpoint} ${formatSize(
+        response.size || 0
+      )}`;
       if (status === 500) {
         // Log all the data on unexpected failures
         data.request = { query, params, body: request.body };
@@ -104,6 +114,12 @@ export const formatMessage = (info: sigmate.Logger.Info) => {
     }
   } else if (action) {
     // ACTION 'AUTH_GOOGLE' failed: USER_NOT_EXIST (159ms)    dd701b16-177b-478a-a8c3-512cf6d7b496
+    if (
+      process.env.DEBUG_LOG_LEVEL === 'debug' ||
+      process.env.DEBUG_LOG_LEVEL === 'silly'
+    ) {
+      fMessage += '|  '.repeat(action.depth);
+    }
     fMessage += 'ACTION';
     const { type, name, status, data: info } = action;
     switch (type) {
@@ -140,7 +156,7 @@ export const formatMessage = (info: sigmate.Logger.Info) => {
 
   if (error) {
     if (server || service || request || action) {
-      fMessage += '\n\t';
+      fMessage += '\n';
     }
     fMessage += formatErrorMessage(error);
     if (level === 'silly' || level === 'debug') {
@@ -156,14 +172,14 @@ export const formatMessage = (info: sigmate.Logger.Info) => {
   }
 
   if (Object.keys(data).length > 0) {
-    fMessage += `\n\t${JSON.stringify(data)}`;
+    fMessage += `\n${JSON.stringify(data)}`;
   }
 
   return fMessage;
 };
 
 export const padLevels = (level: string, padLength: number) => {
-  const length = level.length > 7 ? 7 : level.length;
+  const length = level.length > padLength ? padLength : level.length;
   return level + ' '.repeat(padLength - length);
 };
 

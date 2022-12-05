@@ -10,6 +10,9 @@ export default abstract class Service {
   static get closed() {
     return this.status >= ServiceStatus.CLOSING;
   }
+  static get failed() {
+    return this.status === ServiceStatus.FAILED;
+  }
   abstract name: string;
   abstract get serviceStatus(): typeof Service.status;
   // static start()

@@ -34,11 +34,13 @@ export default class DatabaseError extends RequestError {
         // insufficient privileges (Auth fail)
         message = '(Sequelize) Database connection access denied';
         this.status = 403;
+        this.level = 'error';
       } else if (cause instanceof InvalidConnectionError) {
         // Thrown when a connection to a database has invalid values
         // for any of the connection parameters
         message = '(Sequelize) Database connection invalid';
         this.status = 500;
+        this.level = 'error';
       } else if (cause instanceof ConnectionError) {
         // Connection failed due to other reasons: ConnectionAcquireTimeOut,
         // ConnectionRefused, ConnectionTimedOut, HostNotFound, HostNotReachable

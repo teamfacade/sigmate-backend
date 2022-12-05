@@ -1,4 +1,5 @@
 declare namespace sigmate {
+  namespace Auth {}
   namespace Error {
     export type HandlerOptions<T = string> = {
       type?: T | 'OTHER';
@@ -94,7 +95,7 @@ declare namespace sigmate {
         response?: {
           status: number; // HTTP Status code
           size: number; // bytes, size of payload
-          body?: Record<string, any>;
+          body?: unknown;
         };
       };
       action?: {
@@ -110,6 +111,7 @@ declare namespace sigmate {
           id: string;
         };
         data?: Record<string, unknown>;
+        depth: number;
       };
     }
 
@@ -169,7 +171,7 @@ declare namespace sigmate {
       /** response.status: HTTP response status code sent to the client */
       resStatus?: number;
       /** response.body: Response body sent to the client */
-      resBody?: Record<string, any>;
+      resBody?: unknown;
       /** response.size: Size of the HTTP response payload */
       resSize?: number;
 

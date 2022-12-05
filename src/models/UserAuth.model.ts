@@ -1,4 +1,10 @@
-import { Column, DataType, HasOne, Model, Table } from 'sequelize-typescript';
+import {
+  BelongsTo,
+  Column,
+  DataType,
+  Model,
+  Table,
+} from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
 import User from './User.model';
 
@@ -23,7 +29,11 @@ export type UserAuthCAttribs = Optional<UserAuthAttribs, 'id'>;
   collate: 'utf8mb4_general_ci',
 })
 export default class UserAuth extends Model<UserAuthAttribs, UserAuthCAttribs> {
-  @HasOne(() => User, { as: 'user', foreignKey: 'authId' })
+  @BelongsTo(() => User, {
+    as: 'user',
+    foreignKey: 'userId',
+    onDelete: 'CASCADE',
+  })
   user: UserAuthAttribs['user'];
 
   @Column(DataType.INTEGER)
