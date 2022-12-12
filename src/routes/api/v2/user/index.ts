@@ -1,15 +1,14 @@
-import { Router } from 'express';
-import controller from '../../../../controllers';
+import express from 'express';
+import { query } from 'express-validator';
+import userController from '../../../../controllers/api/v2/user';
 
-const userController = controller.api.v2.user;
+const userRouter = express.Router();
 
-const useUserRoutes = (router: Router) => {
-  router
-    .route('/user')
-    .get(userController.getMyInfo)
-    .post(userController.createUser);
+userRouter
+  .route('/')
+  .get(
+    query('all').optional().isBoolean().bail().toBoolean(),
+    userController.getMyInfo
+  );
 
-  router.route('/user/:id').get(userController.getMyInfo);
-};
-
-export default useUserRoutes;
+export default userRouter;

@@ -1,4 +1,4 @@
-import { readFileSync } from 'fs';
+import { readFile } from 'fs';
 import jwt from 'jsonwebtoken';
 import ms from 'ms';
 import {
@@ -9,23 +9,33 @@ import {
 import { DateTime } from 'luxon';
 import isInt from 'validator/lib/isInt';
 import { UserAttribs } from '../../models/User.model';
-import ServerError from '../errors/ServerError';
 import Logger from '../logger';
 import Service from '../Service';
 import User from './User';
 import UserModel from '../../models/User.model';
 import Action from '../Action';
+import TokenError from '../errors/TokenError';
 
-type TokenType = typeof Token['TYPE'];
+type TokenType = typeof Token['TYPES'];
 
 type TokenOptions = {
   type: keyof TokenType;
+  /** User service instance */
   user?: User;
   checkStart?: boolean;
 };
 
 type TokenVerifyDTO = {
-  payload: jwt.JwtPayload;
+  /**
+   * When verifying the given token, use this value as the expected token type,
+   * overriding the value set in this Token instance
+   */
+  expect?: keyof TokenType;
+  /**
+   * A string containing a Sigmate token (JWT) to verify
+   */
+  token?: string;
+  payload?: jwt.JwtPayload;
 };
 
 type TokenGetOptions = {
@@ -33,25 +43,23 @@ type TokenGetOptions = {
   reload?: boolean;
 };
 
-type ErrorTypes =
-  | 'NOT_STARTED'
-  | 'FAILED'
-  | 'INVALID_TOKEN_TYPE'
-  | 'USER_NOT_SET'
-  | 'USER_AUTH_NOT_SET'
-  | 'KEY_LOAD_FAILED';
-
 export default class Token extends Service {
-  public static TYPE = Object.freeze({
+  /** Different types of Sigmate JWTs */
+  public static TYPES = Object.freeze({
     ACCESS: Symbol('TOKEN_ACCESS'),
     REFRESH: Symbol('TOKEN_REFRESH'),
   });
 
+  /** Expiration periods */
   public static EXP: Record<keyof TokenType, string> = Object.freeze({
     ACCESS: '1h',
     REFRESH: '30d',
   });
 
+  /**
+   * Name of the columns in the DB that stores the iat value of the
+   * last issued token, for each token type
+   */
   public static FIELD = Object.freeze({
     ACCESS: 'sigmateAccessTokenIat',
     REFRESH: 'sigmateRefreshTokenIat',
@@ -68,6 +76,11 @@ export default class Token extends Service {
   /** Auth strategy using JWT for passport library */
   public static PASSPORT_STRATEGY_JWT: JwtStrategy;
 
+  /**
+   * Check if the JWT payload is valid and contains all necessary attributes
+   * @param payload JWT payload
+   * @returns Whether payload is valid
+   */
   static validate(payload: jwt.JwtPayload) {
     const { iss, sub, iat, exp } = payload;
     if (iss !== Token.JWT_ISS) return false;
@@ -76,6 +89,9 @@ export default class Token extends Service {
     return true;
   }
 
+  /**
+   * Retrun true if public and secret keys are properly loaded
+   */
   static get areKeysLoaded() {
     return Boolean(Token.PUBLIC_KEY) && Boolean(Token.SECRET_KEY);
   }
@@ -87,33 +103,61 @@ export default class Token extends Service {
   type: keyof TokenType;
   name = 'TOKEN';
   user: User;
-  logger: Logger;
+  /** Shorthand property for the static attribute `logger` */
+  logger?: Logger;
 
   constructor(options: TokenOptions) {
     super();
     const { user, type, checkStart = true } = options;
     if (checkStart && !Token.started) {
-      this.onError({ type: 'NOT_STARTED' });
+      throw new TokenError({ code: 'SERVICE/INIT_BEFORE_START' });
     }
     if (Token.failed) {
-      this.onError({ type: 'FAILED' });
+      throw new TokenError({ code: 'SERVICE/INIT_AFTER_FAIL' });
     }
-    this.logger = new Logger();
+    this.logger = Token.logger;
     this.user = user || new User();
     this.type = type;
   }
 
-  /** Start the Token service */
-  start() {
+  /**
+   * Start the Token service.
+   * Load the keys, initialize `passport` Strategy
+   */
+  async start() {
     Token.status = Token.STATE.STARTING;
-    this.logger.log({ service: this });
+    this.logger?.log({ service: this });
+
+    // Load public key asynchronously
+    const pKeyPrm = new Promise<Buffer>((resolve, reject) => {
+      readFile(process.env.PATH_PUBLIC_KEY, (err, data) => {
+        err ? reject(err) : resolve(data);
+      });
+    });
+
+    // Load secret key asynchronously
+    const sKeyPrm = new Promise<Buffer>((resolve, reject) => {
+      readFile(process.env.PATH_PRIVATE_KEY, (err, data) => {
+        err ? reject(err) : resolve(data);
+      });
+    });
+
     try {
-      Token.SECRET_KEY = readFileSync(process.env.PATH_PRIVATE_KEY);
-      Token.PUBLIC_KEY = readFileSync(process.env.PATH_PUBLIC_KEY);
+      // Load keys simultaneously
+      const [pKey, sKey] = await Promise.all([pKeyPrm, sKeyPrm]);
+      Token.PUBLIC_KEY = pKey;
+      Token.SECRET_KEY = sKey;
     } catch (error) {
-      this.onError({ type: 'KEY_LOAD_FAILED' });
+      const sysErrCode = (error as any)?.code;
+      // ENOENT: File does not exist
+      throw new TokenError({
+        code:
+          sysErrCode === 'ENOENT' ? 'TOKEN/NA_KEY_FILE' : 'TOKEN/ER_KEY_READ',
+        error,
+      });
     }
 
+    // Set Token issuer depending on the environment
     const env = process.env.NODE_ENV;
     switch (env) {
       case 'test':
@@ -128,6 +172,7 @@ export default class Token extends Service {
         break;
     }
 
+    // Initialize passport strategy for JWT
     Token.PASSPORT_STRATEGY_JWT = new JwtStrategy(
       {
         jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
@@ -136,8 +181,11 @@ export default class Token extends Service {
         algorithms: [Token.JWT_ALG],
       },
       async (payload: jwt.JwtPayload, done: VerifiedCallback) => {
+        // Expiration dates and signature have already been checked
         try {
+          // Only access tokens are valid for authentication
           const token = new Token({ type: 'ACCESS' });
+          // Validate and verify paylaod, and find user
           const user = await token.verify({ payload });
           done(null, user);
         } catch (error) {
@@ -145,15 +193,20 @@ export default class Token extends Service {
         }
       }
     );
+
     Token.status = Token.STATE.STARTED;
-    this.logger.log({ service: this });
+    this.logger?.log({ service: this });
   }
 
+  /**
+   * Check token payload and find the user specified in the token payload
+   * @param dto Token payload
+   * @returns Return the User service instance
+   */
   async verify(
     dto: TokenVerifyDTO,
     parentAction: Action | undefined = undefined
   ) {
-    const { payload } = dto;
     const action = new Action({
       type: Action.TYPE.SERVICE,
       name: 'TOKEN_VERIFY',
@@ -161,11 +214,45 @@ export default class Token extends Service {
       parent: parentAction,
     });
     return await action.run(async () => {
-      if (!Token.validate(payload)) return this.user;
+      const { expect, token } = dto;
+      let { payload = {} } = dto;
+
+      if (token) {
+        try {
+          const vPayload = jwt.verify(token, Token.PUBLIC_KEY, {
+            issuer: Token.JWT_ISS,
+            algorithms: [Token.JWT_ALG],
+          });
+          if (typeof vPayload === 'object') {
+            payload = vPayload;
+          } else {
+            throw new TokenError({ code: 'TOKEN/IV_VERIFY_PAYLOAD' });
+          }
+        } catch (error) {
+          if (error instanceof TokenError) throw error;
+          throw new TokenError({ code: 'TOKEN/IV_VERIFY_PAYLOAD', error });
+        }
+      }
+
+      if (!payload) {
+        throw new TokenError({ code: 'TOKEN/IV_VERIFY_PAYLOAD' });
+      }
+
+      // Validate payload
+      if (!Token.validate(payload)) {
+        throw new TokenError({ code: 'TOKEN/IV_VERIFY_PAYLOAD' });
+      }
+
+      // Check token type by checking the expiration time
       const iat = payload.iat as NonNullable<typeof payload.iat>;
       const exp = payload.exp as NonNullable<typeof payload.exp>;
-      const ttl = Math.floor(ms(Token.EXP[this.type]) / 1000);
-      if (ttl !== exp - iat) return this.user;
+      const type = expect || this.type;
+      const ttl = Math.floor(ms(Token.EXP[type]) / 1000);
+      if (ttl !== exp - iat) {
+        throw new TokenError({ code: 'TOKEN/ER_VERIFY_TYPE' });
+      }
+
+      // Look for user in the database
       const sub = payload.sub as NonNullable<typeof payload.sub>;
       const userId = Number.parseInt(sub);
       const userModel = await this.user.find(
@@ -175,7 +262,10 @@ export default class Token extends Service {
         },
         action
       );
-      if (!userModel) return this.user;
+      // User not found
+      if (!userModel) throw new TokenError({ code: 'USER/NF' });
+
+      // Check if the Token is still valid
       let dbIat: number | undefined;
       switch (this.type) {
         case 'ACCESS':
@@ -185,18 +275,25 @@ export default class Token extends Service {
           dbIat = userModel.auth?.sigmateRefreshTokenIat;
           break;
       }
-      if (iat !== dbIat) return this.user;
+      if (iat !== dbIat) {
+        this.user.unset();
+        throw new TokenError({ code: 'TOKEN/ER_VERIFY_IAT' });
+      }
       return this.user;
     });
   }
 
-  private async reloadAuth(parentAction: Action | undefined = undefined) {
-    if (!this.user.model) this.onError({ type: 'USER_NOT_SET' });
-    await this.user.reload({ options: 'AUTH' }, parentAction);
-  }
-
+  /**
+   * Generate a new token for a user with the given iat value
+   * @param iat JWT iat value, UNIX timestamp in seconds
+   * @returns Object containing iat value and generated token
+   */
   private async generate(iat: number | undefined = undefined) {
-    if (!this.user.model) this.onError({ type: 'USER_NOT_SET' });
+    if (!this.user.model)
+      throw new TokenError({
+        code: 'TOKEN/NA_USER',
+        message: 'Token generate failed',
+      });
     const userId = this.user.model.id as UserAttribs['id'];
     const now = DateTime.now().setZone('utc').toMillis();
     iat = iat || Math.floor(now / 1000);
@@ -225,6 +322,10 @@ export default class Token extends Service {
     return { iat, token };
   }
 
+  /**
+   * Generate a new token for a user and update the DB
+   * @returns Generated token
+   */
   public async renew(parentAction: Action | undefined = undefined) {
     const action = new Action({
       name: 'TOKEN_RENEW',
@@ -237,7 +338,11 @@ export default class Token extends Service {
       if (!this.user.model?.auth)
         await this.user.reload({ options: 'AUTH_TOKEN' }, action);
       const auth = this.user.model?.auth;
-      if (!auth) this.onError({ type: 'USER_AUTH_NOT_SET' });
+      if (!auth)
+        throw new TokenError({
+          code: 'TOKEN/NF_USER_AUTH',
+          message: 'Token renew failed',
+        });
       const { iat, token } = await this.generate();
       const field = Token.FIELD[this.type];
       await this.user.updateAuth({ renew: { [field]: iat } }, action);
@@ -245,66 +350,60 @@ export default class Token extends Service {
     });
   }
 
+  public changeType(type: keyof TokenType) {
+    this.type = type;
+  }
+
+  /**
+   * Obtain token for the user by obtaining last valid iat from database and
+   * generating the token using that value.
+   * When using probablistic signing algorithms such as ES256, obtained tokens
+   * will contain the same payload, but the signature may be different with
+   * every generation.
+   *
+   * @param dto.renew Expired tokens will automatically when set to `true`
+   * @param dto.reload User model will reload
+   * @param parentAction
+   * @returns Sigmate token
+   */
   public async getToken(
     dto: TokenGetOptions = {},
     parentAction: Action | undefined = undefined
   ) {
-    await this.user.reload({ options: 'AUTH_TOKEN' }, parentAction);
-    const auth = this.user.model?.auth;
-    if (!auth) this.onError({ type: 'USER_AUTH_NOT_SET' });
-    const { renew = false } = dto;
-    const iat = auth[Token.FIELD[this.type]];
-    if (renew) {
-      const exp = ((iat || 0) + ms(Token.EXP[this.type])) * 1000;
-      const now = DateTime.now().setZone('utc').toMillis();
-      if (now > exp) {
-        return await this.renew(parentAction);
-      }
-    }
-    const { token } = await this.generate(iat);
-    return token;
-  }
+    const action = new Action({
+      name: 'TOKEN_GET',
+      type: Action.TYPE.SERVICE,
+      transaction: true,
+      parent: parentAction,
+    });
 
-  onError(options: sigmate.Error.HandlerOptions<ErrorTypes>): never {
-    const { type, error: cause } = options;
-    let message = options.message || '';
-    let critical = false;
-    switch (type) {
-      case 'NOT_STARTED':
-        message = message || 'Initialized before start';
-        critical = true;
-        break;
-      case 'KEY_LOAD_FAILED':
-        message = message || 'Failed to load keys';
-        critical = true;
-        break;
-      case 'FAILED':
-        message = message || 'Cannot initialize failed service';
-        critical = true;
-        break;
-      case 'INVALID_TOKEN_TYPE':
-        message = message || `Unexpected token type: ${message}`;
-        critical = true;
-        break;
-      case 'USER_NOT_SET':
-        message = message || 'User not set';
-        break;
-      case 'USER_AUTH_NOT_SET':
-        message = message || 'User auth data not found';
-        critical = true;
-        break;
-      default:
-        message = message || 'UNEXPECTED';
-        break;
-    }
-    if (critical) {
-      Token.status = Token.STATE.FAILED;
-    }
-    throw new ServerError({
-      name: 'TokenError',
-      message,
-      critical,
-      cause,
+    return await action.run(async () => {
+      // Check auth data exists
+      const auth = this.user.model?.auth;
+      if (!auth)
+        throw new TokenError({
+          code: 'TOKEN/NF_USER_AUTH',
+          message: 'Token get failed',
+        });
+
+      const { renew = false, reload } = dto;
+      if (reload === false) {
+        await this.user.reload({ options: 'AUTH_TOKEN' }, parentAction);
+      }
+
+      // Get iat from DB
+      const iat = auth[Token.FIELD[this.type]];
+      if (renew) {
+        const exp = ((iat || 0) + ms(Token.EXP[this.type])) * 1000;
+        const now = DateTime.now().setZone('utc').toMillis();
+        // If token is expired, renew it
+        if (now > exp) {
+          return await this.renew(action);
+        }
+      }
+      // If renew did not occur, generate the token using current iat
+      const { token } = await this.generate(iat);
+      return token;
     });
   }
 }

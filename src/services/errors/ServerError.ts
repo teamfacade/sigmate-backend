@@ -1,32 +1,119 @@
-import Server from '../servers/Server';
+import { ERROR_CODES, ErrorLabel, ErrorCode, ErrorDefaults } from '.';
+import { ValidationError as ExpressValidationErrorItem } from 'express-validator';
+
+type ErrorName =
+  | 'ServerError'
+  | 'ServiceError'
+  | 'RequestError'
+  | 'ActionError'
+  | 'DatabaseError'
+  | 'LoggerError'
+  | 'AuthError'
+  | 'GoogleAuthError'
+  | 'MetamaskAuthError'
+  | 'UserError'
+  | 'TokenError';
+
+export interface ServerErrorOptions {
+  name: ErrorName;
+  code?: ErrorCode;
+  error?: unknown;
+  label: ErrorLabel;
+  message?: string;
+  level?: sigmate.Logger.Level;
+  critical?: boolean;
+  httpStatus?: number;
+}
+
+export type ValidationErrorItem = Omit<
+  ExpressValidationErrorItem,
+  'location'
+> & {
+  location: ExpressValidationErrorItem['location'] | 'database';
+};
+
+export type ServerErrorResponse = {
+  success: false;
+  error: {
+    code: string;
+    msg: string;
+  };
+};
 
 export default class ServerError extends Error {
-  static server: Server;
-  server = ServerError.server;
-  /** Name of the error. Used to classify errors in logging */
+  /**
+   * Name of the error that describes the general class of errors
+   */
   name: string;
   /**
-   * The original error that caused this ServerError.
-   * When set, the stack of this Error will also be logged.
+   * Error code that determines the default message, log levels,
+   * critical flag, and http status code.
+   * Also used by frontend code for error handling
    */
+  code: ErrorCode;
   cause?: unknown;
-  /**
-   * Setting this attribute true signifies that this error is
-   * irrecoverable, and the Server, Service, Request, or Action
-   * needs to fail, and shut down.
-   */
-  critical = false;
-  /**
-   * Log level to override the default log level settings
-   */
-  level?: sigmate.Logger.Level;
+  label: ErrorLabel;
+  // message: string;
+  level: sigmate.Logger.Level;
+  critical: boolean;
+  httpStatus: number;
+  validationErrors?: ValidationErrorItem[] = undefined;
+  fields?: string[] = undefined;
 
-  constructor(options: sigmate.Error.ServerErrorOptions) {
-    const { name, message, critical, cause, level } = options;
+  constructor(options: ServerErrorOptions) {
+    const {
+      name,
+      label,
+      code = 'UNKNOWN/ER_UNHANDLED',
+      error: cause,
+    } = options;
+
+    const {
+      message,
+      level,
+      critical,
+      status: httpStatus,
+    } = ServerError.getErrorDefaults(options);
+
     super(message);
-    this.name = name;
-    this.critical = critical || false;
+    this.name = name || 'ServerError';
+    this.label = label;
+    this.code = code;
+    this.cause = cause;
     this.level = level;
-    if (cause) this.cause = cause;
+    this.critical = critical;
+    this.httpStatus = httpStatus;
+  }
+
+  static getErrorDefaults(
+    options: Partial<ServerErrorOptions>
+  ): Required<ErrorDefaults> {
+    const { code = 'UNKNOWN/ER_UNHANDLED' } = options;
+    let { message = '', level, critical, httpStatus: status } = options;
+
+    const defaults = ERROR_CODES[code];
+    if (defaults.message) {
+      message = message ? `${defaults.message}. ${message}` : defaults.message;
+    }
+    if (defaults.level) {
+      level = level || defaults.level;
+    }
+    if (defaults.critical !== undefined) {
+      critical = critical === undefined ? defaults.critical : critical;
+    }
+    if (defaults.status) {
+      status = status || defaults.status;
+    }
+
+    if (!level) level = 'error';
+    if (critical === undefined) critical = true;
+    if (!status) status = 500;
+
+    return {
+      message,
+      level,
+      critical,
+      status,
+    };
   }
 }

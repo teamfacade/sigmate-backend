@@ -1,38 +1,22 @@
-import { NextFunction, Request, Response } from 'express';
-import { validationResult } from 'express-validator';
+import { Request, Response } from 'express';
 import { v4 as uuidv4 } from 'uuid';
-import onHeaders from 'on-headers';
 import Service from './Service';
 import { RequestStatus } from '../utils/status';
 import Logger from './logger';
+import ServerError from './errors/ServerError';
 
 type RequestOptions = {
-  req: Request;
-  res: Response;
+  req: Request; // Express request
+  res: Response; // Express response
 };
 
-type SendOptions = {
-  status?: number;
-  json?: object;
-};
+export const PG_DEFAULT_LIMIT = 50;
 
 export default class RequestService extends Service {
-  static logger: Logger;
+  static logger?: Logger;
 
-  static start() {
-    this.status = RequestService.STATE.STARTED;
-    this.logger = new Logger();
-  }
-
-  public static mw() {
-    return (req: Request, res: Response, next: NextFunction) => {
-      req.service = new RequestService({ req, res });
-      onHeaders(res, () => {
-        req.service.onSend(res);
-      });
-      res.service = req.service;
-      next();
-    };
+  public static start() {
+    this.status = this.STATE.STARTED;
   }
 
   id = uuidv4();
@@ -40,7 +24,7 @@ export default class RequestService extends Service {
   status = RequestStatus.STARTED;
   req: Request; // Express request
   res: Response; // Express response
-  __duration = performance.now();
+  private __duration = performance.now();
   get duration() {
     if (this.status >= RequestStatus.FINISHED) {
       return this.__duration;
@@ -51,7 +35,7 @@ export default class RequestService extends Service {
     return this.req.method;
   }
   get endpoint() {
-    return this.req.route?.path || this.req.originalUrl || '';
+    return this.req.originalUrl || this.req.url || '';
   }
   get query() {
     return this.req.query;
@@ -62,13 +46,11 @@ export default class RequestService extends Service {
   get body() {
     return this.req.body;
   }
+  private __size = -1;
   /**
    * Size of the request payload in bytes.
-   * For JSON objects, the byte size of req.body stringified.
-   * For file(s), the (total) size of the file(s) in bytes.
-   * For multipart forms, the sum of the above.
+   * Reads values from the HTTP 'Content-Length' header
    */
-  __size = -1;
   get size() {
     if (this.__size < 0) {
       let size = 0;
@@ -88,18 +70,22 @@ export default class RequestService extends Service {
   get serviceStatus() {
     return RequestService.status;
   }
-  logger: Logger;
+  logger?: Logger;
+  pagination?: sigmate.Request.PaginationRes;
+  get pg() {
+    return this.pagination;
+  }
 
   constructor(options: RequestOptions) {
     super();
     this.req = options.req;
     this.res = options.res;
     this.logger = RequestService.logger;
-    this.logger.log({ request: this });
+    this.logger?.log({ request: this });
   }
 
   /** Event handler: on response send */
-  async onSend(res: Response) {
+  onSend(res: Response) {
     const contentLength =
       (res.getHeader('Content-Length') as string | undefined) || '0';
     let size = Number.parseInt(contentLength);
@@ -119,31 +105,80 @@ export default class RequestService extends Service {
       this.status = RequestStatus.FAILED;
     }
     this.__duration = performance.now() - this.__duration;
-    this.logger.log({ request: this });
+    this.logger?.log({ request: this });
   }
-  /**
-   * Response send method to use instead of built-in Express methods
-   * so that the response body can be captured and logged
-   */
-  send(options: SendOptions) {
-    const { status = 200, json: body = {} } = options;
-    if (!this.response) {
-      this.response = {
-        size: 0,
-        status: this.res.statusCode,
-        body,
-      };
-    } else {
-      this.response.body = body;
-    }
-    const response: Record<string, unknown> = {
-      requestId: this.id,
-      ...body,
+
+  setPagination(dto: sigmate.Request.PaginationDTO) {
+    this.pagination = {
+      limit: dto.limit || this.pagination?.limit || PG_DEFAULT_LIMIT,
+      offset: dto.offset || this.pagination?.offset || 0,
+      page: {
+        current: dto.page || this.pagination?.page.current || 0,
+        total: this.pagination?.page.total || 0,
+      },
+      count: dto.count || this.pagination?.count || 0,
     };
-    const errors = validationResult(this.req);
-    if (!errors.isEmpty()) {
-      response.validationErrors = errors.array();
+
+    if (dto.limit && this.pagination.page.current) {
+      this.pagination.offset =
+        this.pagination.limit + (this.pagination.page.current + 1);
     }
-    this.res.status(status).json(response);
+
+    if (dto.offset) {
+      // Use offset as priority
+      const dv = this.pagination.offset / this.pagination.limit;
+      const floor = Math.floor(dv);
+      const ceil = Math.ceil(dv);
+      if (floor === ceil) {
+        // Calculate current page
+        this.pagination.page.current = floor + 1;
+        if (this.pagination.count) {
+          // Calculate total page
+          this.pagination.page.total = Math.ceil(
+            this.pagination.count / this.pagination.limit
+          );
+        }
+      } else {
+        // Offset is non-standard (doesnt fit page divisions)
+        // Set page information to 0
+        this.pagination.page.current = 0;
+        this.pagination.page.total = 0;
+      }
+    } else if (dto.page) {
+      // Use current page as priority
+      this.pagination.offset =
+        this.pagination.limit * (this.pagination.page.current - 1);
+    }
+
+    if (this.pagination.limit && this.pagination.count) {
+      this.pagination.page.total = Math.ceil(
+        this.pagination.count / this.pagination.limit
+      );
+    }
+  }
+
+  sendError(error: unknown) {
+    const err =
+      error instanceof ServerError
+        ? error
+        : new ServerError({
+            name: 'ServerError',
+            code: 'UNKNOWN/ER_UNHANDLED',
+            error,
+            label: {
+              source: 'SERVER',
+              name: 'APP',
+            },
+            message: 'Unexpected internal server error',
+            httpStatus: 500,
+          });
+
+    this.res.status(err.httpStatus).json({
+      success: false,
+      error: {
+        code: err.code,
+        msg: err.message,
+      },
+    });
   }
 }

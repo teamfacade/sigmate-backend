@@ -8,9 +8,5 @@ declare global {
     export interface Request {
       service: RequestService;
     }
-
-    export interface Response {
-      service: RequestService;
-    }
   }
 }

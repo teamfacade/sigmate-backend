@@ -1,29 +1,41 @@
 import { body, query, param, ValidationChain } from 'express-validator';
+import { Model } from 'sequelize-typescript';
 import Service from './Service';
 
 // eslint-disable-next-line @typescript-eslint/ban-types
-export type ValidateOptions<ModelAttribs extends {}> = {
+export type ValidateOptions<F = string> = {
   location: keyof typeof VCHAINS;
-  fields: (keyof ModelAttribs)[];
+  fields: F[];
   fieldPrefix?: string;
   optional?: boolean;
 };
 
 // eslint-disable-next-line @typescript-eslint/ban-types
-export type ValidateOneOptions<ModelAttribs extends {}> = {
+export type ValidateOneOptions<F = string> = {
   chain: ValidationChain;
-  field: keyof ModelAttribs;
+  field: F;
 };
 const VCHAINS = Object.freeze({ body, query, param });
 
 export default abstract class ModelService<
-  ModelAttribs extends {} // eslint-disable-line @typescript-eslint/ban-types
+  ModelAttribs extends {}, // eslint-disable-line @typescript-eslint/ban-types
+  ModelCAttribs extends {} // eslint-disable-line @typescript-eslint/ban-types
 > extends Service {
+  public abstract model?: Model<ModelAttribs, ModelCAttribs>;
+
+  public get found() {
+    return Boolean(this.model);
+  }
+  public unset() {
+    this.model = undefined;
+  }
+
   /** express-validator `ValidationChain` factories for method `validate` */
-  public abstract validateOne(
-    options: ValidateOneOptions<ModelAttribs>
-  ): ValidationChain;
-  public validate(options: ValidateOptions<ModelAttribs>): ValidationChain[] {
+  public static validateOne(options: ValidateOneOptions): ValidationChain {
+    return options.chain;
+  }
+
+  public static validate(options: ValidateOptions): ValidationChain[] {
     const { location, fields, fieldPrefix = '', optional = false } = options;
     const chains: ValidationChain[] = [];
     fields.forEach((field) => {

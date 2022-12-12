@@ -27,7 +27,7 @@ export const USER_USERNAME_MAX_LENGTH = 15;
 export const USER_METAMASK_MAX_LENGTH = 64;
 const USER_GOOGLE_ID_LENGTH = 32; // 22 (for future-proof)
 const USER_REFERRAL_CODE_LENGTH = 15;
-// A dollar sign followed by UNIX epoch timestamp
+// A dollar sign followed by UNIX epoch timestamp (milliseconds)
 // e.g. email@email.com$1668133802617
 export const USER_DELETE_SUFFIX_LENGTH = 14;
 
@@ -39,13 +39,19 @@ export interface UserAttribs {
   userNameUpdatedAt?: Date;
   email?: string;
   isEmailVerified: boolean;
+
+  // Auth
   isAdmin: boolean;
+  isTester: boolean;
+  isFlagged: boolean;
+  isBanned: boolean;
+  checkPrivileges: boolean;
 
   // Profile
   displayName?: string;
   bio?: string;
   profileImageUrl?: string | null; // external image
-  // profileImage?: any; // TODO uploaded image
+  // profileImage?: Image; // TODO uploaded image
 
   metamaskWallet?: string;
   isMetamaskVerified?: boolean | null;
@@ -86,6 +92,7 @@ export interface UserAttribs {
   /** Users who entered my referral code */
   referredUsers?: User[];
 
+  // Associations
   devices?: Device[];
   group?: UserGroup;
   groupId?: number;
@@ -98,6 +105,10 @@ export type UserCAttribs = Optional<
   | 'id'
   | 'isEmailVerified'
   | 'isAdmin'
+  | 'isTester'
+  | 'isFlagged'
+  | 'isBanned'
+  | 'checkPrivileges'
   | 'isMetamaskWalletPublic'
   | 'isTwitterHandlePublic'
   | 'isDiscordAccountPublic'
@@ -150,6 +161,26 @@ export default class User extends Model<UserAttribs, UserCAttribs> {
   @Default(false)
   @Column(DataType.BOOLEAN)
   isAdmin!: UserAttribs['isAdmin'];
+
+  @AllowNull(false)
+  @Default(false)
+  @Column(DataType.BOOLEAN)
+  isTester!: UserAttribs['isTester'];
+
+  @AllowNull(false)
+  @Default(false)
+  @Column(DataType.BOOLEAN)
+  isFlagged!: UserAttribs['isFlagged'];
+
+  @AllowNull(false)
+  @Default(false)
+  @Column(DataType.BOOLEAN)
+  isBanned!: UserAttribs['isBanned'];
+
+  @AllowNull(false)
+  @Default(false)
+  @Column(DataType.BOOLEAN)
+  checkPrivileges!: UserAttribs['checkPrivileges'];
 
   @Column(DataType.STRING)
   displayName: UserAttribs['displayName'];

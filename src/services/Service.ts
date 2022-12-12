@@ -1,9 +1,11 @@
+import Logger from './logger';
 import { ServiceStatus } from '../utils/status';
 
 export default abstract class Service {
   static STATE = ServiceStatus;
   static status: typeof ServiceStatus[keyof typeof ServiceStatus] =
     ServiceStatus.INITIALIZED;
+  static logger?: Logger;
   static get started() {
     return this.status >= ServiceStatus.STARTED;
   }

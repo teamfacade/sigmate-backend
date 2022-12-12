@@ -1,7 +1,7 @@
 import express from 'express';
-import useUserRoutes from './user';
+import userRouter from './user';
 
 const v2Router = express.Router();
-useUserRoutes(v2Router);
+v2Router.use('/user', userRouter);
 
 export default v2Router;

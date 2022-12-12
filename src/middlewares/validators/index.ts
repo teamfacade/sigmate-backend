@@ -1,8 +1,10 @@
 import { ValidationChain } from 'express-validator';
+import jwt from 'jsonwebtoken';
 
 type ValidatorName =
   | 'twitterHandle'
   | 'metamaskWallet'
+  | 'jwt'
   | 'sql/text'
   | 'sql/int';
 
@@ -42,6 +44,23 @@ const getValidationChain = (
         .withMessage('TOO_LONG')
         .isEthereumAddress()
         .withMessage('NOT_ETH_ADDRESS');
+    case 'jwt':
+      return chain
+        .trim()
+        .notEmpty()
+        .withMessage('REQUIRED')
+        .custom((value) => {
+          const payload = jwt.decode(value);
+          if (!payload) {
+            throw new Error('INVALID_JWT');
+          }
+          if (payload instanceof Object) {
+            if (!Object.keys(payload).length) {
+              throw new Error('INVALID_JWT');
+            }
+          }
+          return true;
+        });
     case 'sql/text':
       return chain
         .trim()

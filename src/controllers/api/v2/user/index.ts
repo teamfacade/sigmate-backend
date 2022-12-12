@@ -1,35 +1,29 @@
 import { RequestHandler } from 'express';
-import Auth from '../../../../services/auth';
-import Token from '../../../../services/auth/Token';
+import { UserResponse } from '../../../../services/auth/User';
 
-const user: Record<string, RequestHandler> = {
-  getMyInfo: async (req, res, next) => {
-    try {
-      const user = req.user as NonNullable<typeof req.user>;
-      if (!user.found) {
-        return res.service.send({ status: 403 });
-      }
-      await user.reload({ options: 'ALL' });
-      const token = new Token({ type: 'ACCESS', user });
-      const accessToken = await token.getToken();
-      res.service.send({
-        status: 200,
-        json: { user: user.model?.toJSON(), accessToken },
-      });
-    } catch (err) {
-      next(err);
-    }
+const getMyInfo: RequestHandler<
+  any,
+  {
+    user: UserResponse | null;
   },
-  createUser: async (req, res, next) => {
-    try {
-      const auth = new Auth();
-      const data = await auth.signup();
-      res.service.send({ status: 201, json: data });
-    } catch (err) {
-      res.service.send({ status: 500, json: { success: false } });
-      next(err);
-    }
-  },
+  any,
+  {
+    all?: boolean;
+  }
+> = async (req, res, next) => {
+  try {
+    const user = req.user as NonNullable<typeof req.user>;
+    // Load "slow" columns only when necessary
+    const loadAll = req.query.all || false;
+    await user.reload({ options: loadAll ? 'MY_ALL' : 'MY' });
+    res.status(200).json({ user: user.toResponse({ type: 'MY' }) });
+  } catch (err) {
+    next(err);
+  }
 };
 
-export default user;
+const userController: Record<string, RequestHandler> = {
+  getMyInfo,
+};
+
+export default userController;

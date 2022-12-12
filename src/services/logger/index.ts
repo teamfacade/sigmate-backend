@@ -13,13 +13,8 @@ import Server from '../servers/Server';
 import Request from '../Request';
 import Action from '../Action';
 import LoggerError from '../errors/LoggerError';
-import ActionError from '../errors/ActionError';
-import RequestError from '../errors/RequestError';
-import DatabaseError from '../errors/DatabaseError';
 import { ServerStatus } from '../../utils/status';
 import { Identifier } from 'sequelize/types';
-
-type ErrorTypes = 'INIT' | 'NOT_STARTED' | 'LOGGER_CLOSE';
 
 type LogArgs<
   TPKT extends Identifier = number,
@@ -110,8 +105,9 @@ export default class Logger extends Service {
     const { console, cloudWatchLogs } = options;
     // A logger must have at least one transport
     if (!console && !cloudWatchLogs) {
-      Logger.onError({
-        message: 'No transport specified for issueLogger',
+      throw new LoggerError({
+        code: 'LOGGER/ER_INIT_NO_TRANSPORT',
+        message: '(IssueLogger)',
       });
     }
     const il = winston.createLogger({
@@ -130,7 +126,9 @@ export default class Logger extends Service {
 
     // Add transport (AWS CloudWatch Logs)
     if (cloudWatchLogs) {
-      if (!Logger.cloudWatchLogs) Logger.onError({ type: 'NOT_STARTED' });
+      if (!Logger.cloudWatchLogs) {
+        throw new LoggerError({ code: 'SERVICE/INIT_BEFORE_START' });
+      }
       il.add(
         new WinstonCloudWatch({
           cloudWatchLogs: Logger.cloudWatchLogs,
@@ -150,7 +148,10 @@ export default class Logger extends Service {
     const { console, dynamoDB } = options;
     // A logger must have at least one transport
     if (!console && !dynamoDB) {
-      Logger.onError({ message: 'No transport specified for analyticsLogger' });
+      throw new LoggerError({
+        code: 'LOGGER/ER_INIT_NO_TRANSPORT',
+        message: '(AnalyticsLogger)',
+      });
     }
 
     const al = winston.createLogger({
@@ -172,7 +173,9 @@ export default class Logger extends Service {
 
     // Add transport (AWS Dynamo DB)
     if (dynamoDB) {
-      if (!Logger.dynamoDB) Logger.onError({ type: 'NOT_STARTED' });
+      if (!Logger.dynamoDB) {
+        throw new LoggerError({ code: 'SERVICE/INIT_BEFORE_START' });
+      }
       al.add(
         new WinstonDynamoDB({
           dynamoDB: Logger.dynamoDB,
@@ -188,7 +191,10 @@ export default class Logger extends Service {
     const { console } = options;
     // A logger must have at least one transport
     if (!console) {
-      Logger.onError({ message: 'No transport specified for debugLogger' });
+      throw new LoggerError({
+        code: 'LOGGER/ER_INIT_NO_TRANSPORT',
+        message: '(DebugLogger)',
+      });
     }
 
     const dl = winston.createLogger({
@@ -210,8 +216,17 @@ export default class Logger extends Service {
   public static start() {
     Logger.status = Logger.STATE.STARTING;
     const aws = config.aws;
-    Logger.dynamoDB = new DynamoDB(aws.dynamoDB.logger);
-    Logger.cloudWatchLogs = new CloudWatchLogs(aws.cloudWatchLogs.logger);
+    try {
+      Logger.cloudWatchLogs = new CloudWatchLogs(aws.cloudWatchLogs.logger);
+    } catch (error) {
+      throw new LoggerError({ code: 'LOGGER/ER_INIT_AWS_CLOUDWATCH' });
+    }
+
+    try {
+      Logger.dynamoDB = new DynamoDB(aws.dynamoDB.logger);
+    } catch (error) {
+      throw new LoggerError({ code: 'LOGGER/ER_INIT_AWS_DYNAMO' });
+    }
     Logger.env = process.env.NODE_ENV || 'development';
     switch (Logger.env) {
       case 'development':
@@ -252,21 +267,13 @@ export default class Logger extends Service {
     try {
       logger.end();
     } catch (error) {
-      this.onError({
-        type: 'LOGGER_CLOSE',
-        message: 'logger.end() failed',
-        error,
-      });
+      console.error(error);
     }
 
     try {
       logger.close();
     } catch (error) {
-      this.onError({
-        type: 'LOGGER_CLOSE',
-        message: 'logger.close() failed',
-        error,
-      });
+      console.error(error);
     }
   }
 
@@ -297,26 +304,6 @@ export default class Logger extends Service {
     this.status = this.STATE.CLOSED;
   }
 
-  private static onError(
-    options: sigmate.Error.HandlerOptions<ErrorTypes>
-  ): never {
-    const { type = 'OTHER', error: cause } = options;
-    const message = options.message || type;
-    let critical = false;
-    switch (type) {
-      case 'LOGGER_CLOSE':
-        critical = false;
-        break;
-      default:
-        critical = true;
-        break;
-    }
-    if (critical) {
-      this.status = Logger.STATE.FAILED;
-    }
-    throw new LoggerError({ message, cause, critical });
-  }
-
   issueLogger?: WinstonLogger;
   analyticsLogger?: WinstonLogger;
   debugLogger?: WinstonLogger;
@@ -329,10 +316,7 @@ export default class Logger extends Service {
     super();
     const { checkStart = true } = options;
     if (!Logger.started && checkStart) {
-      this.onError({
-        type: 'INIT',
-        message: 'LoggerService initialized before start',
-      });
+      throw new LoggerError({ code: 'SERVICE/INIT_BEFORE_START' });
     }
     this.issueLogger = Logger.issueLogger;
     this.analyticsLogger = Logger.analyticsLogger;
@@ -347,9 +331,6 @@ export default class Logger extends Service {
   }
   get started() {
     return Logger.started;
-  }
-  get onError() {
-    return Logger.onError;
   }
 
   private getServerInfo(
@@ -424,61 +405,26 @@ export default class Logger extends Service {
   }
 
   private getErrorInfo(error: unknown): sigmate.Logger.Info {
-    let level: sigmate.Logger.Level | undefined = undefined;
-    let message = '<UNCAUGHT>';
+    let level: sigmate.Logger.Level = 'warn';
+    let message = '';
+    let cause: unknown = undefined;
 
     if (error instanceof ServerError) {
       level = error.level;
-      message = error.critical ? '<CRITICAL>' : '';
+      message = error.message;
+      cause = error.cause;
+    } else if (error instanceof Error) {
+      message = `${error.name || 'Error'}: ${error.message}`;
+      cause = error;
+    } else {
+      message = String(error);
     }
 
-    if (error instanceof ActionError) {
-      return {
-        level: level || 'verbose',
-        message,
-        action: this.getActionInfo(error.action),
-        error,
-      };
-    } else if (error instanceof RequestError) {
-      return {
-        level: level || 'http',
-        message,
-        request: this.getRequestInfo(error.request),
-        error,
-      };
-    } else if (error instanceof DatabaseError) {
-      return {
-        level: level || 'debug',
-        message,
-        service: this.getServiceInfo(error.database),
-        error,
-      };
-    } else if (error instanceof LoggerError) {
-      return {
-        level: level || 'debug',
-        message,
-        service: this.getServiceInfo(this),
-        error,
-      };
-    } else if (error instanceof ServerError) {
-      return {
-        level: level || 'warn',
-        message,
-        server: this.getServerInfo(error.server),
-        error,
-      };
-    } else if (error instanceof Error) {
-      return {
-        level: level || 'warn',
-        message,
-        error,
-      };
-    } else {
-      return {
-        level: 'error',
-        message: 'UNEXPECTED_ERROR_TYPE',
-      };
-    }
+    return {
+      level,
+      message,
+      error: cause,
+    };
   }
 
   public async log<
@@ -487,8 +433,13 @@ export default class Logger extends Service {
     PTPKT extends Identifier = TPKT,
     PSPKT extends Identifier = SPKT
   >(args: LogArgs<TPKT, SPKT, PTPKT, PSPKT>) {
+    // Silently fail if not started yet
+    if (!Logger.started) return;
+
     const { server, service, request, action, error } = args;
     let info: sigmate.Logger.Info;
+
+    // Prepare the info
     if (error) {
       info = this.getErrorInfo(error);
     } else {
@@ -506,21 +457,35 @@ export default class Logger extends Service {
         info.level = 'debug';
       } else if (request) {
         info.request = this.getRequestInfo(request);
+        info.level = 'http';
+        info.duration = request.duration;
         info.id = {
           default: request.id,
         };
         // TODO auth user and device IDs
-        info.level = 'http';
-        info.duration = request.duration;
       } else if (action) {
         info.action = this.getActionInfo(action);
         // TODO auth user and device IDs
-        info.level = action.ended ? 'verbose' : 'debug';
+        info.level = action.ended ? action.level : 'debug';
         info.duration = action.duration;
       }
     }
-    this.issueLogger?.log(info);
-    this.analyticsLogger?.log(info);
-    this.debugLogger?.log(info);
+
+    // Log the info
+    try {
+      this.issueLogger?.log(info);
+    } catch (error) {
+      console.error(error);
+    }
+    try {
+      this.analyticsLogger?.log(info);
+    } catch (error) {
+      console.error(error);
+    }
+    try {
+      this.debugLogger?.log(info);
+    } catch (error) {
+      console.error(error);
+    }
   }
 }

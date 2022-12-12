@@ -1,6 +1,7 @@
 import { CustomValidator, ValidationChain } from 'express-validator';
 import { FindOptions, WhereOptions } from 'sequelize/types';
 import isURL from 'validator/lib/isURL';
+import { pick } from 'lodash';
 import getValidationChain from '../../middlewares/validators';
 import UserModel, {
   UserAttribs,
@@ -12,11 +13,12 @@ import UserModel, {
 import UserAuth, { UserAuthAttribs } from '../../models/UserAuth.model';
 import UserGroup from '../../models/UserGroup.model';
 import Action from '../Action';
-import RequestError from '../errors/RequestError';
 import ModelService, { ValidateOneOptions } from '../ModelService';
+import UserError from '../errors/UserError';
+import { randomInt } from 'crypto';
 
 type UserOptions = {
-  model?: UserModel;
+  user?: UserModel;
 };
 
 type UserFindDTO = {
@@ -37,6 +39,7 @@ type UserCreateDTO = {
     googleAccount: NonNullable<UserAttribs['googleAccount']>;
     googleAccountId: NonNullable<UserAttribs['googleAccountId']>;
     profileImageUrl: NonNullable<UserAttribs['profileImageUrl']>;
+    locale?: UserAttribs['locale'];
   };
   metamask?: {
     metamaskWallet: NonNullable<UserAttribs['metamaskWallet']>;
@@ -81,6 +84,13 @@ type UpdateAuthDTO = {
     sigmateAccessTokenIat?: UserAuthAttribs['sigmateAccessTokenIat'];
     sigmateRefreshTokenIat?: UserAuthAttribs['sigmateRefreshTokenIat'];
   };
+  google?: {
+    googleAccessToken: UserAuthAttribs['googleAccessToken'];
+    googleRefreshToken?: UserAuthAttribs['googleRefreshToken'];
+  };
+  metamask?: {
+    nonce: UserAuthAttribs['metamaskNonce'];
+  };
 };
 
 type UserReloadDTO = {
@@ -88,18 +98,205 @@ type UserReloadDTO = {
   options?: keyof typeof User['FIND_OPTIONS'];
 };
 
-type ErrorTypes =
-  | 'USER_NOT_SET'
-  | 'USER_AUTH_NOT_SET'
-  | 'CREATE_DTO_UNSET'
-  | 'UPDATE_AUTH_DTO_UNSET'
-  | 'USERNAME_TAKEN'
-  | 'REFERRAL_CODE_NOT_FOUND'
-  | 'REFERRAL_ALREADY_SET';
+type UserFindOptionNames =
+  | 'DEFAULT'
+  | 'EXISTS'
+  | 'MY'
+  | 'MY_ALL' // slow
+  | 'MY_ALL+AUTH_TOKEN' //slow
+  | 'PUBLIC'
+  | 'PUBLIC_ALL' // slow
+  | 'AUTH_TOKEN'
+  | 'AUTH_GOOGLE'
+  | 'AUTH_METAMASK'
+  | 'ALL'; // slow
 
-type UserFindOptionNames = 'DEFAULT' | 'EXISTS' | 'AUTH' | 'AUTH_TOKEN' | 'ALL';
+type ToResponseDTO = {
+  type?: 'MY' | 'PUBLIC';
+  model: UserModel | null;
+};
 
-export default class User extends ModelService<UserAttribs> {
+export type UserResponse = Pick<
+  UserAttribs,
+  | 'id'
+  | 'userName'
+  | 'email'
+  | 'isEmailVerified'
+  | 'isAdmin'
+  | 'isTester'
+  | 'displayName'
+  | 'bio'
+  | 'profileImageUrl'
+  | 'metamaskWallet'
+  | 'isMetamaskVerified'
+  | 'isMetamaskWalletPublic'
+  | 'googleAccount'
+  | 'twitterHandle'
+  | 'isTwitterHandlePublic'
+  | 'discordAccount'
+  | 'isDiscordAccountPublic'
+  | 'lastLoginAt'
+  | 'locale'
+  | 'emailEssential'
+  | 'emailMarketing'
+  | 'cookiesEssential'
+  | 'cookiesAnalytics'
+  | 'cookiesFunctional'
+  | 'cookiesTargeting'
+  | 'agreeTos'
+  | 'agreePrivacy'
+  | 'agreeLegal'
+  | 'referralCode'
+  | 'groupId'
+>;
+
+type UserAuthFindOptionName = 'TOKEN' | 'GOOGLE' | 'METAMASK';
+
+// ALWAYS!! include the ID Attribute
+export const FIND_ATTRIBS_AUTH: Record<
+  UserAuthFindOptionName,
+  (keyof UserAuthAttribs)[]
+> = {
+  TOKEN: [
+    'id',
+    'sigmateAccessTokenIat',
+    'sigmateRefreshTokenIat',
+    'canCreateWikiDocument',
+    'canEditWikiDocument',
+    'canVerify',
+    'canChangeName',
+    'canReport',
+    'canLogin',
+    'canConnectGoogle',
+    'canConnectMetamask',
+    'canConnectDiscord',
+    'canConnectTwitter',
+    'canReceivePoints',
+    'canTransferToken',
+    'canRefer',
+    'canParticipateEvent',
+    'canVoteForumPost',
+    'canCreateForumPost',
+    'canEditMyForumPost',
+    'canDeleteMyForumPost',
+    'canVoteForumPostComment',
+    'canCreateFoumPostComment',
+    'canEditMyForumPostComment',
+    'canDeleteMyForumPostComment',
+    'canAffectViewCount',
+    'canAffectAnalytics',
+    'canAdminWikiDocument',
+    'canAdminWikiVerify',
+    'canAdminUpcoming',
+    'canAdminEvent',
+    'canAdminForum',
+    'canAdminUserGeneral',
+    'canAdminReports',
+    'canAdminUserPoint',
+    'canAdminUserToken',
+    'canAdminDev',
+  ],
+  GOOGLE: [
+    'id',
+    'googleAccessToken',
+    'googleRefreshToken',
+    'canLogin',
+    'canConnectGoogle',
+  ],
+  METAMASK: ['id', 'metamaskNonce', 'canLogin', 'canConnectMetamask'],
+};
+
+const FIND_ATTRIBS: Readonly<
+  Record<UserFindOptionNames, (keyof UserAttribs)[] | undefined>
+> = Object.freeze({
+  DEFAULT: [
+    'id',
+    'isAdmin',
+    'isTester',
+    'isFlagged',
+    'isBanned',
+    'checkPrivileges',
+    'groupId',
+  ],
+  EXISTS: ['id'],
+  MY: [
+    'id',
+    'userName',
+    'email',
+    'isEmailVerified',
+    'isAdmin',
+    'isTester',
+    'isFlagged',
+    'isBanned',
+    'checkPrivileges',
+    'displayName',
+    'profileImageUrl',
+    'metamaskWallet',
+    'isMetamaskVerified',
+    'googleAccount',
+    'twitterHandle',
+    'discordAccount',
+    'lastLoginAt',
+    'locale',
+    'emailEssential',
+    'emailMarketing',
+    'cookiesEssential',
+    'cookiesAnalytics',
+    'cookiesFunctional',
+    'cookiesTargeting',
+    'agreeTos',
+    'agreePrivacy',
+    'agreeLegal',
+    'referralCode',
+    'groupId',
+  ],
+  PUBLIC: [
+    'id',
+    'userName',
+    'isAdmin',
+    'isFlagged',
+    'isBanned',
+    'displayName',
+    'profileImageUrl',
+    'metamaskWallet',
+    'isMetamaskVerified',
+    'twitterHandle',
+    'discordAccount',
+    'referralCode',
+    'isMetamaskWalletPublic',
+    'isTwitterHandlePublic',
+    'isDiscordAccountPublic',
+  ],
+
+  MY_ALL: undefined,
+  PUBLIC_ALL: undefined,
+  MY_ALL_TOKEN: undefined,
+  'MY_ALL+AUTH_TOKEN': undefined,
+  AUTH_GOOGLE: undefined,
+  AUTH_METAMASK: undefined,
+  AUTH_TOKEN: undefined,
+  ALL: undefined,
+});
+
+type UserValidateField =
+  | 'userName'
+  | 'email'
+  | 'displayName'
+  | 'bio'
+  | 'metamaskWallet'
+  | 'twitterHandle'
+  | 'emailEssential'
+  | 'emailMarketing'
+  | 'cookiesEssential'
+  | 'cookiesAnalytics'
+  | 'cookiesFunctional'
+  | 'cookiesTargeting'
+  | 'agreeTos'
+  | 'agreePrivacy'
+  | 'agreeLegal'
+  | 'referralCode';
+
+export default class User extends ModelService<UserAttribs, UserCAttribs> {
   /**
    * Options to use when fetching user information from the database
    *
@@ -107,48 +304,190 @@ export default class User extends ModelService<UserAttribs> {
    */
   static FIND_OPTIONS: Record<UserFindOptionNames, FindOptions<UserAttribs>> =
     Object.freeze({
+      /**
+       * Options to use when not explicitly specified
+       */
       DEFAULT: {
-        attributes: ['id', 'isAdmin'],
+        attributes: FIND_ATTRIBS.DEFAULT,
+      },
+      /** Only check whether the user exists by just calling the ID */
+      EXISTS: { attributes: ['id'] },
+      /** Get full user information about myself */
+      MY: {
+        attributes: FIND_ATTRIBS.MY,
         include: [UserGroup],
       },
-      EXISTS: { attributes: ['id'] },
-      AUTH: {
-        attributes: ['id', 'isAdmin'],
-        include: [{ model: UserAuth }, { model: UserGroup }],
+      /**
+       * Get full user information about myself (the requesting user)
+       * including "slow" fields (e.g. MYSQL TEXT type fields)
+       */
+      MY_ALL: {
+        attributes: [
+          ...(FIND_ATTRIBS.MY || []),
+          'bio',
+          'isDiscordAccountPublic',
+          'isMetamaskWalletPublic',
+          'isTwitterHandlePublic',
+        ],
       },
-      AUTH_TOKEN: {
-        attributes: ['id', 'isAdmin'],
+      /**
+       * Get full user information about myself (the requesting user)
+       * Along with associated `UserAuth` attributes
+       */
+      'MY_ALL+AUTH_TOKEN': {
+        attributes: [
+          ...(FIND_ATTRIBS.MY || []),
+          'bio',
+          'isDiscordAccountPublic',
+          'isMetamaskWalletPublic',
+          'isTwitterHandlePublic',
+        ],
         include: [
           {
             model: UserAuth,
-            attributes: [
-              'id',
-              'sigmateAccessTokenIat',
-              'sigmateRefreshTokenIat',
-            ],
+            attributes: FIND_ATTRIBS_AUTH.TOKEN,
           },
-          { model: UserGroup },
         ],
       },
-      ALL: {
-        include: [UserGroup],
+      /**
+       * Get information about someone else, i.e. only the information
+       * that the other user has set public
+       */
+      PUBLIC: {
+        attributes: FIND_ATTRIBS.PUBLIC,
       },
+      /**
+       * Get information about someone else, i.e. only the information
+       * that the other user has set public. Includes "slow" fields
+       * (e.g. MYSQL TEXT type fields)
+       */
+      PUBLIC_ALL: {
+        attributes: [...(FIND_ATTRIBS.PUBLIC || []), 'bio'],
+      },
+      AUTH_GOOGLE: {
+        attributes: FIND_ATTRIBS.DEFAULT,
+        include: [
+          {
+            model: UserAuth,
+            attributes: FIND_ATTRIBS_AUTH.GOOGLE,
+          },
+        ],
+      },
+      AUTH_METAMASK: {
+        attributes: FIND_ATTRIBS.DEFAULT,
+        include: [
+          {
+            model: UserAuth,
+            attributes: FIND_ATTRIBS_AUTH.METAMASK,
+          },
+        ],
+      },
+      /**
+       * Fetch information from the associated `UserAuth` table, but only
+       * select the field necessary for Sigmate token authentication
+       */
+      AUTH_TOKEN: {
+        attributes: FIND_ATTRIBS.DEFAULT,
+        include: [
+          {
+            model: UserAuth,
+            attributes: FIND_ATTRIBS_AUTH.TOKEN,
+          },
+        ],
+      },
+      ALL: {},
     });
+
+  /**
+   * Returns an object structured for client response.
+   * The User (service or model) instances must be pre-loaded with needed
+   * attributes prior to calling this method, since this method internally
+   * calls `Model.toJSON()` and does not contain any kind of DB calls
+   * @param dto Array of User (service or model)
+   * @returns Object containing User data formatted for client response
+   */
+  public static toResponse(dto: ToResponseDTO): UserResponse | null {
+    const { type = 'PUBLIC', model } = dto;
+    if (!model) return null;
+    const j = model.toJSON();
+    const k: (keyof UserResponse)[] = [];
+    switch (type) {
+      case 'MY':
+        k.concat([
+          'id',
+          'userName',
+          'email',
+          'isEmailVerified',
+          'isAdmin',
+          'isTester',
+          'displayName',
+          'bio',
+          'profileImageUrl',
+          'metamaskWallet',
+          'isMetamaskVerified',
+          'isMetamaskWalletPublic',
+          'googleAccount',
+          'twitterHandle',
+          'isTwitterHandlePublic',
+          'discordAccount',
+          'isDiscordAccountPublic',
+          'lastLoginAt',
+          'locale',
+          'emailEssential',
+          'emailMarketing',
+          'cookiesEssential',
+          'cookiesAnalytics',
+          'cookiesFunctional',
+          'cookiesTargeting',
+          'agreeTos',
+          'agreePrivacy',
+          'agreeLegal',
+          'referralCode',
+          'groupId',
+        ]);
+        break;
+      case 'PUBLIC':
+        k.concat([
+          'id',
+          'userName',
+          'isAdmin',
+          'displayName',
+          'bio',
+          'profileImageUrl',
+          'isMetamaskWalletPublic',
+          'isTwitterHandlePublic',
+          'isDiscordAccountPublic',
+        ]);
+        if (j.isMetamaskVerified && j.isMetamaskWalletPublic) {
+          k.push('metamaskWallet');
+          k.push('isMetamaskVerified');
+        }
+        if (j.isTwitterHandlePublic) {
+          k.push('twitterHandle');
+        }
+        if (j.isDiscordAccountPublic) {
+          k.push('discordAccount');
+        }
+        break;
+    }
+    return pick(j, k);
+  }
 
   name = 'USER';
   model?: UserModel;
   get serviceStatus() {
     return User.status;
   }
-  get found() {
-    return Boolean(this.model);
-  }
+
   constructor(options: UserOptions = {}) {
     super();
-    this.model = options.model;
+    this.model = options.user;
   }
 
-  async find(dto: UserFindDTO, parentAction: Action | undefined = undefined) {
+  static async find(
+    dto: UserFindDTO,
+    parentAction: Action | undefined = undefined
+  ) {
     const {
       id,
       userName,
@@ -188,21 +527,32 @@ export default class User extends ModelService<UserAttribs> {
     );
     if (user) {
       action.setTarget({ id: user.id });
-      this.model = user;
     }
     return user;
   }
 
+  async find(dto: UserFindDTO, parentAction: Action | undefined = undefined) {
+    const userModel = await User.find(dto, parentAction);
+    if (userModel) this.model = userModel;
+    return userModel;
+  }
+
+  static async exists(
+    dto: UserExistsDTO,
+    parentAction: Action | undefined = undefined
+  ) {
+    return await this.find({ ...dto, options: 'EXISTS' }, parentAction);
+  }
   async exists(
     dto: UserExistsDTO,
     parentAction: Action | undefined = undefined
   ) {
-    const user = await this.find({ ...dto, options: 'EXISTS' }, parentAction);
+    const user = await User.exists(dto, parentAction);
     if (user) this.model = user;
     return user;
   }
 
-  async create(
+  static async create(
     dto: UserCreateDTO,
     parentAction: Action | undefined = undefined
   ) {
@@ -222,39 +572,52 @@ export default class User extends ModelService<UserAttribs> {
         target: { model: UserModel },
         parent: action,
       });
-      const user = await createUser.run(async (transaction, action) => {
+      const userModel = await createUser.run(async (transaction, action) => {
         const user = await UserModel.create({}, { transaction });
         action.setTarget({ id: user.id });
         return user;
       });
-      action.setTarget({ id: user.id });
+      action.setTarget({ id: userModel.id });
 
       // Update attribs
       if (dto.google) {
-        const { email, googleAccount, googleAccountId, profileImageUrl } =
-          dto.google;
-        user.set('email', email);
-        user.set('isEmailVerified', true);
-        user.set('googleAccount', googleAccount);
-        user.set('googleAccountId', googleAccountId);
-        user.set('profileImageUrl', profileImageUrl);
+        const {
+          email,
+          googleAccount,
+          googleAccountId,
+          profileImageUrl,
+          locale,
+        } = dto.google;
+        userModel.set('email', email);
+        userModel.set('isEmailVerified', true);
+        userModel.set('googleAccount', googleAccount);
+        userModel.set('googleAccountId', googleAccountId);
+        userModel.set('profileImageUrl', profileImageUrl);
+        userModel.set('locale', locale);
       } else if (dto.metamask) {
         const { metamaskWallet, isMetamaskVerified } = dto.metamask;
-        user.set('metamaskWallet', metamaskWallet);
-        user.set('isMetamaskVerified', isMetamaskVerified);
+        userModel.set('metamaskWallet', metamaskWallet);
+        userModel.set('isMetamaskVerified', isMetamaskVerified);
       } else {
-        this.onError({ type: 'CREATE_DTO_UNSET' });
+        throw new UserError({ code: 'USER/IV_CREATE_DTO' });
       }
-      user.set('referralCode', '39857632459');
+      // Generate unique referral code
+      let referralCode = '';
+      let isUnique = false;
+      while (!isUnique) {
+        referralCode = await this.generateReferralCode();
+        isUnique = await this.isReferralCodeUnique(referralCode, action);
+      }
+      userModel.set('referralCode', referralCode);
 
       // Save the updates
       const saveUser = new Action({
         type: Action.TYPE.DATABASE,
         name: 'USER_SAVE',
-        target: { model: UserModel, id: user.id },
+        target: { model: UserModel, id: userModel.id },
         parent: action,
       });
-      await saveUser.run((transaction) => user.save({ transaction }));
+      await saveUser.run((transaction) => userModel.save({ transaction }));
 
       // Create auth entry and associate
       const createAuth = new Action({
@@ -266,11 +629,19 @@ export default class User extends ModelService<UserAttribs> {
       await createAuth.run(async (transaction, action) => {
         const auth = await UserAuth.create({}, { transaction });
         action.setTarget({ id: auth.id });
-        await user.$set('auth', auth, { transaction });
+        await userModel.$set('auth', auth, { transaction });
       });
-      this.model = user;
-      return user;
+      return userModel;
     });
+  }
+
+  async create(
+    dto: UserCreateDTO,
+    parentAction: Action | undefined = undefined
+  ) {
+    const userModel = await User.create(dto, parentAction);
+    this.model = userModel;
+    return userModel;
   }
 
   async update(
@@ -303,7 +674,11 @@ export default class User extends ModelService<UserAttribs> {
     } = dto;
 
     const user = dto.user || this.model;
-    if (!user) this.onError({ type: 'USER_NOT_SET' });
+    if (!user)
+      throw new UserError({
+        code: 'USER/NF',
+        message: 'Failed to update user',
+      });
 
     const action = new Action({
       type: Action.TYPE.SERVICE,
@@ -317,7 +692,7 @@ export default class User extends ModelService<UserAttribs> {
     if (userName) {
       const userNameNotAvailable = await this.exists({ userName }, action);
       if (userNameNotAvailable) {
-        this.onError({ type: 'USERNAME_TAKEN' });
+        throw new UserError({ code: 'USER/RJ_UNAME_TAKEN' });
       }
       user.set('userName', userName);
       user.set('userNameUpdatedAt', new Date());
@@ -392,14 +767,15 @@ export default class User extends ModelService<UserAttribs> {
     if (referralCode) {
       if (user.referralCode) {
         // Referral code is already set. Cannot update
-        this.onError({ type: 'REFERRAL_ALREADY_SET' });
+        throw new UserError({ code: 'USER/RJ_REF_CODE_SET' });
       } else {
         // Check if user with referral code exists
         const referredBy = await this.exists({ referralCode }, action);
         if (referredBy) {
           user.set('referredById', referredBy.id);
         } else {
-          this.onError({ type: 'REFERRAL_CODE_NOT_FOUND' });
+          // User with given referral code does not exist
+          throw new UserError({ code: 'USER/NF_REF_CODE' });
         }
       }
     }
@@ -418,17 +794,43 @@ export default class User extends ModelService<UserAttribs> {
     dto: UpdateAuthDTO,
     parentAction: Action | undefined = undefined
   ) {
-    const { renew } = dto;
-    if (!this.model) this.onError({ type: 'USER_NOT_SET' });
-    if (!this.model.auth)
+    const { renew, google, metamask } = dto;
+    if (!this.model) {
+      throw new UserError({
+        code: 'USER/NF',
+        message: 'Failed to update user auth',
+      });
+    }
+
+    if (!this.model.auth) {
       await this.reload({ options: 'AUTH_TOKEN' }, parentAction);
+    }
+
     const auth = this.model?.auth;
-    if (!auth) this.onError({ type: 'USER_NOT_SET' });
+    if (!auth)
+      throw new UserError({
+        code: 'USER/NF_AUTH',
+        message: 'Failed to update user auth',
+      });
     if (renew) {
       auth.set('sigmateAccessTokenIat', renew.sigmateAccessTokenIat);
       auth.set('sigmateRefreshTokenIat', renew.sigmateRefreshTokenIat);
-    } else {
-      this.onError({ type: 'UPDATE_AUTH_DTO_UNSET' });
+    }
+
+    if (google) {
+      auth.set('googleAccessToken', google.googleAccessToken);
+      if (google.googleRefreshToken !== undefined) {
+        auth.set('googleRefreshToken', google.googleRefreshToken);
+      }
+    }
+    if (metamask) {
+      auth.set('metamaskNonce', metamask.nonce);
+    }
+    if (!renew && !google && !metamask) {
+      throw new UserError({
+        code: 'USER/IV_UPDATE_AUTH_DTO',
+        message: 'Empty DTO',
+      });
     }
     const update = new Action({
       type: Action.TYPE.DATABASE,
@@ -439,12 +841,37 @@ export default class User extends ModelService<UserAttribs> {
     await update.run((transaction) => auth.save({ transaction }));
   }
 
+  async delete(parentAction: Action | undefined = undefined) {
+    const user = this.model;
+    if (!user)
+      throw new UserError({ code: 'USER/NF', message: 'Delete failed' });
+    const action = new Action({
+      type: Action.TYPE.DATABASE,
+      name: 'USER_DELETE',
+      target: { model: UserModel, id: user.id },
+      transaction: true,
+      parent: parentAction,
+    });
+    await action.run(async (transaction) => {
+      const deleteSuffix = `$${new Date().getTime()}`;
+      user.set('userName', user.userName + deleteSuffix);
+      user.set('email', user.email + deleteSuffix);
+      user.set('metamaskWallet', user.metamaskWallet + deleteSuffix);
+      user.set('googleAccount', user.googleAccount + deleteSuffix);
+      user.set('googleAccountId', user.googleAccountId + deleteSuffix);
+      user.set('referralCode', user.referralCode + deleteSuffix);
+      await user.save({ transaction });
+      await user.destroy({ transaction });
+    });
+  }
+
   async reload(
     dto: UserReloadDTO,
     parentAction: Action | undefined = undefined
   ) {
     const user = dto.user || this.model;
-    if (!user) this.onError({ type: 'USER_NOT_SET' });
+    if (!user)
+      throw new UserError({ code: 'USER/NF', message: 'Reload failed' });
     const options = dto.options || 'DEFAULT';
     const action = new Action({
       type: Action.TYPE.DATABASE,
@@ -460,46 +887,34 @@ export default class User extends ModelService<UserAttribs> {
     );
   }
 
-  private onError(options: sigmate.Error.HandlerOptions<ErrorTypes>): never {
-    const { type, error: cause } = options;
-    let message = options.message || '';
-    let status = 500;
-    switch (type) {
-      case 'USER_NOT_SET':
-        message = message || 'User not set';
-        status = 401;
-        break;
-      case 'USER_AUTH_NOT_SET':
-        message = message || 'User auth data not found';
-        break;
-      case 'CREATE_DTO_UNSET':
-        message = message || 'User create DTO is empty';
-        break;
-      case 'UPDATE_AUTH_DTO_UNSET':
-        message = message || 'UserAuth update DTO is empty';
-        break;
-      case 'USERNAME_TAKEN':
-        message = message || 'Username already taken';
-        status = 422;
-        break;
-      case 'REFERRAL_CODE_NOT_FOUND':
-        message = message || 'Referral code not found';
-        status = 422;
-        break;
-      case 'REFERRAL_ALREADY_SET':
-        message = message || 'Referral code already set';
-        status = 422;
-        break;
-      default:
-        message = message || 'UNEXPECTED';
-        break;
-    }
-    throw new RequestError({
-      name: 'UserError',
-      message,
-      critical: false,
-      cause,
-      status,
+  private static async isReferralCodeUnique(
+    referralCode: string,
+    parentAction: Action | undefined = undefined
+  ) {
+    if (!referralCode) return false;
+    const action = new Action({
+      type: Action.TYPE.DATABASE,
+      name: 'USER_IS_REFERRAL_CODE_UNIQUE',
+      parent: parentAction,
+    });
+    const user = await action.run(() => User.exists({ referralCode }));
+    return user ? false : true;
+  }
+
+  /**
+   * Randomly generate a Sigmate referral code.
+   * This method does **NOT** guarantee the referral code to be unique.
+   * Check the database manually.
+   * @returns Generated referral code
+   */
+  private static async generateReferralCode() {
+    return new Promise<string>((resolve, reject) => {
+      try {
+        const code = randomInt(100000000000, 999999999999).toString();
+        resolve(code);
+      } catch (error) {
+        reject(error);
+      }
     });
   }
 
@@ -508,7 +923,7 @@ export default class User extends ModelService<UserAttribs> {
    * @param value userName
    * @returns True if test passed, false otherwise
    */
-  private followsUserNamePolicy: CustomValidator = (value: string) => {
+  private static followsUserNamePolicy: CustomValidator = (value: string) => {
     // Check length
     if (value.length < USER_USERNAME_MIN_LENGTH) throw new Error('TOO_SHORT');
     if (value.length > USER_USERNAME_MAX_LENGTH) throw new Error('TOO_LONG');
@@ -546,7 +961,7 @@ export default class User extends ModelService<UserAttribs> {
     return true;
   };
 
-  private isTimeDiffWithinLimits: CustomValidator = (value) => {
+  private static isTimeDiffWithinLimits: CustomValidator = (value) => {
     // Assumes isISO8601 was run before this validator
     // i.e., value is a valid ISO8601 date
 
@@ -554,8 +969,8 @@ export default class User extends ModelService<UserAttribs> {
     return 0 <= diff && diff <= 5 * 60 * 1000; // 5 minutes
   };
 
-  public validateOne(
-    options: ValidateOneOptions<UserAttribs>
+  public static validateOne(
+    options: ValidateOneOptions<UserValidateField>
   ): ValidationChain {
     const { chain, field } = options;
     switch (field) {
@@ -610,5 +1025,18 @@ export default class User extends ModelService<UserAttribs> {
       default:
         return chain.optional().isEmpty().withMessage('INVALID_FIELD');
     }
+  }
+
+  /**
+   * Returns an object structured for client response.
+   * The User (service or model) instances must be pre-loaded with needed
+   * attributes prior to calling this method, since this method internally
+   * calls `Model.toJSON()` and does not contain any kind of DB calls
+   * @param dto UserModel instance
+   * @returns Object containing User data formatted for client response
+   */
+  toResponse(dto: Omit<ToResponseDTO, 'model'>): UserResponse | null {
+    if (!this.model) return null;
+    return User.toResponse({ type: dto.type, model: this.model });
   }
 }

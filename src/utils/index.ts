@@ -42,3 +42,7 @@ export function waitTimeout<T>(promise: Promise<T>, time: number) {
     }),
   ]);
 }
+
+export const isEnv = (env: typeof process.env.NODE_ENV) => {
+  return process.env.NODE_ENV === env;
+};

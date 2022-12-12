@@ -1,8 +1,40 @@
 declare namespace sigmate {
-  namespace Auth {}
+  namespace Request {
+    /**
+     * DTO to use to set the pagination attribute in the Request instance
+     */
+    export type PaginationDTO = {
+      limit?: number;
+      page?: number;
+      offset?: number;
+      count?: number;
+    };
+
+    /**
+     * Expected pagination request from client, parsed from HTTP request query
+     */
+    export type PaginationReq = {
+      limit: number;
+      page?: number;
+      offset?: number;
+    };
+
+    /**
+     * Pagination data to send back in response to client
+     */
+    export type PaginationRes = {
+      limit: number;
+      offset: number;
+      page: {
+        current: number;
+        total: number;
+      };
+      count: number;
+    };
+  }
   namespace Error {
     export type HandlerOptions<T = string> = {
-      type?: T | 'OTHER';
+      code?: T;
       error?: unknown;
       message?: string;
     };
