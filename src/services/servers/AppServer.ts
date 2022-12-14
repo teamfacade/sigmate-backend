@@ -5,6 +5,7 @@ import { Server as HttpServer } from 'http';
 import express, { Express } from 'express';
 import cors from 'cors';
 import passport from 'passport';
+import ServerError from '../errors/ServerError';
 import Server from './Server';
 import requestIp from 'request-ip';
 import { isEnv, isEnvVarSet, waitTimeout } from '../../utils';
@@ -20,7 +21,6 @@ import Service from '../Service';
 import Action from '../Action';
 import authMw from '../../middlewares/auth';
 import errorMw from '../../middlewares/errors';
-import ServerError from '../errors/ServerError';
 import serviceMw from '../../middlewares/request';
 import Auth from '../auth';
 
@@ -109,6 +109,7 @@ export default class AppServer extends Server {
       this.logger.start();
       Service.logger = this.logger;
       Action.logger = this.logger;
+      Database.logger = this.logger;
       RequestService.logger = this.logger;
     } catch (error) {
       this.onError({ error });
@@ -121,7 +122,7 @@ export default class AppServer extends Server {
     try {
       await this.db.start();
       if (isEnv('development')) {
-        await this.db.sequelize.sync({ force: false, alter: true });
+        await Database.sync({ force: false, seed: false });
       }
     } catch (error) {
       this.onError({ error });

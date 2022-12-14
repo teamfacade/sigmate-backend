@@ -71,7 +71,7 @@ export default class Logger extends Service {
   private static printableLog = printf((info) => {
     const { timestamp, level } = info;
     const message = formatMessage(info as sigmate.Logger.Info);
-    return `${timestamp} ${padLevels(level, 7)} ${message}`;
+    return `${timestamp} ${padLevels(level, 8).toUpperCase()} ${message}`;
   });
 
   private static dynamoLog = format((info) => {

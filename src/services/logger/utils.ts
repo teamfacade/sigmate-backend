@@ -3,7 +3,6 @@ import { ActionTypes } from '../Action';
 import ServerError from '../errors/ServerError';
 import { printStatus } from '../../utils/status';
 import RequestError from '../errors/RequestError';
-import { BaseError } from 'sequelize';
 
 // File sizes
 const MB = 1024 * 1024;
@@ -47,16 +46,18 @@ const formatErrorMessage = (error: unknown) => {
     if (error.cause) {
       fMessage += `${error.name}: ${error.message}`;
       fMessage += '\n';
-      if (error.cause instanceof BaseError) {
-        fMessage += util.inspect(error.cause);
-      } else {
-        fMessage += formatErrorMessage(error.cause);
-      }
+      fMessage += formatErrorMessage(error.cause);
     } else {
-      fMessage += `${error.stack}`;
+      fMessage += `${error.stack || ''}`;
     }
   } else if (error instanceof Error) {
-    fMessage += `${error.stack}`;
+    // fMessage += `${error.stack || ''}`;
+    fMessage += util.inspect(error, {
+      colors: false,
+      depth: 5,
+      breakLength: Infinity,
+      sorted: false,
+    });
   }
   // fMessage = util.inspect(error);
   return fMessage;
@@ -155,7 +156,7 @@ export const formatMessage = (info: sigmate.Logger.Info) => {
   }
 
   if (error) {
-    if (server || service || request || action) {
+    if (server || service || request || action || message) {
       fMessage += '\n';
     }
     fMessage += formatErrorMessage(error);

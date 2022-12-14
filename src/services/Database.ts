@@ -5,7 +5,8 @@ import config from '../config';
 import { models, importModels } from '../models';
 import DatabaseError from './errors/DatabaseError';
 import { wait } from '../utils';
-import Logger from './logger';
+import Action from './Action';
+import { initializeGroupPrivileges } from '../seeders';
 
 export default class Database extends Service {
   static sequelize: Sequelize = undefined as unknown as Sequelize;
@@ -72,12 +73,28 @@ export default class Database extends Service {
    * Errors thrown here will be handled in the `__test()` method
    */
   private static async authenticate() {
-    await Database.sequelize?.authenticate();
+    await Database.sequelize.authenticate();
     Database.__connected = true;
   }
 
+  public static async sync(options: { force: boolean; seed: boolean }) {
+    const action = new Action({
+      name: 'DB_SYNC',
+      type: Action.TYPE.DATABASE,
+      transaction: true,
+    });
+    await action.run(async (transaction) => {
+      await Database.sequelize.sync({ force: options.force, alter: true });
+      if (options.force || options.seed) {
+        await initializeGroupPrivileges(transaction);
+      }
+    });
+  }
+
   name = 'DATABASE';
-  logger?: Logger;
+  get logger() {
+    return Database.logger;
+  }
   get serviceStatus() {
     return Database.status;
   }
@@ -91,7 +108,6 @@ export default class Database extends Service {
     if (!Database.started && checkStart) {
       throw new DatabaseError({ code: 'SERVICE/INIT_BEFORE_START' });
     }
-    this.logger = Database.logger;
   }
 
   /**
@@ -146,6 +162,9 @@ export default class Database extends Service {
           await Database.authenticate();
         }
 
+        if (!Database.connected) {
+          throw new Error('Database still not connected');
+        }
         break;
       } catch (error) {
         // Log the error

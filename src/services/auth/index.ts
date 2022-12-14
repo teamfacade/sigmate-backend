@@ -1,18 +1,20 @@
 import { ValidationChain } from 'express-validator';
+import { Request } from 'express';
+import { Identifier } from 'sequelize/types';
+import { fromPairs } from 'lodash';
 import getValidationChain from '../../middlewares/validators';
+import ModelService, { ValidateOneOptions } from '../ModelService';
+import Action from '../Action';
+import User from './User';
 import UserAuth, {
   UserAuthAttribs,
   UserAuthCAttribs,
 } from '../../models/UserAuth.model';
-import Action from '../Action';
-import ModelService, { ValidateOneOptions } from '../ModelService';
-import User from './User';
-import { Request } from 'express';
-import { Identifier } from 'sequelize/types';
-import UserGroup, {
-  UserGroupAttribs,
-  UserPrivileges,
-} from '../../models/UserGroup.model';
+import UserGroup, { UserGroupAttribs } from '../../models/UserGroup.model';
+import Privilege, {
+  PrivilegeName,
+  PRIVILEGE_NAMES,
+} from '../../models/Privilege.model';
 import { AuthError } from '../errors/AuthError';
 
 export type AuthOptions = {
@@ -99,6 +101,7 @@ type AuthValidateField =
   | 'metamaskNonce'
   | 'signature';
 
+export type PrivilegeMap = Record<PrivilegeName, boolean | null>;
 export default abstract class Auth extends ModelService<
   UserAuthAttribs,
   UserAuthCAttribs
@@ -119,6 +122,40 @@ export default abstract class Auth extends ModelService<
     Auth.status = Auth.STATE.STARTED;
   }
 
+  static buildPrivilegeMap(
+    privileges: Privilege[] | undefined,
+    type: 'user' | 'group'
+  ) {
+    if (!privileges) privileges = [];
+    const privilegeMap: PrivilegeMap = fromPairs(
+      PRIVILEGE_NAMES.map((name) => [name, null])
+    ) as PrivilegeMap;
+
+    switch (type) {
+      case 'group':
+        privileges.forEach((p) => {
+          if (p.GroupPrivilege?.grant === true) {
+            privilegeMap[p.name as PrivilegeName] = true;
+          } else if (p.GroupPrivilege?.grant === false) {
+            privilegeMap[p.name as PrivilegeName] = false;
+          } else {
+            privilegeMap[p.name as PrivilegeName] = false;
+          }
+        });
+        break;
+      case 'user':
+        privileges.forEach((p) => {
+          if (p.UserPrivilege?.grant === true) {
+            privilegeMap[p.name as PrivilegeName] = true;
+          } else if (p.UserPrivilege?.grant === false) {
+            privilegeMap[p.name as PrivilegeName] = false;
+          }
+        });
+        break;
+    }
+    return privilegeMap;
+  }
+
   /**
    * Load the entire UserGroup table from the database
    */
@@ -130,7 +167,18 @@ export default abstract class Auth extends ModelService<
       parent: parentAction,
     });
     // Load from DB
-    const groups = await action.run(() => UserGroup.findAll());
+    const groups = await action.run(() =>
+      UserGroup.findAll({
+        include: [
+          {
+            model: Privilege,
+            as: 'privileges',
+            attributes: ['id', 'name'],
+            through: { attributes: ['grant'] },
+          },
+        ],
+      })
+    );
 
     // Create maps
     Auth.groupIdMap = {};
@@ -235,39 +283,66 @@ export default abstract class Auth extends ModelService<
   /**
    * @param privileges A user privilege name, or an array of them.
    * @returns An authorizer that checks whether the action subject has (**ALL** of)
-   * the given privilege(s).
+   * the given privilege(s) granted.
    */
-  static can(
-    privileges: keyof UserPrivileges | (keyof UserPrivileges)[]
-  ): Authorizer {
+  static can(privileges: PrivilegeName | PrivilegeName[]): Authorizer {
     return {
       name: 'can',
       check: (action) => {
         // Check action is authenticated
         const user = action.subject?.model;
         if (!user) return false;
-        const groupId = user.getDataValue('groupId');
-        if (!groupId) return false;
 
-        // Chcek group privileges
-        const group = Auth.groupIdMap[groupId];
-        const privs =
-          typeof privileges === 'string' ? [privileges] : privileges;
-        for (const priv in privs) {
-          if (!group[priv as keyof UserPrivileges]) return false;
+        // User's group
+        const groupId = user.getDataValue('groupId');
+        if (!groupId) {
+          throw new AuthError({
+            code: 'AUTH/NA_USER_GROUP',
+            message: 'Auth.can() failed to check group privileges',
+          });
         }
 
-        // Check user privileges
-        if (!user.checkPrivileges) return true; // No need to check
-        const auth = user.auth;
-        if (!auth) throw new AuthError({ code: 'AUTH/NF' });
-        for (const priv in privs) {
-          if (auth[priv as keyof UserPrivileges] === false) {
+        // Make privileges an array
+        if (!(privileges instanceof Array)) privileges = [privileges];
+        const userOverrides: Partial<Record<PrivilegeName, boolean | null>> =
+          {};
+        privileges.forEach((pname) => {
+          userOverrides[pname] = null;
+        });
+
+        // Check user's privilege overrides first
+        const userPrivileges = Auth.buildPrivilegeMap(user.privileges, 'user');
+        for (const i in privileges) {
+          const privilege: PrivilegeName = privileges[i];
+          if (userPrivileges[privilege] === true) {
+            // User overrides take precedence over group privileges
+            userOverrides[privilege] = true;
+          } else if (userPrivileges[privilege] === false) {
+            // If the user has the privilege revoked,
+            // unauthorize no matter the UserGroup settings
             return false;
           }
         }
 
-        // If we reached here, authorization success
+        // Privilege of the group
+        const groupPrivileges = Auth.groupIdMap[groupId].privilegeMap;
+        if (!groupPrivileges) {
+          throw new AuthError({ code: 'AUTH/NA_GROUP_PRIV' });
+        }
+
+        // Check if the privilege is granted to the group
+        for (const i in privileges) {
+          const privilege: PrivilegeName = privileges[i];
+          // If there are no overrides,
+          if (userOverrides[privilege] === null) {
+            // and the privilege is not granted to the group,
+            if (!groupPrivileges[privilege]) {
+              // ...then unauthorized!
+              return false;
+            }
+          }
+        }
+
         return true;
       },
       once: false,
@@ -289,8 +364,6 @@ export default abstract class Auth extends ModelService<
     this.model = user?.model?.auth || auth;
     this.user = user || new User();
   }
-
-  // TODO Authorize: Check privileges
 
   public abstract authenticate(
     dto: AuthenticateDTO,

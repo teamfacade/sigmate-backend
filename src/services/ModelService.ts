@@ -2,6 +2,8 @@ import { body, query, param, ValidationChain } from 'express-validator';
 import { Model } from 'sequelize-typescript';
 import Service from './Service';
 
+export type MySQL$TEXT = string;
+
 // eslint-disable-next-line @typescript-eslint/ban-types
 export type ValidateOptions<F = string> = {
   location: keyof typeof VCHAINS;

@@ -39,25 +39,115 @@ declare namespace sigmate {
       message?: string;
     };
 
-    export interface ServerErrorOptions {
-      /** Name of the error. Used to classify errors in logging */
+    export type ErrorName =
+      | 'ServerError'
+      | 'ServiceError'
+      | 'RequestError'
+      | 'ActionError'
+      | 'DatabaseError'
+      | 'LoggerError'
+      | 'AuthError'
+      | 'GoogleAuthError'
+      | 'MetamaskAuthError'
+      | 'UserError'
+      | 'TokenError';
+
+    export type ErrorSource =
+      | 'SERVER'
+      | 'SERVICE'
+      | 'REQUEST'
+      | 'ACTION'
+      | 'UNKNOWN';
+    export type AppErrorCode = 'APP/ER_ENV' | 'APP/ER_START';
+    export type MiscErrorCode = 'UNKNOWN/ER_UNHANDLED';
+    export type ServiceErrorCode =
+      | 'SERVICE/INIT_BEFORE_START'
+      | 'SERVICE/INIT_AFTER_FAIL'
+      | 'SERVICE/NA_CLOSED'
+      | 'SERVICE/NA_FAILED'
+      | 'SERVICE/ER_CLOSE';
+
+    export type ActionErrorCode =
+      | 'ACTION/ER_TX_START'
+      | 'ACTION/ER_TX_COMMIT'
+      | 'ACTION/ER_TX_ROLLBACK'
+      | 'ACTION/CF_SET_TARGET'
+      | 'ACTION/CF_SET_SOURCE'
+      | 'ACTION/ER_RUN_FAILED'
+      | 'ACTION/RJ_UNAUTHORIZED'
+      | 'ACTION/NA_PARENT_ENDED'
+      | 'ACTION/NA_ENDED';
+
+    export type DatabaseErrorCode =
+      | 'DB/ER_CONN'
+      | 'DB/ER_ADD_MODELS'
+      | 'DB/ER_TEST_ATTEMPT'
+      | 'DB/ER_TEST'
+      | 'DB/ER_RUN'
+      | 'DB/ER_TX_START'
+      | 'DB/ER_TX_COMMIT'
+      | 'DB/ER_TX_ROLLBACK'
+      | 'DB/ER_CLOSE'
+      | 'DB/NA_CLOSED'
+      | 'DB/NA_FAILED';
+
+    export type GoogleErrorCode =
+      | 'GOOGLE/ER_TOKEN'
+      | 'GOOGLE/IV_DTO'
+      | 'GOOGLE/IV_TOKEN'
+      | 'GOOGLE/IV_PROFILE';
+
+    export type LoggerErrorCode =
+      | 'LOGGER/ER_INIT_AWS_CLOUDWATCH'
+      | 'LOGGER/ER_INIT_AWS_DYNAMO'
+      | 'LOGGER/ER_INIT_NO_TRANSPORT';
+
+    export type MetamaskErrorCode =
+      | 'METAMASK/ER_NONCE_GEN'
+      | 'METAMASK/IV_DTO'
+      | 'METAMASK/ER_VERIFY'
+      | 'METAMASK/IV_SIGNATURE';
+
+    export type AuthErrorCode =
+      | 'AUTH/NF'
+      | 'AUTH/IV_UPDATE_DTO'
+      | 'AUTH/NA_USER_GROUP'
+      | 'AUTH/NA_GROUP_PRIV';
+
+    export type TokenErrorCode =
+      | 'TOKEN/NA_KEY_FILE'
+      | 'TOKEN/ER_KEY_READ'
+      | 'TOKEN/NA_KEY'
+      | 'TOKEN/NA_USER'
+      | 'TOKEN/NF_USER'
+      | 'TOKEN/NF_USER_AUTH'
+      | 'TOKEN/IV_VERIFY_PAYLOAD'
+      | 'TOKEN/ER_VERIFY_TYPE'
+      | 'TOKEN/ER_VERIFY_IAT'
+      | 'TOKEN/IV_TYPE';
+
+    export type UserErrorCode =
+      | 'USER/NF'
+      | 'USER/NF_AUTH'
+      | 'USER/IV_CREATE_DTO'
+      | 'USER/IV_UPDATE_AUTH_DTO'
+      | 'USER/RJ_UNAME_TAKEN'
+      | 'USER/NF_REF_CODE'
+      | 'USER/RJ_REF_CODE_SET';
+
+    export type ErrorLabel = {
+      source: ErrorSource;
       name: string;
-      message: string;
-      /**
-       * Unexpected errors that is not recoverable and endangers the entire
-       * server instance (needs immediate action)
-       */
-      critical?: boolean;
-      /**
-       * Log level to override the default settings
-       */
+    };
+
+    export type ErrorDefaults = {
+      status?: number;
       level?: sigmate.Logger.Level;
-      /**
-       * The original error that caused this ServerError.
-       * When set, the stack of this Error will also be logged.
-       */
-      cause?: unknown;
-    }
+      critical?: boolean;
+      message?: string;
+    };
+
+    export type ErrorCodeMap<T extends string> = Record<T, ErrorDefaults>;
   }
 
   namespace Logger {

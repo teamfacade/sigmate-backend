@@ -21,7 +21,8 @@ export default class RequestService extends Service {
 
   id = uuidv4();
   name = 'REQUEST';
-  status = RequestStatus.STARTED;
+  status: typeof RequestStatus[keyof typeof RequestStatus] =
+    RequestStatus.STARTED;
   req: Request; // Express request
   res: Response; // Express response
   private __duration = performance.now();

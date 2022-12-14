@@ -16,6 +16,7 @@ import Action from '../Action';
 import ModelService, { ValidateOneOptions } from '../ModelService';
 import UserError from '../errors/UserError';
 import { randomInt } from 'crypto';
+import Privilege from '../../models/Privilege.model';
 
 type UserOptions = {
   user?: UserModel;
@@ -52,7 +53,7 @@ interface UserUpdateDTO
     UserCAttribs,
     | 'userName'
     | 'email'
-    | 'displayName'
+    | 'fullName'
     | 'bio'
     | 'profileImageUrl'
     | 'metamaskWallet'
@@ -124,7 +125,9 @@ export type UserResponse = Pick<
   | 'isEmailVerified'
   | 'isAdmin'
   | 'isTester'
-  | 'displayName'
+  | 'isDev'
+  | 'isTeam'
+  | 'fullName'
   | 'bio'
   | 'profileImageUrl'
   | 'metamaskWallet'
@@ -152,72 +155,21 @@ export type UserResponse = Pick<
 
 type UserAuthFindOptionName = 'TOKEN' | 'GOOGLE' | 'METAMASK';
 
-// ALWAYS!! include the ID Attribute
+// ALWAYS!! include the id Attribute
 export const FIND_ATTRIBS_AUTH: Record<
   UserAuthFindOptionName,
   (keyof UserAuthAttribs)[]
 > = {
-  TOKEN: [
-    'id',
-    'sigmateAccessTokenIat',
-    'sigmateRefreshTokenIat',
-    'canCreateWikiDocument',
-    'canEditWikiDocument',
-    'canVerify',
-    'canChangeName',
-    'canReport',
-    'canLogin',
-    'canConnectGoogle',
-    'canConnectMetamask',
-    'canConnectDiscord',
-    'canConnectTwitter',
-    'canReceivePoints',
-    'canTransferToken',
-    'canRefer',
-    'canParticipateEvent',
-    'canVoteForumPost',
-    'canCreateForumPost',
-    'canEditMyForumPost',
-    'canDeleteMyForumPost',
-    'canVoteForumPostComment',
-    'canCreateFoumPostComment',
-    'canEditMyForumPostComment',
-    'canDeleteMyForumPostComment',
-    'canAffectViewCount',
-    'canAffectAnalytics',
-    'canAdminWikiDocument',
-    'canAdminWikiVerify',
-    'canAdminUpcoming',
-    'canAdminEvent',
-    'canAdminForum',
-    'canAdminUserGeneral',
-    'canAdminReports',
-    'canAdminUserPoint',
-    'canAdminUserToken',
-    'canAdminDev',
-  ],
-  GOOGLE: [
-    'id',
-    'googleAccessToken',
-    'googleRefreshToken',
-    'canLogin',
-    'canConnectGoogle',
-  ],
-  METAMASK: ['id', 'metamaskNonce', 'canLogin', 'canConnectMetamask'],
+  TOKEN: ['id', 'sigmateAccessTokenIat', 'sigmateRefreshTokenIat'],
+  GOOGLE: ['id', 'googleAccessToken', 'googleRefreshToken'],
+  METAMASK: ['id', 'metamaskNonce'],
 };
 
+// ALWAYS!! include the id Attribute
 const FIND_ATTRIBS: Readonly<
   Record<UserFindOptionNames, (keyof UserAttribs)[] | undefined>
 > = Object.freeze({
-  DEFAULT: [
-    'id',
-    'isAdmin',
-    'isTester',
-    'isFlagged',
-    'isBanned',
-    'checkPrivileges',
-    'groupId',
-  ],
+  DEFAULT: ['id', 'isAdmin', 'isTester', 'groupId'],
   EXISTS: ['id'],
   MY: [
     'id',
@@ -226,10 +178,9 @@ const FIND_ATTRIBS: Readonly<
     'isEmailVerified',
     'isAdmin',
     'isTester',
-    'isFlagged',
-    'isBanned',
-    'checkPrivileges',
-    'displayName',
+    'isDev',
+    'isTeam',
+    'fullName',
     'profileImageUrl',
     'metamaskWallet',
     'isMetamaskVerified',
@@ -254,9 +205,7 @@ const FIND_ATTRIBS: Readonly<
     'id',
     'userName',
     'isAdmin',
-    'isFlagged',
-    'isBanned',
-    'displayName',
+    'fullName',
     'profileImageUrl',
     'metamaskWallet',
     'isMetamaskVerified',
@@ -281,7 +230,7 @@ const FIND_ATTRIBS: Readonly<
 type UserValidateField =
   | 'userName'
   | 'email'
-  | 'displayName'
+  | 'fullName'
   | 'bio'
   | 'metamaskWallet'
   | 'twitterHandle'
@@ -384,7 +333,8 @@ export default class User extends ModelService<UserAttribs, UserCAttribs> {
       },
       /**
        * Fetch information from the associated `UserAuth` table, but only
-       * select the field necessary for Sigmate token authentication
+       * select the field necessary for Sigmate token authentication.
+       * Also fetch any user privilege overrides
        */
       AUTH_TOKEN: {
         attributes: FIND_ATTRIBS.DEFAULT,
@@ -392,6 +342,13 @@ export default class User extends ModelService<UserAttribs, UserCAttribs> {
           {
             model: UserAuth,
             attributes: FIND_ATTRIBS_AUTH.TOKEN,
+          },
+          {
+            model: Privilege,
+            as: 'privileges',
+            through: {
+              attributes: ['grant'],
+            },
           },
         ],
       },
@@ -420,7 +377,9 @@ export default class User extends ModelService<UserAttribs, UserCAttribs> {
           'isEmailVerified',
           'isAdmin',
           'isTester',
-          'displayName',
+          'isDev',
+          'isTeam',
+          'fullName',
           'bio',
           'profileImageUrl',
           'metamaskWallet',
@@ -451,7 +410,7 @@ export default class User extends ModelService<UserAttribs, UserCAttribs> {
           'id',
           'userName',
           'isAdmin',
-          'displayName',
+          'fullName',
           'bio',
           'profileImageUrl',
           'isMetamaskWalletPublic',
@@ -651,7 +610,7 @@ export default class User extends ModelService<UserAttribs, UserCAttribs> {
     const {
       userName,
       email,
-      displayName,
+      fullName,
       bio,
       profileImageUrl,
       metamaskWallet,
@@ -701,8 +660,8 @@ export default class User extends ModelService<UserAttribs, UserCAttribs> {
       user.set('email', email);
       user.set('isEmailVerified', false);
     }
-    if (displayName !== undefined) {
-      user.set('displayName', displayName);
+    if (fullName !== undefined) {
+      user.set('fullName', fullName);
     }
     if (bio !== undefined) {
       user.set('bio', bio);
@@ -989,7 +948,7 @@ export default class User extends ModelService<UserAttribs, UserCAttribs> {
           .bail()
           .isEmail()
           .withMessage('NOT_EMAIL');
-      case 'displayName':
+      case 'fullName':
         return chain
           .trim()
           .stripLow()

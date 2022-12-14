@@ -18,9 +18,15 @@ import { Optional } from 'sequelize/types';
 import isLocale from 'validator/lib/isLocale';
 import { MYSQL_TEXT_MAX_LENGTH } from '../middlewares/validators';
 import Device from './Device.model';
+import Mission from './Mission.model';
+import Penalty from './Penalty.model';
+import Privilege from './Privilege.model';
 import UserAuth, { UserAuthAttribs } from './UserAuth.model';
 import UserDevice from './UserDevice.model';
 import UserGroup from './UserGroup.model';
+import UserMission from './UserMission.model';
+import UserPenalty from './UserPenalty.model';
+import UserPrivilege from './UserPrivilege.model';
 
 export const USER_USERNAME_MIN_LENGTH = 3;
 export const USER_USERNAME_MAX_LENGTH = 15;
@@ -43,12 +49,11 @@ export interface UserAttribs {
   // Auth
   isAdmin: boolean;
   isTester: boolean;
-  isFlagged: boolean;
-  isBanned: boolean;
-  checkPrivileges: boolean;
+  isDev: boolean;
+  isTeam: boolean;
 
   // Profile
-  displayName?: string;
+  fullName?: string;
   bio?: string;
   profileImageUrl?: string | null; // external image
   // profileImage?: Image; // TODO uploaded image
@@ -98,6 +103,9 @@ export interface UserAttribs {
   groupId?: number;
   auth?: UserAuth;
   authId?: UserAuthAttribs['id'];
+  privileges?: Privilege[];
+  missions?: Mission[];
+  penalties?: Penalty[];
 }
 
 export type UserCAttribs = Optional<
@@ -106,9 +114,8 @@ export type UserCAttribs = Optional<
   | 'isEmailVerified'
   | 'isAdmin'
   | 'isTester'
-  | 'isFlagged'
-  | 'isBanned'
-  | 'checkPrivileges'
+  | 'isDev'
+  | 'isTeam'
   | 'isMetamaskWalletPublic'
   | 'isTwitterHandlePublic'
   | 'isDiscordAccountPublic'
@@ -119,6 +126,8 @@ export type UserCAttribs = Optional<
   | 'cookiesFunctional'
   | 'cookiesTargeting'
 >;
+
+export type UserId = UserAttribs['id'];
 
 @Table({
   modelName: 'User',
@@ -170,20 +179,15 @@ export default class User extends Model<UserAttribs, UserCAttribs> {
   @AllowNull(false)
   @Default(false)
   @Column(DataType.BOOLEAN)
-  isFlagged!: UserAttribs['isFlagged'];
+  isTeam!: UserAttribs['isTeam'];
 
   @AllowNull(false)
   @Default(false)
   @Column(DataType.BOOLEAN)
-  isBanned!: UserAttribs['isBanned'];
-
-  @AllowNull(false)
-  @Default(false)
-  @Column(DataType.BOOLEAN)
-  checkPrivileges!: UserAttribs['checkPrivileges'];
+  isDev!: UserAttribs['isDev'];
 
   @Column(DataType.STRING)
-  displayName: UserAttribs['displayName'];
+  fullName: UserAttribs['fullName'];
 
   @Length({ msg: 'LENGTH', max: MYSQL_TEXT_MAX_LENGTH })
   @Column(DataType.TEXT)
@@ -311,4 +315,30 @@ export default class User extends Model<UserAttribs, UserCAttribs> {
     onDelete: 'CASCADE',
   })
   auth: UserAttribs['auth'];
+
+  @BelongsToMany(() => Mission, {
+    through: () => UserMission,
+    foreignKey: 'userId',
+    otherKey: 'missionId',
+    as: 'missions',
+  })
+  missions: UserAttribs['missions'];
+
+  @BelongsToMany(() => Penalty, {
+    through: () => UserPenalty,
+    foreignKey: 'userId',
+    otherKey: 'penaltyId',
+    as: 'penalties',
+  })
+  penalties: UserAttribs['penalties'];
+
+  @BelongsToMany(() => Privilege, {
+    through: () => UserPrivilege,
+    foreignKey: 'userId',
+    otherKey: 'privilegeId',
+    as: 'privileges',
+  })
+  privileges: UserAttribs['privileges'];
+
+  UserPrivilege?: UserPrivilege;
 }

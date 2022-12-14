@@ -1,24 +1,38 @@
-import { ERROR_CODES, ErrorLabel, ErrorCode, ErrorDefaults } from '.';
 import { ValidationError as ExpressValidationErrorItem } from 'express-validator';
+import {
+  ERROR_CODES_UNKNOWN,
+  ERROR_CODES_APP,
+  ERROR_CODES_SERVICE,
+  ERROR_CODES_ACTION,
+  ERROR_CODES_DB,
+  ERROR_CODES_LOGGER,
+  ERROR_CODES_TOKEN,
+  ERROR_CODES_USER,
+  ERROR_CODES_AUTH,
+  ERROR_CODES_GOOGLE,
+  ERROR_CODES_METAMASK,
+} from './codes';
 
-type ErrorName =
-  | 'ServerError'
-  | 'ServiceError'
-  | 'RequestError'
-  | 'ActionError'
-  | 'DatabaseError'
-  | 'LoggerError'
-  | 'AuthError'
-  | 'GoogleAuthError'
-  | 'MetamaskAuthError'
-  | 'UserError'
-  | 'TokenError';
+export type ErrorCode = keyof typeof ERROR_CODES;
+export const ERROR_CODES = Object.freeze({
+  ...ERROR_CODES_UNKNOWN,
+  ...ERROR_CODES_APP,
+  ...ERROR_CODES_SERVICE,
+  ...ERROR_CODES_ACTION,
+  ...ERROR_CODES_DB,
+  ...ERROR_CODES_LOGGER,
+  ...ERROR_CODES_TOKEN,
+  ...ERROR_CODES_USER,
+  ...ERROR_CODES_AUTH,
+  ...ERROR_CODES_GOOGLE,
+  ...ERROR_CODES_METAMASK,
+});
 
 export interface ServerErrorOptions {
-  name: ErrorName;
+  name: sigmate.Error.ErrorName;
   code?: ErrorCode;
   error?: unknown;
-  label: ErrorLabel;
+  label: sigmate.Error.ErrorLabel;
   message?: string;
   level?: sigmate.Logger.Level;
   critical?: boolean;
@@ -52,7 +66,7 @@ export default class ServerError extends Error {
    */
   code: ErrorCode;
   cause?: unknown;
-  label: ErrorLabel;
+  label: sigmate.Error.ErrorLabel;
   // message: string;
   level: sigmate.Logger.Level;
   critical: boolean;
@@ -87,7 +101,7 @@ export default class ServerError extends Error {
 
   static getErrorDefaults(
     options: Partial<ServerErrorOptions>
-  ): Required<ErrorDefaults> {
+  ): Required<sigmate.Error.ErrorDefaults> {
     const { code = 'UNKNOWN/ER_UNHANDLED' } = options;
     let { message = '', level, critical, httpStatus: status } = options;
 
