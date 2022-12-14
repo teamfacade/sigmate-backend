@@ -5,7 +5,12 @@ import SequelizeError from '../../utils/errors/SequelizeError';
 export const getAllChannels = async () => {
   try {
     return await Channel.findAll({
-      attributes: ['discord_channel', 'twitter_channel', 'collection_id'],
+      attributes: [
+        'discord_channel',
+        'twitter_channel',
+        'collection_id',
+        'discord_account_id',
+      ],
     });
   } catch (error) {
     throw new SequelizeError(error as Error);
