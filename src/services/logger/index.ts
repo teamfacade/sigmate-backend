@@ -15,8 +15,10 @@ import Action from '../Action';
 import LoggerError from '../errors/LoggerError';
 import { ServerStatus } from '../../utils/status';
 import { Identifier } from 'sequelize/types';
+import { ActionMetricLike } from '../Action';
 
 type LogArgs<
+  MetricType extends ActionMetricLike = number,
   TPKT extends Identifier = number,
   SPKT extends Identifier = number,
   PTPKT extends Identifier = TPKT,
@@ -25,7 +27,7 @@ type LogArgs<
   server?: Server;
   service?: Service;
   request?: Request;
-  action?: Action<TPKT, SPKT, PTPKT, PSPKT>;
+  action?: Action<MetricType, TPKT, SPKT, PTPKT, PSPKT>;
   message?: string;
   error?: unknown;
 };
@@ -354,12 +356,13 @@ export default class Logger extends Service {
   }
 
   private getActionInfo<
+    MetricType extends ActionMetricLike = number,
     TPKT extends Identifier = number,
     SPKT extends Identifier = number,
     PTPKT extends Identifier = TPKT,
     PSPKT extends Identifier = SPKT
   >(
-    action: Action<TPKT, SPKT, PTPKT, PSPKT> | undefined
+    action: Action<MetricType, TPKT, SPKT, PTPKT, PSPKT> | undefined
   ): sigmate.Logger.Info['action'] {
     if (!action) return undefined;
     return {
@@ -428,11 +431,12 @@ export default class Logger extends Service {
   }
 
   public async log<
+    MetricType extends ActionMetricLike = number,
     TPKT extends Identifier = number,
     SPKT extends Identifier = number,
     PTPKT extends Identifier = TPKT,
     PSPKT extends Identifier = SPKT
-  >(args: LogArgs<TPKT, SPKT, PTPKT, PSPKT>) {
+  >(args: LogArgs<MetricType, TPKT, SPKT, PTPKT, PSPKT>) {
     // Silently fail if not started yet
     if (!Logger.started) return;
 

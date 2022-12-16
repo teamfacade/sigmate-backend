@@ -125,7 +125,7 @@ export default class GoogleAuth extends Auth {
       parent: parentAction,
     });
     const { code } = dto;
-    return await action.run(async (tx, action) => {
+    return await action.run(async ({ action }) => {
       // Empty args
       if (!code) {
         throw new GoogleAuthError({ code: 'GOOGLE/IV_DTO' });
@@ -208,7 +208,7 @@ export default class GoogleAuth extends Auth {
       transaction: true,
       parent: parentAction,
     });
-    return await action.run(async (transaction, action) => {
+    return await action.run(async ({ action }) => {
       const user = this.user;
       await user.create(
         {
@@ -239,7 +239,7 @@ export default class GoogleAuth extends Auth {
       transaction: true,
       parent: parentAction,
     });
-    return await action.run(async (transaction, action) => {
+    return await action.run(async ({ action }) => {
       const user = this.user;
 
       if (connect) {

@@ -21,7 +21,7 @@ const VCHAINS = Object.freeze({ body, query, param });
 
 export default abstract class ModelService<
   ModelAttribs extends {}, // eslint-disable-line @typescript-eslint/ban-types
-  ModelCAttribs extends {} // eslint-disable-line @typescript-eslint/ban-types
+  ModelCAttribs extends {} = ModelAttribs // eslint-disable-line @typescript-eslint/ban-types
 > extends Service {
   public abstract model?: Model<ModelAttribs, ModelCAttribs>;
 

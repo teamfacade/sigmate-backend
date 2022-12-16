@@ -4,7 +4,7 @@ import { Identifier } from 'sequelize/types';
 import { fromPairs } from 'lodash';
 import getValidationChain from '../../middlewares/validators';
 import ModelService, { ValidateOneOptions } from '../ModelService';
-import Action from '../Action';
+import Action, { ActionMetricLike } from '../Action';
 import User from './User';
 import UserAuth, {
   UserAuthAttribs,
@@ -63,6 +63,7 @@ export type AuthorizeDTO = {
 };
 
 export type Authorizer<
+  MetricType extends ActionMetricLike = number,
   TPKT extends Identifier = number,
   SPKT extends Identifier = number,
   PTPKT extends Identifier = TPKT,
@@ -79,7 +80,7 @@ export type Authorizer<
    * `false` to stop and fail the action.
    * @params action Action instance to check authorization
    */
-  check: (action: Action<TPKT, SPKT, PTPKT, PSPKT>) => boolean;
+  check: (action: Action<MetricType, TPKT, SPKT, PTPKT, PSPKT>) => boolean;
   /**
    * If set to `true`, child actions will not run this authorizer
    * again if the parent already ran it

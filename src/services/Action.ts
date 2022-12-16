@@ -27,7 +27,10 @@ type ActionObject<
   instance?: M;
 };
 
+export type ActionMetricLike = number | Record<string, number>;
+
 type ActionOptions<
+  MetricType extends ActionMetricLike,
   TPKT extends Identifier,
   SPKT extends Identifier,
   PTPKT extends Identifier,
@@ -57,10 +60,21 @@ type ActionOptions<
   analytics?: boolean | sigmate.Logger.Level;
   target?: ActionObject<TPKT>;
   source?: ActionObject<SPKT>;
-  parent?: Action<PTPKT, PSPKT>;
+  parent?: Action<MetricType, PTPKT, PSPKT>;
   auth?:
-    | Authorizer<TPKT, SPKT, PTPKT, PSPKT>
-    | Authorizer<TPKT, SPKT, PTPKT, PSPKT>[];
+    | Authorizer<MetricType, TPKT, SPKT, PTPKT, PSPKT>
+    | Authorizer<MetricType, TPKT, SPKT, PTPKT, PSPKT>[];
+};
+
+export type ActionWorkerParams<
+  MetricType extends ActionMetricLike,
+  TPKT extends Identifier,
+  SPKT extends Identifier,
+  PTPKT extends Identifier,
+  PSPKT extends Identifier
+> = {
+  transaction?: Transaction;
+  action: Action<MetricType, TPKT, SPKT, PTPKT, PSPKT>;
 };
 
 export type ActionDTO<T> = T & {
@@ -69,10 +83,11 @@ export type ActionDTO<T> = T & {
 };
 
 export default class Action<
-  TPKT extends Identifier = number,
-  SPKT extends Identifier = number,
-  PTPKT extends Identifier = TPKT,
-  PSPKT extends Identifier = SPKT
+  MetricType extends ActionMetricLike = number,
+  TargetPkType extends Identifier = number,
+  SourcePkType extends Identifier = number,
+  ParentTPkT extends Identifier = TargetPkType,
+  ParentSPkT extends Identifier = SourcePkType
 > {
   /**
    * List of available action types.
@@ -94,9 +109,10 @@ export default class Action<
   database: Database;
   logger?: Logger;
   /**
-   * Data to write to the logs for debugging
+   * Additional data to write to the logs for debugging
    */
   data?: Record<string, unknown>;
+  metric?: MetricType;
   /**
    * Default logging level to use for action finish
    */
@@ -145,7 +161,7 @@ export default class Action<
   /** Who is running this action? */
   subject?: User;
 
-  __target?: ActionObject<TPKT>;
+  __target?: ActionObject<TargetPkType>;
   get target() {
     return this.__target?.id ? this.__target : undefined;
   }
@@ -158,7 +174,7 @@ export default class Action<
       }
     }
   }
-  __source?: ActionObject<SPKT>;
+  __source?: ActionObject<SourcePkType>;
   get source() {
     return this.__source?.id ? this.__source : undefined;
   }
@@ -175,11 +191,11 @@ export default class Action<
   /**
    * The parent action that spawned this action
    */
-  parent?: Action<PTPKT, PSPKT>;
+  parent?: Action<MetricType, ParentTPkT, ParentSPkT>;
   /**
    * Children action spawned by this action
    */
-  children: Action<any, any>[] = [];
+  children: Action<any, any, any>[] = [];
   /**
    * When set as `true`, and this action is not the root action,
    * the parent action of this action will finish when this action finishes
@@ -191,10 +207,24 @@ export default class Action<
   depth: number;
 
   // AUTH
-  authorizers: Authorizer<TPKT, SPKT, PTPKT, PSPKT>[];
+  authorizers: Authorizer<
+    MetricType,
+    TargetPkType,
+    SourcePkType,
+    ParentTPkT,
+    ParentSPkT
+  >[];
   completedAuthorizers: Set<string>;
 
-  constructor(options: ActionOptions<TPKT, SPKT, PTPKT, PSPKT>) {
+  constructor(
+    options: ActionOptions<
+      MetricType,
+      TargetPkType,
+      SourcePkType,
+      ParentTPkT,
+      ParentSPkT
+    >
+  ) {
     const {
       type,
       name,
@@ -259,7 +289,7 @@ export default class Action<
     }
   }
 
-  public setTarget(target: Partial<ActionObject<TPKT>>) {
+  public setTarget(target: Partial<ActionObject<TargetPkType>>) {
     const model = this.__target?.model || target.model;
     if (model) {
       this.target = {
@@ -274,7 +304,7 @@ export default class Action<
     }
   }
 
-  public setSource(source: Partial<ActionObject<SPKT>>) {
+  public setSource(source: Partial<ActionObject<SourcePkType>>) {
     const model = this.__source?.model || source.model;
     if (model) {
       this.source = {
@@ -287,6 +317,10 @@ export default class Action<
         message: 'Set source model first.',
       });
     }
+  }
+
+  public setMetric(metric: MetricType) {
+    this.metric = metric;
   }
 
   private authorize() {
@@ -352,8 +386,13 @@ export default class Action<
 
   public async run<T>(
     worker: (
-      transaction: Action<TPKT, SPKT, PTPKT, PSPKT>['transaction'],
-      action: Action<TPKT, SPKT, PTPKT, PSPKT>
+      args: ActionWorkerParams<
+        MetricType,
+        TargetPkType,
+        SourcePkType,
+        ParentTPkT,
+        ParentSPkT
+      >
     ) => Promise<T>
   ) {
     try {
@@ -362,9 +401,11 @@ export default class Action<
       // Run the action
       let res: Awaited<ReturnType<typeof worker>>;
       if (this.type === Action.TYPE.DATABASE) {
-        res = await this.database.run(() => worker(this.transaction, this));
+        res = await this.database.run(() =>
+          worker({ transaction: this.transaction, action: this })
+        );
       } else {
-        res = await worker(this.transaction, this);
+        res = await worker({ transaction: this.transaction, action: this });
       }
       // Clean up (on success)
       await this.onFinish();

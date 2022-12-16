@@ -334,7 +334,7 @@ export default class Token extends Service {
       transaction: true,
       parent: parentAction,
     });
-    return await action.run(async (tx, action) => {
+    return await action.run(async ({ action }) => {
       if (!this.user.model?.auth)
         await this.user.reload({ options: 'AUTH_TOKEN' }, action);
       const auth = this.user.model?.auth;

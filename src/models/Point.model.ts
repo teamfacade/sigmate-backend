@@ -6,6 +6,7 @@ import {
   Model,
   Table,
 } from 'sequelize-typescript';
+import { Optional } from 'sequelize/types';
 import PointPolicy, { PointPolicyAttribs } from './PointPolicy.model';
 import User, { UserId } from './User.model';
 import UserPrivilege, { UserPrivilegeAttribs } from './UserPrivilege.model';
@@ -42,9 +43,19 @@ export interface PointAttribs {
   revokedByUserPrivilege?: UserPrivilege;
   revokedByUserPrivilegeId?: UserPrivilegeAttribs['id'];
 
+  /**
+   * Was this point transferred to tokens?
+   */
+  transferredAt?: Date;
+
   createdAt: Date;
   updatedAt: Date;
 }
+
+export type PointCAttribs = Optional<
+  PointAttribs,
+  'id' | 'createdAt' | 'updatedAt'
+>;
 
 type PointStatus = 'PENDING' | 'RECEIVED' | 'REVOKED' | 'CONFLICT';
 
@@ -55,7 +66,7 @@ type PointStatus = 'PENDING' | 'RECEIVED' | 'REVOKED' | 'CONFLICT';
   underscored: true,
   paranoid: false,
 })
-export default class Point extends Model<PointAttribs> {
+export default class Point extends Model<PointAttribs, PointCAttribs> {
   @AllowNull(false)
   @Column(DataType.INTEGER)
   amount!: PointAttribs['amount'];

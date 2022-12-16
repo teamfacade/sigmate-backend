@@ -83,7 +83,7 @@ export default class Database extends Service {
       type: Action.TYPE.DATABASE,
       transaction: true,
     });
-    await action.run(async (transaction) => {
+    await action.run(async ({ transaction }) => {
       await Database.sequelize.sync({ force: options.force, alter: true });
       if (options.force || options.seed) {
         await initializeGroupPrivileges(transaction);

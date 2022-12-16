@@ -476,7 +476,7 @@ export default class User extends ModelService<UserAttribs, UserCAttribs> {
     } else {
       return null;
     }
-    const user = await action.run((transaction) =>
+    const user = await action.run(({ transaction }) =>
       UserModel.findOne({
         where,
         transaction,
@@ -523,7 +523,7 @@ export default class User extends ModelService<UserAttribs, UserCAttribs> {
       parent: parentAction,
     });
 
-    return await action.run(async (transaction, action) => {
+    return await action.run(async ({ action }) => {
       // Create user
       const createUser = new Action({
         type: Action.TYPE.DATABASE,
@@ -531,11 +531,13 @@ export default class User extends ModelService<UserAttribs, UserCAttribs> {
         target: { model: UserModel },
         parent: action,
       });
-      const userModel = await createUser.run(async (transaction, action) => {
-        const user = await UserModel.create({}, { transaction });
-        action.setTarget({ id: user.id });
-        return user;
-      });
+      const userModel = await createUser.run(
+        async ({ transaction, action }) => {
+          const user = await UserModel.create({}, { transaction });
+          action.setTarget({ id: user.id });
+          return user;
+        }
+      );
       action.setTarget({ id: userModel.id });
 
       // Update attribs
@@ -576,7 +578,7 @@ export default class User extends ModelService<UserAttribs, UserCAttribs> {
         target: { model: UserModel, id: userModel.id },
         parent: action,
       });
-      await saveUser.run((transaction) => userModel.save({ transaction }));
+      await saveUser.run(({ transaction }) => userModel.save({ transaction }));
 
       // Create auth entry and associate
       const createAuth = new Action({
@@ -585,7 +587,7 @@ export default class User extends ModelService<UserAttribs, UserCAttribs> {
         target: { model: UserAuth },
         parent: action,
       });
-      await createAuth.run(async (transaction, action) => {
+      await createAuth.run(async ({ transaction, action }) => {
         const auth = await UserAuth.create({}, { transaction });
         action.setTarget({ id: auth.id });
         await userModel.$set('auth', auth, { transaction });
@@ -738,14 +740,16 @@ export default class User extends ModelService<UserAttribs, UserCAttribs> {
         }
       }
     }
-    return await action.run(async (transaction, action) => {
+    return await action.run(async ({ action }) => {
       const saveAction = new Action({
         type: Action.TYPE.DATABASE,
         name: 'USER_UPDATE_SAVE',
         target: { model: UserModel, id: user.id },
         parent: action,
       });
-      return await saveAction.run((transaction) => user.save({ transaction }));
+      return await saveAction.run(({ transaction }) =>
+        user.save({ transaction })
+      );
     });
   }
 
@@ -797,7 +801,7 @@ export default class User extends ModelService<UserAttribs, UserCAttribs> {
       target: { model: UserAuth, id: auth.id },
       parent: parentAction,
     });
-    await update.run((transaction) => auth.save({ transaction }));
+    await update.run(({ transaction }) => auth.save({ transaction }));
   }
 
   async delete(parentAction: Action | undefined = undefined) {
@@ -811,7 +815,7 @@ export default class User extends ModelService<UserAttribs, UserCAttribs> {
       transaction: true,
       parent: parentAction,
     });
-    await action.run(async (transaction) => {
+    await action.run(async ({ transaction }) => {
       const deleteSuffix = `$${new Date().getTime()}`;
       user.set('userName', user.userName + deleteSuffix);
       user.set('email', user.email + deleteSuffix);
@@ -838,7 +842,7 @@ export default class User extends ModelService<UserAttribs, UserCAttribs> {
       target: { model: UserModel, id: user.id },
       parent: parentAction,
     });
-    await action.run(async (transaction) =>
+    await action.run(async ({ transaction }) =>
       user.reload({
         ...User.FIND_OPTIONS[options],
         transaction,
