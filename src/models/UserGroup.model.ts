@@ -9,6 +9,7 @@ import {
   Model,
   Table,
   Unique,
+  Scopes,
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
 import Auth, { PrivilegeMap } from '../services/auth';
@@ -51,6 +52,16 @@ export const GROUP_NAMES: GroupName[] = [
   'admin',
 ];
 
+@Scopes(() => ({
+  privileges: {
+    include: {
+      model: Privilege,
+      as: 'privileges',
+      attributes: ['id', 'name', 'adminOnly'],
+      through: { attributes: ['grant'] },
+    },
+  },
+}))
 @Table({
   modelName: 'UserGroup',
   tableName: 'user_groups',
@@ -96,14 +107,16 @@ export default class UserGroup extends Model<
    */
   privilegeMap?: PrivilegeMap;
   @AfterFind
-  static buildPrivilegeMap(instance: UserGroup | UserGroup[]) {
-    if (!(instance instanceof Array)) {
-      instance = [instance];
+  static buildPrivilegeMap(instances: UserGroup | UserGroup[]) {
+    if (!(instances instanceof Array)) {
+      instances = [instances];
     }
-    instance.forEach((i) => {
-      const privileges = i.getDataValue('privileges') || [];
-      // Build an object mapping...
-      i.privilegeMap = Auth.buildPrivilegeMap(privileges, 'group');
+    instances.forEach((instance) => {
+      if (instance) {
+        const privileges = instance.getDataValue('privileges') || [];
+        // Build an object mapping...
+        instance.privilegeMap = Auth.buildPrivilegeMap(privileges, 'group');
+      }
     });
   }
 }

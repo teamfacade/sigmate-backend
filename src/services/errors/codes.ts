@@ -147,6 +147,16 @@ export const ERROR_CODES_AUTH: ErrorCodeMap<sigmate.Error.AuthErrorCode> = {
     level: 'warn',
     message: 'Group privileges not loaded',
   },
+  'AUTH/RJ_GROUP_UNAUTHORIZED': {
+    status: 403,
+    level: 'verbose',
+    message: 'Group does not have required privileges',
+  },
+  'AUTH/RJ_USER_UNAUTHORIZED': {
+    status: 403,
+    level: 'verbose',
+    message: 'User does not have required privileges',
+  },
 };
 
 export const ERROR_CODES_DB: ErrorCodeMap<sigmate.Error.DatabaseErrorCode> = {
@@ -209,6 +219,11 @@ export const ERROR_CODES_DB: ErrorCodeMap<sigmate.Error.DatabaseErrorCode> = {
 };
 
 export const ERROR_CODES_GOOGLE: ErrorCodeMap<sigmate.Error.GoogleErrorCode> = {
+  'GOOGLE/NA_AUTH_URL': {
+    status: 503,
+    level: 'warn',
+    message: 'Google OAuth url not available.',
+  },
   'GOOGLE/ER_TOKEN': {
     status: 503,
     level: 'warn',

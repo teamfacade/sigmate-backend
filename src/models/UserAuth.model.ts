@@ -4,6 +4,7 @@ import {
   DataType,
   Model,
   Table,
+  Scopes,
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
 import User from './User.model';
@@ -20,6 +21,29 @@ export interface UserAuthAttribs {
 
 export type UserAuthCAttribs = Optional<UserAuthAttribs, 'id'>;
 
+export const AUTH_ATTRIBS_TOKEN = [
+  'id',
+  'sigmateAccessTokenIat',
+  'sigmateRefreshTokenIat',
+];
+export const AUTH_ATTRIBS_GOOGLE = [
+  'id',
+  'googleAccessToken',
+  'googleRefreshToken',
+];
+export const AUTH_ATTRIBS_METAMASK = ['id', 'metamaskNonce'];
+
+@Scopes(() => ({
+  token: {
+    attributes: AUTH_ATTRIBS_TOKEN,
+  },
+  google: {
+    attributes: AUTH_ATTRIBS_GOOGLE,
+  },
+  metamask: {
+    attributes: AUTH_ATTRIBS_METAMASK,
+  },
+}))
 @Table({
   tableName: 'user_auths',
   modelName: 'UserAuth',

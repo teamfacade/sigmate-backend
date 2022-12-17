@@ -1,6 +1,7 @@
 import {
   AllowNull,
   AutoIncrement,
+  BelongsTo,
   Column,
   DataType,
   Default,
@@ -45,11 +46,11 @@ export default class UserPrivilege extends Model<UserPrivilegeAttribs> {
   @Column(DataType.INTEGER)
   id!: UserPrivilegeAttribs['id'];
 
-  @Column(DataType.INTEGER)
-  userId: UserPrivilegeAttribs['userId'];
+  @BelongsTo(() => User, { foreignKey: 'userId' })
+  user?: UserPrivilegeAttribs['user'];
 
-  @Column(DataType.INTEGER)
-  privilegeId: UserPrivilegeAttribs['privilegeId'];
+  @BelongsTo(() => Privilege, { foreignKey: 'privilegeId' })
+  privilege: UserPrivilegeAttribs['privilege'];
 
   @Default(false)
   @AllowNull(false)

@@ -15,7 +15,7 @@ const getMyInfo: RequestHandler<
     const user = req.user as NonNullable<typeof req.user>;
     // Load "slow" columns only when necessary
     const loadAll = req.query.all || false;
-    await user.reload({ options: loadAll ? 'MY_ALL' : 'MY' });
+    await user.reload({ scope: loadAll ? 'myFull' : 'my' });
     res.status(200).json({ user: user.toResponse({ type: 'MY' }) });
   } catch (err) {
     next(err);

@@ -1,5 +1,6 @@
 import {
   Table,
+  Scopes,
   Model,
   Unique,
   Column,
@@ -21,9 +22,14 @@ import Device from './Device.model';
 import Mission from './Mission.model';
 import Penalty from './Penalty.model';
 import Privilege from './Privilege.model';
-import UserAuth, { UserAuthAttribs } from './UserAuth.model';
+import UserAuth, {
+  AUTH_ATTRIBS_GOOGLE,
+  AUTH_ATTRIBS_METAMASK,
+  AUTH_ATTRIBS_TOKEN,
+  UserAuthAttribs,
+} from './UserAuth.model';
 import UserDevice from './UserDevice.model';
-import UserGroup from './UserGroup.model';
+import UserGroup, { UserGroupAttribs } from './UserGroup.model';
 import UserMission from './UserMission.model';
 import UserPenalty from './UserPenalty.model';
 import UserPrivilege from './UserPrivilege.model';
@@ -45,6 +51,9 @@ export interface UserAttribs {
   userNameUpdatedAt?: Date;
   email?: string;
   isEmailVerified: boolean;
+
+  tier: number;
+  tierUpdatedAt?: Date;
 
   // Auth
   isAdmin: boolean;
@@ -100,18 +109,23 @@ export interface UserAttribs {
   // Associations
   devices?: Device[];
   group?: UserGroup;
-  groupId?: number;
+  groupId?: UserGroupAttribs['id'];
   auth?: UserAuth;
   authId?: UserAuthAttribs['id'];
   privileges?: Privilege[];
   missions?: Mission[];
   penalties?: Penalty[];
+
+  createdAt: Date;
+  updatedAt: Date;
+  deletedAt?: Date;
 }
 
 export type UserCAttribs = Optional<
   UserAttribs,
   | 'id'
   | 'isEmailVerified'
+  | 'tier'
   | 'isAdmin'
   | 'isTester'
   | 'isDev'
@@ -125,10 +139,153 @@ export type UserCAttribs = Optional<
   | 'cookiesAnalytics'
   | 'cookiesFunctional'
   | 'cookiesTargeting'
+  | 'createdAt'
+  | 'updatedAt'
 >;
 
 export type UserId = UserAttribs['id'];
 
+// Scopes
+export const USER_ATTRIBS_DEFAULT: (keyof UserAttribs)[] = [
+  'id',
+  'isAdmin',
+  'isTeam',
+  'isTester',
+  'isDev',
+  'groupId',
+];
+
+export const USER_ATTRIBS_PUBLIC: (keyof UserAttribs)[] = [
+  ...USER_ATTRIBS_DEFAULT,
+  'userName',
+  'tier',
+  'fullName',
+  'profileImageUrl',
+  'metamaskWallet',
+  'isMetamaskVerified',
+  'isMetamaskWalletPublic',
+  'twitterHandle',
+  'isTwitterHandlePublic',
+  'discordAccount',
+  'isDiscordAccountPublic',
+];
+
+export const USER_ATTRIBS_MY_LOGIN: (keyof UserAttribs)[] = [
+  ...USER_ATTRIBS_PUBLIC,
+  'userNameUpdatedAt',
+  'email',
+  'isEmailVerified',
+  'googleAccount',
+  'lastLoginAt',
+  'locale',
+  'emailEssential',
+  'emailMarketing',
+  'cookiesEssential',
+  'cookiesAnalytics',
+  'cookiesFunctional',
+  'cookiesTargeting',
+  'agreeTos',
+  'agreePrivacy',
+  'agreeLegal',
+  'referralCode',
+];
+
+export type UserScopeName =
+  | 'exists'
+  | 'tokenAuth'
+  | 'googleAuth'
+  | 'metamaskAuth'
+  | 'public'
+  | 'publicFull'
+  | 'beforeUpdate'
+  | 'my'
+  | 'myFull';
+
+// ALWAYS include the id attribute!
+@Scopes(() => ({
+  exists: {
+    attributes: ['id'],
+  },
+  tokenAuth: {
+    attributes: USER_ATTRIBS_DEFAULT,
+    include: [{ model: UserAuth, attributes: AUTH_ATTRIBS_TOKEN }],
+  },
+  /**
+   * Google connect, authentication
+   */
+  googleAuth: {
+    attributes: [...USER_ATTRIBS_DEFAULT, 'googleAccount', 'googleAccountId'],
+    include: [{ model: UserAuth, attributes: AUTH_ATTRIBS_GOOGLE }],
+  },
+  /**
+   * Metamask connect, authentication
+   */
+  metamaskAuth: {
+    attributes: [
+      ...USER_ATTRIBS_DEFAULT,
+      'metamaskWallet',
+      'isMetamaskVerified',
+    ],
+    include: [{ model: UserAuth, attributes: AUTH_ATTRIBS_METAMASK }],
+  },
+  /**
+   * Information about someone else
+   */
+  public: {
+    attributes: USER_ATTRIBS_PUBLIC,
+    include: {
+      model: UserGroup,
+      attributes: ['id', 'name'],
+    },
+  },
+  /**
+   * Full information about someone else (including "slow" fields)
+   */
+  publicFull: {
+    attributes: [...USER_ATTRIBS_PUBLIC, 'bio'],
+  },
+  /**
+   * Used for reload calls before updating user information,
+   * to perform policy checks
+   */
+  beforeUpdate: {
+    attributes: ['id', 'userNameUpdatedAt', 'referralCode', 'referredById'],
+    include: {
+      model: User,
+      attributes: ['id'],
+      as: 'referredBy',
+    },
+  },
+  /**
+   * Most of the information about myself (Usage: After successful
+   * login/signup, user account page, etc.)
+   */
+  my: {
+    attributes: USER_ATTRIBS_MY_LOGIN,
+    include: [
+      {
+        model: UserAuth,
+        attributes: AUTH_ATTRIBS_TOKEN,
+      },
+      {
+        model: UserGroup,
+        attributes: ['id', 'name'],
+      },
+    ],
+  },
+  /**
+   * Full information about myself (including "slow" fields)
+   */
+  myFull: {
+    attributes: [...USER_ATTRIBS_MY_LOGIN, 'bio'],
+    include: [
+      {
+        model: UserAuth,
+        attributes: AUTH_ATTRIBS_TOKEN,
+      },
+    ],
+  },
+}))
 @Table({
   modelName: 'User',
   tableName: 'users',
@@ -165,6 +322,14 @@ export default class User extends Model<UserAttribs, UserCAttribs> {
   @Default(false)
   @Column(DataType.BOOLEAN)
   isEmailVerified!: UserAttribs['isEmailVerified'];
+
+  @Default(0)
+  @AllowNull(false)
+  @Column(DataType.INTEGER)
+  tier!: UserAttribs['tier'];
+
+  @Column(DataType.DATE)
+  tierUpdatedAt: UserAttribs['tierUpdatedAt'];
 
   @AllowNull(false)
   @Default(false)

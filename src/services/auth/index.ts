@@ -3,14 +3,20 @@ import { Request } from 'express';
 import { Identifier } from 'sequelize/types';
 import { fromPairs } from 'lodash';
 import getValidationChain from '../../middlewares/validators';
-import ModelService, { ValidateOneOptions } from '../ModelService';
+import ModelService, {
+  ValidateOneOptions,
+  ValidateOptions,
+} from '../ModelService';
 import Action, { ActionMetricLike } from '../Action';
 import User from './User';
 import UserAuth, {
   UserAuthAttribs,
   UserAuthCAttribs,
 } from '../../models/UserAuth.model';
-import UserGroup, { UserGroupAttribs } from '../../models/UserGroup.model';
+import UserGroup, {
+  GroupName,
+  UserGroupAttribs,
+} from '../../models/UserGroup.model';
 import Privilege, {
   PrivilegeName,
   PRIVILEGE_NAMES,
@@ -111,7 +117,7 @@ export default abstract class Auth extends ModelService<
    * Entire UserGroup table selected from database.
    * Contains privileges for each UserGroup
    */
-  static groupNameMap: Record<UserGroupAttribs['name'], UserGroup> = {};
+  static groupNameMap: Partial<Record<GroupName, UserGroup>> = {};
   static groupIdMap: Record<UserGroupAttribs['id'], UserGroup> = {};
 
   /**
@@ -169,16 +175,7 @@ export default abstract class Auth extends ModelService<
     });
     // Load from DB
     const groups = await action.run(() =>
-      UserGroup.findAll({
-        include: [
-          {
-            model: Privilege,
-            as: 'privileges',
-            attributes: ['id', 'name'],
-            through: { attributes: ['grant'] },
-          },
-        ],
-      })
+      UserGroup.scope('privileges').findAll()
     );
 
     // Create maps
@@ -186,7 +183,7 @@ export default abstract class Auth extends ModelService<
     Auth.groupNameMap = {};
     groups.forEach((group) => {
       Auth.groupIdMap[group.id] = group;
-      Auth.groupNameMap[group.name] = group;
+      Auth.groupNameMap[group.name as GroupName] = group;
     });
   }
 
@@ -292,41 +289,66 @@ export default abstract class Auth extends ModelService<
       check: (action) => {
         // Check action is authenticated
         const user = action.subject?.model;
-        if (!user) return false;
-
-        // User's group
-        const groupId = user.getDataValue('groupId');
-        if (!groupId) {
-          throw new AuthError({
-            code: 'AUTH/NA_USER_GROUP',
-            message: 'Auth.can() failed to check group privileges',
-          });
-        }
+        let group: UserGroup | undefined = undefined;
 
         // Make privileges an array
         if (!(privileges instanceof Array)) privileges = [privileges];
+
+        // User privilege overrides (for authenticated actions)
         const userOverrides: Partial<Record<PrivilegeName, boolean | null>> =
           {};
         privileges.forEach((pname) => {
           userOverrides[pname] = null;
         });
 
-        // Check user's privilege overrides first
-        const userPrivileges = Auth.buildPrivilegeMap(user.privileges, 'user');
-        for (const i in privileges) {
-          const privilege: PrivilegeName = privileges[i];
-          if (userPrivileges[privilege] === true) {
-            // User overrides take precedence over group privileges
-            userOverrides[privilege] = true;
-          } else if (userPrivileges[privilege] === false) {
-            // If the user has the privilege revoked,
-            // unauthorize no matter the UserGroup settings
-            return false;
+        if (user) {
+          // Authenticated
+          // User's group
+          const groupId = user.getDataValue('groupId');
+          if (!groupId) {
+            throw new AuthError({
+              code: 'AUTH/NA_USER_GROUP',
+              message: 'Group not set for the user',
+            });
           }
+
+          // Check user's privilege overrides first
+          const userPrivileges = Auth.buildPrivilegeMap(
+            user.privileges,
+            'user'
+          );
+          for (const i in privileges) {
+            const privilege: PrivilegeName = privileges[i];
+            if (userPrivileges[privilege] === true) {
+              // User overrides take precedence over group privileges
+              userOverrides[privilege] = true;
+            } else if (userPrivileges[privilege] === false) {
+              // If the user has the privilege revoked,
+              // unauthorize no matter the UserGroup settings
+              throw new AuthError({
+                code: 'AUTH/RJ_USER_UNAUTHORIZED',
+                message: `(${privilege})`,
+              });
+            }
+          }
+
+          // Subject group is user's group
+          group = Auth.groupIdMap[groupId];
+        } else {
+          // Unauthenticated
+          // Subject group is 'undefined'
+          group = Auth.groupNameMap['unauthenticated'];
+        }
+
+        if (!group) {
+          throw new AuthError({
+            code: 'AUTH/NA_USER_GROUP',
+            message: 'Auth service cannot identify user group',
+          });
         }
 
         // Privilege of the group
-        const groupPrivileges = Auth.groupIdMap[groupId].privilegeMap;
+        const groupPrivileges = group.privilegeMap;
         if (!groupPrivileges) {
           throw new AuthError({ code: 'AUTH/NA_GROUP_PRIV' });
         }
@@ -339,7 +361,10 @@ export default abstract class Auth extends ModelService<
             // and the privilege is not granted to the group,
             if (!groupPrivileges[privilege]) {
               // ...then unauthorized!
-              return false;
+              throw new AuthError({
+                code: 'AUTH/RJ_GROUP_UNAUTHORIZED',
+                message: `(${privilege})`,
+              });
             }
           }
         }
@@ -392,5 +417,11 @@ export default abstract class Auth extends ModelService<
       default:
         return chain.optional().isEmpty().withMessage('INVALID_FIELD');
     }
+  }
+
+  public static validate(
+    options: ValidateOptions<AuthValidateField>
+  ): ValidationChain[] {
+    return ModelService.validate(options);
   }
 }

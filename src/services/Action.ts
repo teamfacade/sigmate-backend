@@ -6,6 +6,7 @@ import ActionError from './errors/ActionError';
 import ServerError from './errors/ServerError';
 import { Request } from 'express';
 import User from './auth/User';
+import UserModel from '../models/User.model';
 import { Authorizer } from './auth';
 
 export const ActionTypes = Object.freeze({
@@ -58,6 +59,7 @@ type ActionOptions<
    * Optionally, supply a valid string level to use as the logging level when this action finishes.
    */
   analytics?: boolean | sigmate.Logger.Level;
+  subject?: User;
   target?: ActionObject<TPKT>;
   source?: ActionObject<SPKT>;
   parent?: Action<MetricType, PTPKT, PSPKT>;
@@ -289,6 +291,12 @@ export default class Action<
     }
   }
 
+  public setSubject(dto: { user?: User; model?: UserModel }) {
+    const { user: subject, model } = dto;
+    if (subject) this.subject = subject;
+    if (model) this.subject = new User({ model });
+  }
+
   public setTarget(target: Partial<ActionObject<TargetPkType>>) {
     const model = this.__target?.model || target.model;
     if (model) {
@@ -323,11 +331,11 @@ export default class Action<
     this.metric = metric;
   }
 
-  private authorize() {
+  private authorize(options: { after: boolean }) {
     this.authorizers.forEach((authorizer) => {
       const { name, check, once, after = false } = authorizer;
       // For authorizers run before/after the action has ended
-      if (after !== this.ended) return;
+      if (after !== options.after) return;
       // If already authorized, don't check again
       if (once && this.completedAuthorizers.has(name)) return;
       if (check(this)) {
@@ -338,7 +346,9 @@ export default class Action<
         // Failed (Unauthorized)
         throw new ActionError({
           code: 'ACTION/RJ_UNAUTHORIZED',
-          message: `Unauthorized by '${name}' check`,
+          message: `Unauthorized by '${name}' check (${
+            options.after ? 'after' : 'before'
+          })`,
         });
       }
     });
@@ -381,7 +391,7 @@ export default class Action<
     }
 
     // Authorize the action to run
-    this.authorize();
+    this.authorize({ after: false });
   }
 
   public async run<T>(
@@ -440,6 +450,10 @@ export default class Action<
     // No need to run again
     if (this.status === Action.STATE.FINISHED) return;
 
+    // Final checks on authorization
+    // Errors will be handled from `run()`, the caller
+    this.authorize({ after: true });
+
     // Commit the transaction
     if (!this.parent) {
       try {
@@ -448,10 +462,6 @@ export default class Action<
         throw new ActionError({ code: 'ACTION/ER_TX_COMMIT', error });
       }
     }
-
-    // Final checks on authorization
-    // Errors will be handled from `run()`, the caller
-    this.authorize();
 
     // Log action finish
     this.status = Action.STATE.FINISHED;

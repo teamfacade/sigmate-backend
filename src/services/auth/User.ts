@@ -1,25 +1,26 @@
 import { CustomValidator, ValidationChain } from 'express-validator';
-import { FindOptions, WhereOptions } from 'sequelize/types';
+import { WhereOptions } from 'sequelize/types';
 import isURL from 'validator/lib/isURL';
 import { pick } from 'lodash';
 import getValidationChain from '../../middlewares/validators';
 import UserModel, {
   UserAttribs,
   UserCAttribs,
+  UserScopeName,
   USER_DELETE_SUFFIX_LENGTH,
   USER_USERNAME_MAX_LENGTH,
   USER_USERNAME_MIN_LENGTH,
 } from '../../models/User.model';
 import UserAuth, { UserAuthAttribs } from '../../models/UserAuth.model';
-import UserGroup from '../../models/UserGroup.model';
 import Action from '../Action';
 import ModelService, { ValidateOneOptions } from '../ModelService';
 import UserError from '../errors/UserError';
 import { randomInt } from 'crypto';
-import Privilege from '../../models/Privilege.model';
+import Auth from '.';
 
 type UserOptions = {
   user?: UserModel;
+  model?: UserModel;
 };
 
 type UserFindDTO = {
@@ -28,7 +29,7 @@ type UserFindDTO = {
   metamaskWallet?: UserAttribs['metamaskWallet'];
   googleAccountId?: UserAttribs['googleAccountId'];
   referralCode?: UserAttribs['referralCode'];
-  options?: keyof typeof User['FIND_OPTIONS'];
+  scope?: UserScopeName;
   rejectOnEmpty?: boolean;
 };
 
@@ -41,6 +42,8 @@ type UserCreateDTO = {
     googleAccountId: NonNullable<UserAttribs['googleAccountId']>;
     profileImageUrl: NonNullable<UserAttribs['profileImageUrl']>;
     locale?: UserAttribs['locale'];
+    googleAccessToken?: NonNullable<UserAuthAttribs['googleAccessToken']>;
+    googleRefreshToken?: UserAuthAttribs['googleRefreshToken'];
   };
   metamask?: {
     metamaskWallet: NonNullable<UserAttribs['metamaskWallet']>;
@@ -96,137 +99,58 @@ type UpdateAuthDTO = {
 
 type UserReloadDTO = {
   user?: UserModel;
-  options?: keyof typeof User['FIND_OPTIONS'];
+  scope?: UserScopeName;
 };
-
-type UserFindOptionNames =
-  | 'DEFAULT'
-  | 'EXISTS'
-  | 'MY'
-  | 'MY_ALL' // slow
-  | 'MY_ALL+AUTH_TOKEN' //slow
-  | 'PUBLIC'
-  | 'PUBLIC_ALL' // slow
-  | 'AUTH_TOKEN'
-  | 'AUTH_GOOGLE'
-  | 'AUTH_METAMASK'
-  | 'ALL'; // slow
 
 type ToResponseDTO = {
   type?: 'MY' | 'PUBLIC';
   model: UserModel | null;
 };
 
-export type UserResponse = Pick<
-  UserAttribs,
-  | 'id'
-  | 'userName'
-  | 'email'
-  | 'isEmailVerified'
-  | 'isAdmin'
-  | 'isTester'
-  | 'isDev'
-  | 'isTeam'
-  | 'fullName'
-  | 'bio'
-  | 'profileImageUrl'
-  | 'metamaskWallet'
-  | 'isMetamaskVerified'
-  | 'isMetamaskWalletPublic'
-  | 'googleAccount'
-  | 'twitterHandle'
-  | 'isTwitterHandlePublic'
-  | 'discordAccount'
-  | 'isDiscordAccountPublic'
-  | 'lastLoginAt'
-  | 'locale'
-  | 'emailEssential'
-  | 'emailMarketing'
-  | 'cookiesEssential'
-  | 'cookiesAnalytics'
-  | 'cookiesFunctional'
-  | 'cookiesTargeting'
-  | 'agreeTos'
-  | 'agreePrivacy'
-  | 'agreeLegal'
-  | 'referralCode'
-  | 'groupId'
->;
-
-type UserAuthFindOptionName = 'TOKEN' | 'GOOGLE' | 'METAMASK';
-
-// ALWAYS!! include the id Attribute
-export const FIND_ATTRIBS_AUTH: Record<
-  UserAuthFindOptionName,
-  (keyof UserAuthAttribs)[]
-> = {
-  TOKEN: ['id', 'sigmateAccessTokenIat', 'sigmateRefreshTokenIat'],
-  GOOGLE: ['id', 'googleAccessToken', 'googleRefreshToken'],
-  METAMASK: ['id', 'metamaskNonce'],
-};
+/**
+ * Fields that are ALLOWED to be in a User response
+ */
+export type UserResponse = Required<Pick<UserAttribs, 'id'>> &
+  Partial<
+    Pick<
+      UserAttribs,
+      | 'userName'
+      | 'userNameUpdatedAt'
+      | 'email'
+      | 'isEmailVerified'
+      | 'tier'
+      | 'isAdmin'
+      | 'isTester'
+      | 'isDev'
+      | 'isTeam'
+      | 'fullName'
+      | 'bio'
+      | 'profileImageUrl'
+      | 'metamaskWallet'
+      | 'isMetamaskVerified'
+      | 'isMetamaskWalletPublic'
+      | 'googleAccount'
+      | 'twitterHandle'
+      | 'isTwitterHandlePublic'
+      | 'discordAccount'
+      | 'isDiscordAccountPublic'
+      | 'lastLoginAt'
+      | 'locale'
+      | 'emailEssential'
+      | 'emailMarketing'
+      | 'cookiesEssential'
+      | 'cookiesAnalytics'
+      | 'cookiesFunctional'
+      | 'cookiesTargeting'
+      | 'agreeTos'
+      | 'agreePrivacy'
+      | 'agreeLegal'
+      | 'referralCode'
+      | 'group'
+    >
+  >;
 
 // ALWAYS!! include the id Attribute
-const FIND_ATTRIBS: Readonly<
-  Record<UserFindOptionNames, (keyof UserAttribs)[] | undefined>
-> = Object.freeze({
-  DEFAULT: ['id', 'isAdmin', 'isTester', 'groupId'],
-  EXISTS: ['id'],
-  MY: [
-    'id',
-    'userName',
-    'email',
-    'isEmailVerified',
-    'isAdmin',
-    'isTester',
-    'isDev',
-    'isTeam',
-    'fullName',
-    'profileImageUrl',
-    'metamaskWallet',
-    'isMetamaskVerified',
-    'googleAccount',
-    'twitterHandle',
-    'discordAccount',
-    'lastLoginAt',
-    'locale',
-    'emailEssential',
-    'emailMarketing',
-    'cookiesEssential',
-    'cookiesAnalytics',
-    'cookiesFunctional',
-    'cookiesTargeting',
-    'agreeTos',
-    'agreePrivacy',
-    'agreeLegal',
-    'referralCode',
-    'groupId',
-  ],
-  PUBLIC: [
-    'id',
-    'userName',
-    'isAdmin',
-    'fullName',
-    'profileImageUrl',
-    'metamaskWallet',
-    'isMetamaskVerified',
-    'twitterHandle',
-    'discordAccount',
-    'referralCode',
-    'isMetamaskWalletPublic',
-    'isTwitterHandlePublic',
-    'isDiscordAccountPublic',
-  ],
-
-  MY_ALL: undefined,
-  PUBLIC_ALL: undefined,
-  MY_ALL_TOKEN: undefined,
-  'MY_ALL+AUTH_TOKEN': undefined,
-  AUTH_GOOGLE: undefined,
-  AUTH_METAMASK: undefined,
-  AUTH_TOKEN: undefined,
-  ALL: undefined,
-});
-
 type UserValidateField =
   | 'userName'
   | 'email'
@@ -247,115 +171,6 @@ type UserValidateField =
 
 export default class User extends ModelService<UserAttribs, UserCAttribs> {
   /**
-   * Options to use when fetching user information from the database
-   *
-   * **ALWAYS** include `id` for all models (to use the `save` method)
-   */
-  static FIND_OPTIONS: Record<UserFindOptionNames, FindOptions<UserAttribs>> =
-    Object.freeze({
-      /**
-       * Options to use when not explicitly specified
-       */
-      DEFAULT: {
-        attributes: FIND_ATTRIBS.DEFAULT,
-      },
-      /** Only check whether the user exists by just calling the ID */
-      EXISTS: { attributes: ['id'] },
-      /** Get full user information about myself */
-      MY: {
-        attributes: FIND_ATTRIBS.MY,
-        include: [UserGroup],
-      },
-      /**
-       * Get full user information about myself (the requesting user)
-       * including "slow" fields (e.g. MYSQL TEXT type fields)
-       */
-      MY_ALL: {
-        attributes: [
-          ...(FIND_ATTRIBS.MY || []),
-          'bio',
-          'isDiscordAccountPublic',
-          'isMetamaskWalletPublic',
-          'isTwitterHandlePublic',
-        ],
-      },
-      /**
-       * Get full user information about myself (the requesting user)
-       * Along with associated `UserAuth` attributes
-       */
-      'MY_ALL+AUTH_TOKEN': {
-        attributes: [
-          ...(FIND_ATTRIBS.MY || []),
-          'bio',
-          'isDiscordAccountPublic',
-          'isMetamaskWalletPublic',
-          'isTwitterHandlePublic',
-        ],
-        include: [
-          {
-            model: UserAuth,
-            attributes: FIND_ATTRIBS_AUTH.TOKEN,
-          },
-        ],
-      },
-      /**
-       * Get information about someone else, i.e. only the information
-       * that the other user has set public
-       */
-      PUBLIC: {
-        attributes: FIND_ATTRIBS.PUBLIC,
-      },
-      /**
-       * Get information about someone else, i.e. only the information
-       * that the other user has set public. Includes "slow" fields
-       * (e.g. MYSQL TEXT type fields)
-       */
-      PUBLIC_ALL: {
-        attributes: [...(FIND_ATTRIBS.PUBLIC || []), 'bio'],
-      },
-      AUTH_GOOGLE: {
-        attributes: FIND_ATTRIBS.DEFAULT,
-        include: [
-          {
-            model: UserAuth,
-            attributes: FIND_ATTRIBS_AUTH.GOOGLE,
-          },
-        ],
-      },
-      AUTH_METAMASK: {
-        attributes: FIND_ATTRIBS.DEFAULT,
-        include: [
-          {
-            model: UserAuth,
-            attributes: FIND_ATTRIBS_AUTH.METAMASK,
-          },
-        ],
-      },
-      /**
-       * Fetch information from the associated `UserAuth` table, but only
-       * select the field necessary for Sigmate token authentication.
-       * Also fetch any user privilege overrides
-       */
-      AUTH_TOKEN: {
-        attributes: FIND_ATTRIBS.DEFAULT,
-        include: [
-          {
-            model: UserAuth,
-            attributes: FIND_ATTRIBS_AUTH.TOKEN,
-          },
-          {
-            model: Privilege,
-            as: 'privileges',
-            through: {
-              attributes: ['grant'],
-            },
-          },
-        ],
-      },
-      ALL: {},
-    });
-
-  /**
    * Returns an object structured for client response.
    * The User (service or model) instances must be pre-loaded with needed
    * attributes prior to calling this method, since this method internally
@@ -367,14 +182,16 @@ export default class User extends ModelService<UserAttribs, UserCAttribs> {
     const { type = 'PUBLIC', model } = dto;
     if (!model) return null;
     const j = model.toJSON();
-    const k: (keyof UserResponse)[] = [];
+    let k: (keyof UserResponse)[];
     switch (type) {
       case 'MY':
-        k.concat([
+        k = [
           'id',
           'userName',
+          'userNameUpdatedAt',
           'email',
           'isEmailVerified',
+          'tier',
           'isAdmin',
           'isTester',
           'isDev',
@@ -402,11 +219,12 @@ export default class User extends ModelService<UserAttribs, UserCAttribs> {
           'agreePrivacy',
           'agreeLegal',
           'referralCode',
-          'groupId',
-        ]);
+          'group',
+        ];
         break;
       case 'PUBLIC':
-        k.concat([
+      default:
+        k = [
           'id',
           'userName',
           'isAdmin',
@@ -416,7 +234,8 @@ export default class User extends ModelService<UserAttribs, UserCAttribs> {
           'isMetamaskWalletPublic',
           'isTwitterHandlePublic',
           'isDiscordAccountPublic',
-        ]);
+          'group',
+        ];
         if (j.isMetamaskVerified && j.isMetamaskWalletPublic) {
           k.push('metamaskWallet');
           k.push('isMetamaskVerified');
@@ -440,7 +259,7 @@ export default class User extends ModelService<UserAttribs, UserCAttribs> {
 
   constructor(options: UserOptions = {}) {
     super();
-    this.model = options.user;
+    this.model = options.user || options.model;
   }
 
   static async find(
@@ -453,7 +272,7 @@ export default class User extends ModelService<UserAttribs, UserCAttribs> {
       metamaskWallet,
       googleAccountId,
       referralCode,
-      options = 'DEFAULT',
+      scope: options = 'exists',
       rejectOnEmpty = false,
     } = dto;
     const action = new Action({
@@ -477,11 +296,10 @@ export default class User extends ModelService<UserAttribs, UserCAttribs> {
       return null;
     }
     const user = await action.run(({ transaction }) =>
-      UserModel.findOne({
+      UserModel.scope(options).findOne({
         where,
         transaction,
         rejectOnEmpty,
-        ...User.FIND_OPTIONS[options],
       })
     );
     if (user) {
@@ -500,7 +318,7 @@ export default class User extends ModelService<UserAttribs, UserCAttribs> {
     dto: UserExistsDTO,
     parentAction: Action | undefined = undefined
   ) {
-    return await this.find({ ...dto, options: 'EXISTS' }, parentAction);
+    return await this.find({ ...dto, scope: 'exists' }, parentAction);
   }
   async exists(
     dto: UserExistsDTO,
@@ -538,7 +356,6 @@ export default class User extends ModelService<UserAttribs, UserCAttribs> {
           return user;
         }
       );
-      action.setTarget({ id: userModel.id });
 
       // Update attribs
       if (dto.google) {
@@ -571,6 +388,9 @@ export default class User extends ModelService<UserAttribs, UserCAttribs> {
       }
       userModel.set('referralCode', referralCode);
 
+      // Set user group: 'newbie'
+      userModel.set('groupId', Auth.groupNameMap['newbie']?.id);
+
       // Save the updates
       const saveUser = new Action({
         type: Action.TYPE.DATABASE,
@@ -588,7 +408,13 @@ export default class User extends ModelService<UserAttribs, UserCAttribs> {
         parent: action,
       });
       await createAuth.run(async ({ transaction, action }) => {
-        const auth = await UserAuth.create({}, { transaction });
+        const auth = await UserAuth.create(
+          {
+            googleAccessToken: dto.google?.googleAccessToken,
+            googleRefreshToken: dto.google?.googleRefreshToken,
+          },
+          { transaction }
+        );
         action.setTarget({ id: auth.id });
         await userModel.$set('auth', auth, { transaction });
       });
@@ -648,7 +474,10 @@ export default class User extends ModelService<UserAttribs, UserCAttribs> {
       parent: parentAction,
       transaction: true,
     });
-    await this.reload({ user, options: 'ALL' }, action);
+    const needsReload = userName || referralCode;
+    if (needsReload) {
+      await this.reload({ user, scope: 'beforeUpdate' }, action);
+    }
 
     if (userName) {
       const userNameNotAvailable = await this.exists({ userName }, action);
@@ -726,7 +555,7 @@ export default class User extends ModelService<UserAttribs, UserCAttribs> {
     }
     // Update referral code
     if (referralCode) {
-      if (user.referralCode) {
+      if (user.referredBy) {
         // Referral code is already set. Cannot update
         throw new UserError({ code: 'USER/RJ_REF_CODE_SET' });
       } else {
@@ -766,7 +595,7 @@ export default class User extends ModelService<UserAttribs, UserCAttribs> {
     }
 
     if (!this.model.auth) {
-      await this.reload({ options: 'AUTH_TOKEN' }, parentAction);
+      await this.reload({ scope: 'tokenAuth' }, parentAction);
     }
 
     const auth = this.model?.auth;
@@ -832,20 +661,19 @@ export default class User extends ModelService<UserAttribs, UserCAttribs> {
     dto: UserReloadDTO,
     parentAction: Action | undefined = undefined
   ) {
-    const user = dto.user || this.model;
+    const { user = this.model, scope = 'exists' } = dto;
     if (!user)
       throw new UserError({ code: 'USER/NF', message: 'Reload failed' });
-    const options = dto.options || 'DEFAULT';
     const action = new Action({
       type: Action.TYPE.DATABASE,
-      name: `USER_RELOAD (${options})`,
+      name: `USER_RELOAD (${scope})`,
       target: { model: UserModel, id: user.id },
       parent: parentAction,
     });
-    await action.run(async ({ transaction }) =>
-      user.reload({
-        ...User.FIND_OPTIONS[options],
+    this.model = await action.run(({ transaction }) =>
+      UserModel.scope(scope).findByPk(user.id, {
         transaction,
+        rejectOnEmpty: true,
       })
     );
   }
@@ -856,11 +684,13 @@ export default class User extends ModelService<UserAttribs, UserCAttribs> {
   ) {
     if (!referralCode) return false;
     const action = new Action({
-      type: Action.TYPE.DATABASE,
+      type: Action.TYPE.SERVICE,
       name: 'USER_IS_REFERRAL_CODE_UNIQUE',
       parent: parentAction,
     });
-    const user = await action.run(() => User.exists({ referralCode }));
+    const user = await action.run(({ action }) =>
+      User.exists({ referralCode }, action)
+    );
     return user ? false : true;
   }
 

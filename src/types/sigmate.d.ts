@@ -92,6 +92,7 @@ declare namespace sigmate {
       | 'DB/NA_FAILED';
 
     export type GoogleErrorCode =
+      | 'GOOGLE/NA_AUTH_URL'
       | 'GOOGLE/ER_TOKEN'
       | 'GOOGLE/IV_DTO'
       | 'GOOGLE/IV_TOKEN'
@@ -112,7 +113,9 @@ declare namespace sigmate {
       | 'AUTH/NF'
       | 'AUTH/IV_UPDATE_DTO'
       | 'AUTH/NA_USER_GROUP'
-      | 'AUTH/NA_GROUP_PRIV';
+      | 'AUTH/NA_GROUP_PRIV'
+      | 'AUTH/RJ_GROUP_UNAUTHORIZED'
+      | 'AUTH/RJ_USER_UNAUTHORIZED';
 
     export type TokenErrorCode =
       | 'TOKEN/NA_KEY_FILE'

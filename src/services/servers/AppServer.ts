@@ -122,7 +122,7 @@ export default class AppServer extends Server {
     try {
       await this.db.start();
       if (isEnv('development')) {
-        await Database.sync({ force: false, seed: false });
+        await Database.sync({ force: true, seed: true });
       }
     } catch (error) {
       this.onError({ error });

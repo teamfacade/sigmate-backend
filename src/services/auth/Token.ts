@@ -258,7 +258,7 @@ export default class Token extends Service {
       const userModel = await this.user.find(
         {
           id: userId,
-          options: 'AUTH_TOKEN',
+          scope: 'tokenAuth',
         },
         action
       );
@@ -336,7 +336,7 @@ export default class Token extends Service {
     });
     return await action.run(async ({ action }) => {
       if (!this.user.model?.auth)
-        await this.user.reload({ options: 'AUTH_TOKEN' }, action);
+        await this.user.reload({ scope: 'tokenAuth' }, action);
       const auth = this.user.model?.auth;
       if (!auth)
         throw new TokenError({
@@ -388,7 +388,7 @@ export default class Token extends Service {
 
       const { renew = false, reload } = dto;
       if (reload === false) {
-        await this.user.reload({ options: 'AUTH_TOKEN' }, parentAction);
+        await this.user.reload({ scope: 'tokenAuth' }, parentAction);
       }
 
       // Get iat from DB

@@ -101,13 +101,13 @@ export default class MetamaskAuth extends Auth {
         }
 
         // Load necessary attributes
-        await user.reload({ options: 'AUTH_METAMASK' }, action);
+        await user.reload({ scope: 'metamaskAuth' }, action);
 
         // TODO check privileges
       } else {
         // Look for user with the wallet address
         await user.find(
-          { metamaskWallet: walletAddress, options: 'AUTH_METAMASK' },
+          { metamaskWallet: walletAddress, scope: 'metamaskAuth' },
           action
         );
         if (!user.found) {
@@ -155,7 +155,7 @@ export default class MetamaskAuth extends Auth {
       const user = this.user;
       if (!connect) {
         await user.find(
-          { metamaskWallet: walletAddress, options: 'AUTH_METAMASK' },
+          { metamaskWallet: walletAddress, scope: 'metamaskAuth' },
           action
         );
       }

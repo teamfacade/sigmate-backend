@@ -218,6 +218,8 @@ export default class GoogleAuth extends Auth {
             googleAccountId: dto.id,
             profileImageUrl: dto.photo,
             locale: dto.locale,
+            googleAccessToken: dto.access_token || undefined,
+            googleRefreshToken: dto.refresh_token || undefined,
           },
         },
         action
@@ -238,6 +240,7 @@ export default class GoogleAuth extends Auth {
       name: 'GOOGLE_AUTHENTICATE',
       transaction: true,
       parent: parentAction,
+      auth: { ...Auth.can(['account__login']), after: true },
     });
     return await action.run(async ({ action }) => {
       const user = this.user;
@@ -250,7 +253,7 @@ export default class GoogleAuth extends Auth {
             message: 'User not found during Google connect',
           });
         }
-        await user.reload({ options: 'AUTH_GOOGLE' }, action);
+        await user.reload({ scope: 'googleAuth' }, action);
         const auth = user.model.auth;
         if (!auth) {
           throw new GoogleAuthError({
@@ -259,7 +262,7 @@ export default class GoogleAuth extends Auth {
           });
         }
 
-        // TODO Chcek privileges
+        action.setSubject({ user });
 
         // Perform the update
         const data = await this.googleOAuth({ code }, action);
@@ -281,11 +284,17 @@ export default class GoogleAuth extends Auth {
         const data = await this.googleOAuth({ code }, action);
         // Login / Sign up with Google
         await user.find(
-          { googleAccountId: data.id, options: 'AUTH_GOOGLE' },
+          { googleAccountId: data.id, scope: 'googleAuth' },
           action
         );
         if (user.found) {
           // returning user. login
+          await user.update(
+            {
+              profileImageUrl: data.photo,
+            },
+            action
+          );
           await user.updateAuth(
             {
               google: {
@@ -299,6 +308,7 @@ export default class GoogleAuth extends Auth {
           // new user. sign up
           await this.signup(data, action);
         }
+        action.setSubject({ user });
       }
 
       const accessToken = new Token({ type: 'ACCESS', user });
