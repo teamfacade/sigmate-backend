@@ -105,7 +105,8 @@ export type Authorizer<
 type AuthValidateField =
   | 'refreshToken'
   | 'code'
-  | 'metamaskNonce'
+  | 'nonce'
+  | 'walletAddress'
   | 'signature';
 
 export type PrivilegeMap = Record<PrivilegeName, boolean | null>;
@@ -410,10 +411,16 @@ export default abstract class Auth extends ModelService<
         return chain.trim().stripLow().notEmpty().withMessage('REQUIRED');
 
       // METAMASK
-      case 'metamaskNonce':
-        return chain.trim().stripLow().notEmpty().withMessage('REQUIRED');
+      case 'walletAddress':
+        return chain.isEthereumAddress().withMessage('INVALID_ETH_ADDR');
+      case 'nonce':
+        return chain
+          .trim()
+          .notEmpty()
+          .withMessage('REQUIRED')
+          .isLength({ min: 256, max: 256 });
       case 'signature':
-        return chain.trim().stripLow().notEmpty().withMessage('REQUIRED');
+        return chain.trim().notEmpty().withMessage('REQUIRED');
       default:
         return chain.optional().isEmpty().withMessage('INVALID_FIELD');
     }

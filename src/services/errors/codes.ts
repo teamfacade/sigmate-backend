@@ -275,6 +275,22 @@ export const ERROR_CODES_METAMASK: ErrorCodeMap<sigmate.Error.MetamaskErrorCode>
       level: 'warn',
       message: 'Metamask random nonce generation failed',
     },
+    'METAMASK/NF_NONCE': {
+      status: 409,
+      level: 'verbose',
+      message: 'Metamask nonce has not been generated for this user.',
+    },
+    'METAMASK/NF_NONCE_GEN_AT': {
+      status: 500,
+      level: 'warn',
+      message: 'Metamask nonce generated time not present',
+    },
+    'METAMASK/RJ_NONCE_EXPIRED': {
+      status: 403,
+      level: 'verbose',
+      message:
+        'Metamask nonce has expired. Nonce must be verified within 5 minutes of generation.',
+    },
     'METAMASK/IV_DTO': {
       status: 400,
       level: 'warn',

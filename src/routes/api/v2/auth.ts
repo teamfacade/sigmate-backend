@@ -15,4 +15,21 @@ authRouter
     authController.google.authenticate
   );
 
+authRouter
+  .route('/metamask')
+  .get(
+    Auth.validate({
+      location: 'body',
+      fields: ['nonce'],
+    }),
+    authController.metamask.getNonce
+  )
+  .post(
+    Auth.validate({
+      location: 'body',
+      fields: ['walletAddress', 'signature'],
+    }),
+    authController.metamask.verfiy
+  );
+
 export default authRouter;

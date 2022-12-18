@@ -13,6 +13,8 @@ import MetamaskAuthError from '../errors/MetamaskAuthError';
 import Token from './Token';
 
 export default class MetamaskAuth extends Auth {
+  static NONCE_EXPIRES_IN = 5 * 60 * 1000;
+
   name = 'AUTH_METAMASK';
 
   constructor(options: AuthOptions = {}) {
@@ -163,7 +165,7 @@ export default class MetamaskAuth extends Auth {
       if (!user.found) {
         throw new MetamaskAuthError({
           code: 'USER/NF',
-          message: 'User not found during Metamask Auth',
+          message: 'Metamask authentication failed',
         });
       }
 
@@ -175,7 +177,27 @@ export default class MetamaskAuth extends Auth {
         });
       }
 
-      const nonce = auth.metamaskNonce || '';
+      const nonce = auth.metamaskNonce;
+      if (!nonce) {
+        throw new MetamaskAuthError({
+          code: 'METAMASK/NF_NONCE',
+        });
+      }
+
+      // Nonce must be verified within expiry time
+      const nonceGeneratedAt = auth.metamaskNonceGeneratedAt;
+      if (!nonceGeneratedAt) {
+        throw new MetamaskAuthError({
+          code: 'METAMASK/NF_NONCE_GEN_AT',
+        });
+      }
+      const diff = Date.now() - nonceGeneratedAt.getTime();
+      if (diff < 0 || MetamaskAuth.NONCE_EXPIRES_IN < diff) {
+        throw new MetamaskAuthError({
+          code: 'METAMASK/RJ_NONCE_EXPIRED',
+        });
+      }
+
       const verified = this.verifyMetamaskSignature(
         walletAddress,
         nonce,

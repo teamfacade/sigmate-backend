@@ -105,6 +105,9 @@ declare namespace sigmate {
 
     export type MetamaskErrorCode =
       | 'METAMASK/ER_NONCE_GEN'
+      | 'METAMASK/NF_NONCE'
+      | 'METAMASK/NF_NONCE_GEN_AT'
+      | 'METAMASK/RJ_NONCE_EXPIRED'
       | 'METAMASK/IV_DTO'
       | 'METAMASK/ER_VERIFY'
       | 'METAMASK/IV_SIGNATURE';

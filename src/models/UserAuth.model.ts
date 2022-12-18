@@ -17,6 +17,7 @@ export interface UserAuthAttribs {
   googleAccessToken?: string;
   googleRefreshToken?: string;
   metamaskNonce?: string;
+  metamaskNonceGeneratedAt?: Date;
 }
 
 export type UserAuthCAttribs = Optional<UserAuthAttribs, 'id'>;
@@ -74,4 +75,7 @@ export default class UserAuth extends Model<UserAuthAttribs, UserAuthCAttribs> {
 
   @Column(DataType.STRING(256))
   metamaskNonce: UserAuthAttribs['metamaskNonce'];
+
+  @Column(DataType.DATE)
+  metamaskNonceGeneratedAt: UserAuthAttribs['metamaskNonceGeneratedAt'];
 }

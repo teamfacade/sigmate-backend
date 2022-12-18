@@ -616,7 +616,14 @@ export default class User extends ModelService<UserAttribs, UserCAttribs> {
       }
     }
     if (metamask) {
-      auth.set('metamaskNonce', metamask.nonce);
+      if (metamask.nonce !== undefined) {
+        auth.set('metamaskNonce', metamask.nonce);
+        if (metamask.nonce) {
+          auth.set('metamaskNonceGeneratedAt', new Date());
+        } else {
+          auth.set('metamaskNonceGeneratedAt', undefined);
+        }
+      }
     }
     if (!renew && !google && !metamask) {
       throw new UserError({
