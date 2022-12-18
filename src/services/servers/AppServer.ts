@@ -104,6 +104,7 @@ export default class AppServer extends Server {
   async start() {
     console.log('Server starting...');
     this.status = ServerStatus.STARTING;
+
     // Start Logger
     try {
       this.logger.start();
@@ -116,13 +117,15 @@ export default class AppServer extends Server {
     }
     // TODO Log server starting
     this.logger.log({ server: this });
+
     // Check Environment Variables
     this.checkEnv();
+
     // Start Database
     try {
       await this.db.start();
       if (isEnv('development')) {
-        await Database.sync({ force: true, seed: true });
+        await Database.sync({ force: false, seed: false });
       }
     } catch (error) {
       this.onError({ error });

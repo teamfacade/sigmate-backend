@@ -120,13 +120,35 @@ export default abstract class Auth extends ModelService<
    */
   static groupNameMap: Partial<Record<GroupName, UserGroup>> = {};
   static groupIdMap: Record<UserGroupAttribs['id'], UserGroup> = {};
+  static groupsFetching = false;
+  static groupsFetchedAt?: Date;
+  static GROUPS_FETCH_INTERVAL = 5 * 60 * 1000; // 5 minutes
+
+  static getGroup(dto: { id?: UserGroupAttribs['id']; name?: GroupName }) {
+    let group: UserGroup | undefined = undefined;
+    if (dto.id) {
+      group = Auth.groupIdMap[dto.id];
+    } else if (dto.name) {
+      group = Auth.groupNameMap[dto.name];
+    }
+    if (!group) {
+      throw new AuthError({ code: 'AUTH/NF_USER_GROUP' });
+    }
+    if (Auth.groupsFetchedAt) {
+      const lastFetched = Auth.groupsFetchedAt?.getTime() || 0;
+      if (Date.now() - lastFetched > Auth.GROUPS_FETCH_INTERVAL) {
+        Auth.fetchGroups(); // asynchronously fetch, but don't await
+      }
+    }
+    return group;
+  }
 
   /**
    * Start Auth service
    */
   static async start() {
     Auth.status = Auth.STATE.STARTING;
-    await Auth.loadGroups();
+    await Auth.fetchGroups();
     Auth.status = Auth.STATE.STARTED;
   }
 
@@ -167,7 +189,9 @@ export default abstract class Auth extends ModelService<
   /**
    * Load the entire UserGroup table from the database
    */
-  static async loadGroups(parentAction: Action | undefined = undefined) {
+  static async fetchGroups(parentAction: Action | undefined = undefined) {
+    if (Auth.groupsFetching) return;
+    Auth.groupsFetching = true;
     const action = new Action({
       type: Action.TYPE.DATABASE,
       name: 'AUTH_START_LOAD_GROUPS',
@@ -186,6 +210,8 @@ export default abstract class Auth extends ModelService<
       Auth.groupIdMap[group.id] = group;
       Auth.groupNameMap[group.name as GroupName] = group;
     });
+    Auth.groupsFetchedAt = new Date();
+    Auth.groupsFetching = false;
   }
 
   /**
@@ -266,13 +292,13 @@ export default abstract class Auth extends ModelService<
    * @returns An authorizer that checks whether the action subject is
    * of the group with the given group name
    */
-  static isGroup(groupName: keyof typeof Auth['groupNameMap']): Authorizer {
+  static isGroup(groupName: GroupName): Authorizer {
     return {
       name: 'isGroup',
       check: (action) => {
         return (
           action.subject?.model?.toJSON().groupId ===
-          Auth.groupNameMap[groupName]?.id
+          Auth.getGroup({ name: groupName }).id
         );
       },
       once: true,
@@ -334,11 +360,11 @@ export default abstract class Auth extends ModelService<
           }
 
           // Subject group is user's group
-          group = Auth.groupIdMap[groupId];
+          group = Auth.getGroup({ id: groupId });
         } else {
           // Unauthenticated
           // Subject group is 'undefined'
-          group = Auth.groupNameMap['unauthenticated'];
+          group = Auth.getGroup({ name: 'unauthenticated' });
         }
 
         if (!group) {

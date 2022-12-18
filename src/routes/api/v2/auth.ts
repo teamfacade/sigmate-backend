@@ -29,7 +29,7 @@ authRouter
       location: 'body',
       fields: ['walletAddress', 'signature'],
     }),
-    authController.metamask.verfiy
+    authController.metamask.verify
   );
 
 export default authRouter;

@@ -137,6 +137,11 @@ export const ERROR_CODES_AUTH: ErrorCodeMap<sigmate.Error.AuthErrorCode> = {
     level: 'warn',
     message: 'Invalid auth update DTO',
   },
+  'AUTH/NF_USER_GROUP': {
+    status: 401,
+    level: 'verbose',
+    message: 'User group not found',
+  },
   'AUTH/NA_USER_GROUP': {
     status: 500,
     level: 'warn',

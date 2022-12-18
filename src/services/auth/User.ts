@@ -389,7 +389,7 @@ export default class User extends ModelService<UserAttribs, UserCAttribs> {
       userModel.set('referralCode', referralCode);
 
       // Set user group: 'newbie'
-      userModel.set('groupId', Auth.groupNameMap['newbie']?.id);
+      userModel.set('groupId', Auth.getGroup({ name: 'newbie' }).id);
 
       // Save the updates
       const saveUser = new Action({

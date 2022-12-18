@@ -115,6 +115,7 @@ declare namespace sigmate {
     export type AuthErrorCode =
       | 'AUTH/NF'
       | 'AUTH/IV_UPDATE_DTO'
+      | 'AUTH/NF_USER_GROUP'
       | 'AUTH/NA_USER_GROUP'
       | 'AUTH/NA_GROUP_PRIV'
       | 'AUTH/RJ_GROUP_UNAUTHORIZED'
