@@ -46,3 +46,14 @@ export function waitTimeout<T>(promise: Promise<T>, time: number) {
 export const isEnv = (env: typeof process.env.NODE_ENV) => {
   return process.env.NODE_ENV === env;
 };
+
+/**
+ * Clean unnecessary whitespaces (trim, remove newlines, consecutive whitespaces)
+ * @param string string to clean
+ * @returns Cleaned string
+ */
+export const cleanWs = (string: string) => {
+  const nl = /[\n\t]/g; // Newlines and tabs
+  const ws = /\s{2,}/g; // Consecutive whitespaces
+  return string.trim().replace(nl, ' ').replace(ws, ' ');
+};

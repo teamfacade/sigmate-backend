@@ -14,8 +14,9 @@ import {
   HasMany,
   BelongsToMany,
   HasOne,
+  BeforeDestroy,
 } from 'sequelize-typescript';
-import { Optional } from 'sequelize/types';
+import { InstanceDestroyOptions, Optional } from 'sequelize/types';
 import isLocale from 'validator/lib/isLocale';
 import { MYSQL_TEXT_MAX_LENGTH } from '../middlewares/validators';
 import Device from './Device.model';
@@ -192,6 +193,7 @@ export const USER_ATTRIBS_MY_LOGIN: (keyof UserAttribs)[] = [
 
 export type UserScopeName =
   | 'exists'
+  | 'default'
   | 'tokenAuth'
   | 'googleAuth'
   | 'metamaskAuth'
@@ -204,18 +206,27 @@ export type UserScopeName =
 // ALWAYS include the id attribute!
 @Scopes(() => ({
   exists: {
-    attributes: ['id'],
+    attributes: ['id', 'groupId'],
+  },
+  default: {
+    attributes: USER_ATTRIBS_DEFAULT,
   },
   tokenAuth: {
     attributes: USER_ATTRIBS_DEFAULT,
-    include: [{ model: UserAuth, attributes: AUTH_ATTRIBS_TOKEN }],
+    include: [
+      { model: UserAuth, attributes: AUTH_ATTRIBS_TOKEN },
+      { model: Privilege },
+    ],
   },
   /**
    * Google connect, authentication
    */
   googleAuth: {
     attributes: [...USER_ATTRIBS_DEFAULT, 'googleAccount', 'googleAccountId'],
-    include: [{ model: UserAuth, attributes: AUTH_ATTRIBS_GOOGLE }],
+    include: [
+      { model: UserAuth, attributes: AUTH_ATTRIBS_GOOGLE },
+      { model: Privilege },
+    ],
   },
   /**
    * Metamask connect, authentication
@@ -226,7 +237,10 @@ export type UserScopeName =
       'metamaskWallet',
       'isMetamaskVerified',
     ],
-    include: [{ model: UserAuth, attributes: AUTH_ATTRIBS_METAMASK }],
+    include: [
+      { model: UserAuth, attributes: AUTH_ATTRIBS_METAMASK },
+      { model: Privilege },
+    ],
   },
   /**
    * Information about someone else
@@ -362,7 +376,7 @@ export default class User extends Model<UserAttribs, UserCAttribs> {
   profileImageUrl: UserAttribs['profileImageUrl'];
 
   @Unique('metamaskWallet')
-  @Column(DataType.STRING(USER_METAMASK_MAX_LENGTH))
+  @Column(DataType.STRING(USER_METAMASK_MAX_LENGTH + USER_DELETE_SUFFIX_LENGTH))
   metamaskWallet: UserAttribs['metamaskWallet'];
 
   @AllowNull(false)
@@ -506,4 +520,39 @@ export default class User extends Model<UserAttribs, UserCAttribs> {
   privileges: UserAttribs['privileges'];
 
   UserPrivilege?: UserPrivilege;
+
+  @BeforeDestroy
+  static async handleDestroy(
+    instances: User | User[],
+    options: InstanceDestroyOptions
+  ) {
+    if (!instances) return;
+    if (!(instances instanceof Array)) instances = [instances];
+
+    // Add delete suffixes to unique columns
+    const uniqueAttribs: (keyof UserAttribs)[] = [
+      'userName',
+      'email',
+      'metamaskWallet',
+      'googleAccount',
+      'googleAccountId',
+    ];
+    const deleteSuffix = `$${Date.now()}`;
+    for (const i in instances) {
+      const instance = instances[i];
+      if (instance?.id) {
+        await instance.reload({
+          attributes: ['id', ...uniqueAttribs],
+          transaction: options?.transaction,
+        });
+        uniqueAttribs.forEach((attrib) => {
+          const value = instance.getDataValue(attrib);
+          if (value && typeof value === 'string') {
+            instance.set(attrib, value + deleteSuffix);
+          }
+        });
+        await instance.save({ transaction: options?.transaction });
+      }
+    }
+  }
 }

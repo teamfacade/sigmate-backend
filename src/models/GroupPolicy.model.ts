@@ -11,6 +11,7 @@ import {
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
 import { MySQL$TEXT } from '../services/ModelService';
+import Action, { ActionAttribs } from './Action.model';
 import Mission, { MissionAttribs } from './Mission.model';
 import Penalty, { PenaltyAttribs } from './Penalty.model';
 import UserGroup from './UserGroup.model';
@@ -25,7 +26,8 @@ export interface GroupPolicyAttribs {
   changeMode: 'PROMOTE' | 'DEMOTE' | 'ASSIGN';
 
   // Triggers
-  actionName?: string;
+  action?: Action;
+  actionId?: ActionAttribs['id'];
   mission?: Mission;
   missionId?: MissionAttribs['id'];
   penalty?: Penalty;
@@ -84,6 +86,6 @@ export default class GroupPolicy extends Model<
   @BelongsTo(() => Penalty, { foreignKey: 'penaltyId' })
   penalty: GroupPolicyAttribs['penalty'];
 
-  @Column(DataType.STRING)
-  actionName: GroupPolicyAttribs['actionName'];
+  @BelongsTo(() => Action, { foreignKey: 'actionId' })
+  action: GroupPolicyAttribs['action'];
 }

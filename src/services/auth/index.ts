@@ -22,6 +22,7 @@ import Privilege, {
   PRIVILEGE_NAMES,
 } from '../../models/Privilege.model';
 import { AuthError } from '../errors/AuthError';
+import { DateTime } from 'luxon';
 
 export type AuthOptions = {
   user?: User;
@@ -210,7 +211,7 @@ export default abstract class Auth extends ModelService<
       Auth.groupIdMap[group.id] = group;
       Auth.groupNameMap[group.name as GroupName] = group;
     });
-    Auth.groupsFetchedAt = new Date();
+    Auth.groupsFetchedAt = DateTime.now().setZone('utc').toJSDate();
     Auth.groupsFetching = false;
   }
 

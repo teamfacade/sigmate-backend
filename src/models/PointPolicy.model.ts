@@ -1,12 +1,22 @@
-import { BelongsTo, Model, Table } from 'sequelize-typescript';
+import {
+  AllowNull,
+  BelongsTo,
+  Column,
+  DataType,
+  Default,
+  Length,
+  Model,
+  Table,
+} from 'sequelize-typescript';
 import { MySQL$TEXT } from '../services/ModelService';
+import Action, { ActionAttribs } from './Action.model';
 import Mission, { MissionAttribs } from './Mission.model';
 import Penalty, { PenaltyAttribs } from './Penalty.model';
 
 export interface PointPolicyAttribs {
   id: number;
   name: string;
-  description: MySQL$TEXT;
+  description?: MySQL$TEXT;
 
   /**
    * Points change by `amount + wegiht * metric`. Defaults to `0`
@@ -17,13 +27,13 @@ export interface PointPolicyAttribs {
    */
   weight?: number;
   /**
-   * If set, points change by `max(lowerLimit, amount + weight * metric)`
+   * Prevent points from decreasing more than this value
    */
-  lowerLimit?: number | null;
+  decreaseLimit?: number | null;
   /**
-   * If set, points change by `min(amount + weight * metric, upperLimit)`
+   * Prevent points from increasing more than this value
    */
-  upperLimit?: number | null;
+  increaseLimit?: number | null;
 
   /**
    * Any attempts to change points based on this policy will
@@ -36,10 +46,11 @@ export interface PointPolicyAttribs {
    * if they have the correct privileges.
    * If set to `false`, points will be held in a pending state
    */
-  receive?: boolean;
+  receive: boolean;
 
   // Triggers
-  actionName?: string;
+  action?: Action;
+  actionId?: ActionAttribs['id'];
   mission?: Mission;
   missionId?: MissionAttribs['id'];
   penalty?: Penalty;
@@ -64,9 +75,48 @@ export interface PointPolicyAttribs {
   collate: 'utf8mb4_general_ci',
 })
 export default class PointPolicy extends Model<PointPolicyAttribs> {
+  @Length({ min: 1, max: 191 })
+  @AllowNull(false)
+  @Column(DataType.STRING(191))
+  name!: PointPolicyAttribs['name'];
+
+  @Column(DataType.TEXT)
+  description: PointPolicyAttribs['description'];
+
+  @Default(0)
+  @AllowNull(false)
+  @Column(DataType.INTEGER)
+  amount!: PointPolicyAttribs['amount'];
+
+  @Column(DataType.INTEGER)
+  weight: PointPolicyAttribs['weight'];
+
+  @Column(DataType.INTEGER)
+  decreaseLimit: PointPolicyAttribs['decreaseLimit'];
+
+  @Column(DataType.INTEGER)
+  increaseLimit: PointPolicyAttribs['increaseLimit'];
+
+  @Column(DataType.DATE)
+  isValidFrom: PointPolicyAttribs['isValidFrom'];
+
+  @Default(true)
+  @AllowNull(false)
+  @Column(DataType.BOOLEAN)
+  receive!: PointPolicyAttribs['receive'];
+
+  @BelongsTo(() => Action, { foreignKey: 'actionId' })
+  action: PointPolicyAttribs['action'];
+
   @BelongsTo(() => Mission, 'missionId')
   mission: PointPolicyAttribs['mission'];
 
   @BelongsTo(() => Penalty, 'penaltyId')
   penalty: PointPolicyAttribs['penalty'];
+
+  @BelongsTo(() => PointPolicy, {
+    foreignKey: 'originalPolicyId',
+    as: 'originalPolicy',
+  })
+  originalPolicy: PointPolicyAttribs['originalPolicy'];
 }

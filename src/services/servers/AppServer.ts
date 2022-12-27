@@ -23,6 +23,7 @@ import authMw from '../../middlewares/auth';
 import errorMw from '../../middlewares/errors';
 import serviceMw from '../../middlewares/request';
 import Auth from '../auth';
+import Midas from '../reward/Midas';
 
 export default class AppServer extends Server {
   name = 'APP';
@@ -141,6 +142,7 @@ export default class AppServer extends Server {
     } catch (error) {
       this.onError({ error });
     }
+
     // Start Auth
     try {
       await Auth.start();
@@ -148,6 +150,9 @@ export default class AppServer extends Server {
     } catch (error) {
       this.onError({ error });
     }
+
+    Midas.start();
+
     // Set up middlewares
     const app = express();
     app.use(cors());
@@ -186,6 +191,7 @@ export default class AppServer extends Server {
    * Gracefully shut down the server on SIGINT (Ctrl+C)
    */
   onSigint(): void {
+    process.removeAllListeners('SIGINT');
     console.log('SIGINT(^C) received');
     this.close().then(() => {
       process.exit(this.exitCode);

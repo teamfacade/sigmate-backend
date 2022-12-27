@@ -49,6 +49,7 @@ declare namespace sigmate {
       | 'AuthError'
       | 'GoogleAuthError'
       | 'MetamaskAuthError'
+      | 'MissionError'
       | 'UserError'
       | 'TokenError';
 
@@ -141,6 +142,16 @@ declare namespace sigmate {
       | 'USER/RJ_UNAME_TAKEN'
       | 'USER/NF_REF_CODE'
       | 'USER/RJ_REF_CODE_SET';
+
+    export type MissionErrorCode =
+      | 'MISSION/NF'
+      | 'MISSION/IV_FIND_DTO'
+      | 'MISSION/NA_METRIC'
+      | 'MISSION/NA_USER_MISSION'
+      | 'MISSION/RJ_PROGRESS_METRIC_THRESHOLD'
+      | 'MISSION/RJ_PROGRESS_CLOSED'
+      | 'MISSION/RJ_PROGRESS_BEFORE_REPEATABLE'
+      | 'MISSION/CF_END_NOT_CLOSED';
 
     export type ErrorLabel = {
       source: ErrorSource;

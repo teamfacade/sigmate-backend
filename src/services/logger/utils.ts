@@ -3,6 +3,7 @@ import { ActionTypes } from '../Action';
 import ServerError from '../errors/ServerError';
 import { printStatus } from '../../utils/status';
 import RequestError from '../errors/RequestError';
+import { DateTime } from 'luxon';
 
 // File sizes
 const MB = 1024 * 1024;
@@ -223,7 +224,9 @@ export const createDynamoInfo = (
     request,
     action,
   } = info;
-  const timestamp = date ? new Date(date).getTime() : new Date().getTime();
+  const timestamp = date
+    ? new Date(date).getTime()
+    : DateTime.now().setZone('utc').toMillis();
   let err = '';
   if (error instanceof Error) {
     err += `${error.name}: ${error.message}`;

@@ -15,11 +15,30 @@ export interface UserMissionAttribs {
   userId?: UserId;
   mission?: Mission;
   missionId?: MissionAttribs['id'];
-  score: number;
+  /**
+   * Set false to prevent user from progressing this mission.
+   * These missions will become completely invisible to users.
+   */
   canProgress?: boolean;
-  endedAt?: Date; // completed or failed
 
-  createdAt: Date; // acceptedAt
+  score: number;
+  /**
+   * Time at which mission either completed or failed
+   */
+  endedAt?: Date | null;
+  /**
+   * Possible Values:
+   * `true`- accomplished, `false`- failed, `NULL`- not ended
+   */
+  accomplished?: boolean | null;
+  /**
+   * (Repeatable missions only)
+   * The number of times a this mission has been accomplished.
+   * (Must be `NULL` for non-repeatable missions)
+   */
+  accomplishedCount?: number | null;
+
+  createdAt: Date;
   updatedAt: Date;
 }
 
@@ -54,9 +73,24 @@ export default class UserMission extends Model<UserMissionAttribs> {
   @Column(DataType.INTEGER)
   score!: UserMissionAttribs['score'];
 
+  @Default(true)
   @Column(DataType.BOOLEAN)
   canProgress: UserMissionAttribs['canProgress'];
 
-  @Column(DataType.DATE)
+  @Column(DataType.DATE(6))
   endedAt: UserMissionAttribs['endedAt'];
+
+  @Column(DataType.BOOLEAN)
+  accomplished: UserMissionAttribs['accomplished'];
+
+  @Column(DataType.INTEGER)
+  accomplishedCount: UserMissionAttribs['accomplishedCount'];
+
+  get failed() {
+    const accomplished = this.getDataValue('accomplished');
+    if (typeof accomplished === 'boolean') {
+      return !accomplished;
+    }
+    return accomplished;
+  }
 }

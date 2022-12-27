@@ -63,6 +63,10 @@ type ActionOptions<
   target?: ActionObject<TPKT>;
   source?: ActionObject<SPKT>;
   parent?: Action<MetricType, PTPKT, PSPKT>;
+  /**
+   * Specify one (function) or more (array) Authorization checkers
+   * to perform before and/or after action execution to authorize the action
+   */
   auth?:
     | Authorizer<MetricType, TPKT, SPKT, PTPKT, PSPKT>
     | Authorizer<MetricType, TPKT, SPKT, PTPKT, PSPKT>[];
@@ -105,6 +109,25 @@ export default class Action<
   static STATE = ActionStatus;
   static DEFAULT_LEVEL: sigmate.Logger.Level = 'verbose';
   static logger?: Logger;
+
+  static create<
+    MetricType extends ActionMetricLike = number,
+    TargetPkType extends Identifier = number,
+    SourcePkType extends Identifier = number,
+    ParentTPkT extends Identifier = TargetPkType,
+    ParentSPkT extends Identifier = SourcePkType
+  >(
+    options: ActionOptions<
+      MetricType,
+      TargetPkType,
+      SourcePkType,
+      ParentTPkT,
+      ParentSPkT
+    >
+  ) {
+    const action = new Action(options);
+    return action.run;
+  }
 
   type: typeof ActionTypes[keyof typeof ActionTypes];
   name: string;
@@ -162,6 +185,9 @@ export default class Action<
 
   /** Who is running this action? */
   subject?: User;
+  get authenticated() {
+    return Boolean(this.subject?.found);
+  }
 
   __target?: ActionObject<TargetPkType>;
   get target() {
@@ -230,7 +256,7 @@ export default class Action<
     const {
       type,
       name,
-      transaction,
+      transaction = true,
       isLastChild,
       target,
       source,
@@ -404,7 +430,7 @@ export default class Action<
         ParentSPkT
       >
     ) => Promise<T>
-  ) {
+  ): Promise<T> {
     try {
       // Prepare start
       if (!this.started) await this.start();

@@ -411,3 +411,47 @@ export const ERROR_CODES_USER: ErrorCodeMap<sigmate.Error.UserErrorCode> = {
     message: 'Referral code already set',
   },
 };
+
+export const ERROR_CODES_MISSION: ErrorCodeMap<sigmate.Error.MissionErrorCode> =
+  {
+    'MISSION/NF': {
+      status: 404,
+      level: 'warn',
+      message: 'Mission not found',
+    },
+    'MISSION/IV_FIND_DTO': {
+      status: 500,
+      level: 'warn',
+      message: 'Invalid mission find DTO',
+    },
+    'MISSION/NA_METRIC': {
+      status: 500,
+      level: 'warn',
+      message: 'Action metric undefined',
+    },
+    'MISSION/NA_USER_MISSION': {
+      status: 500,
+      level: 'warn',
+      message: 'UserMission entry not found',
+    },
+    'MISSION/RJ_PROGRESS_METRIC_THRESHOLD': {
+      status: 409,
+      level: 'verbose',
+      message: 'Mission progres rejected (metric below threshold)',
+    },
+    'MISSION/RJ_PROGRESS_CLOSED': {
+      status: 409,
+      level: 'verbose',
+      message: 'Mission progress rejected (already closed)',
+    },
+    'MISSION/RJ_PROGRESS_BEFORE_REPEATABLE': {
+      status: 409,
+      level: 'verbose',
+      message: 'Cannot retry this mission yet',
+    },
+    'MISSION/CF_END_NOT_CLOSED': {
+      status: 409,
+      level: 'warn',
+      message: 'Tried to call endClosed() on a mission that is not closed yet',
+    },
+  };

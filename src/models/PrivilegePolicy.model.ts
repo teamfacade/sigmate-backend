@@ -8,6 +8,7 @@ import {
   Model,
   Table,
 } from 'sequelize-typescript';
+import Action, { ActionAttribs } from './Action.model';
 import Mission, { MissionAttribs } from './Mission.model';
 import Penalty, { PenaltyAttribs } from './Penalty.model';
 import Privilege from './Privilege.model';
@@ -21,7 +22,8 @@ export interface PrivilegePolicyAttribs {
   revoke?: Privilege[];
   unset?: Privilege[];
 
-  actionName?: string;
+  action?: Action;
+  actionId?: ActionAttribs['id'];
   mission?: Mission;
   missionId?: MissionAttribs['id'];
   penalty?: Penalty;
@@ -75,8 +77,8 @@ export default class PrivilegePolicy extends Model<PrivilegePolicyAttribs> {
   })
   unset: PrivilegePolicyAttribs['unset'];
 
-  @Column(DataType.STRING)
-  actionName: PrivilegePolicyAttribs['actionName'];
+  @BelongsTo(() => Action, { foreignKey: 'actionId' })
+  action: PrivilegePolicyAttribs['action'];
 
   @BelongsTo(() => Mission, { foreignKey: 'missionId' })
   mission: PrivilegePolicyAttribs['mission'];

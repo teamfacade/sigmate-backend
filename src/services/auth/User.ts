@@ -17,6 +17,7 @@ import ModelService, { ValidateOneOptions } from '../ModelService';
 import UserError from '../errors/UserError';
 import { randomInt } from 'crypto';
 import Auth from '.';
+import { DateTime } from 'luxon';
 
 type UserOptions = {
   user?: UserModel;
@@ -485,7 +486,7 @@ export default class User extends ModelService<UserAttribs, UserCAttribs> {
         throw new UserError({ code: 'USER/RJ_UNAME_TAKEN' });
       }
       user.set('userName', userName);
-      user.set('userNameUpdatedAt', new Date());
+      user.set('userNameUpdatedAt', DateTime.now().setZone('utc').toJSDate());
     }
     if (email !== undefined) {
       user.set('email', email);
@@ -619,7 +620,10 @@ export default class User extends ModelService<UserAttribs, UserCAttribs> {
       if (metamask.nonce !== undefined) {
         auth.set('metamaskNonce', metamask.nonce);
         if (metamask.nonce) {
-          auth.set('metamaskNonceGeneratedAt', new Date());
+          auth.set(
+            'metamaskNonceGeneratedAt',
+            DateTime.now().setZone('utc').toJSDate()
+          );
         } else {
           auth.set('metamaskNonceGeneratedAt', undefined);
         }
@@ -652,7 +656,7 @@ export default class User extends ModelService<UserAttribs, UserCAttribs> {
       parent: parentAction,
     });
     await action.run(async ({ transaction }) => {
-      const deleteSuffix = `$${new Date().getTime()}`;
+      const deleteSuffix = `$${DateTime.now().setZone('utc').toMillis()}`;
       user.set('userName', user.userName + deleteSuffix);
       user.set('email', user.email + deleteSuffix);
       user.set('metamaskWallet', user.metamaskWallet + deleteSuffix);
@@ -765,7 +769,8 @@ export default class User extends ModelService<UserAttribs, UserCAttribs> {
     // Assumes isISO8601 was run before this validator
     // i.e., value is a valid ISO8601 date
 
-    const diff = new Date().getTime() - new Date(value).getTime();
+    const diff =
+      DateTime.now().setZone('utc').toMillis() - new Date(value).getTime();
     return 0 <= diff && diff <= 5 * 60 * 1000; // 5 minutes
   };
 

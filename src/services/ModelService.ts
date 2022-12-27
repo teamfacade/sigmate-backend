@@ -23,9 +23,15 @@ export default abstract class ModelService<
   ModelAttribs extends {}, // eslint-disable-line @typescript-eslint/ban-types
   ModelCAttribs extends {} = ModelAttribs // eslint-disable-line @typescript-eslint/ban-types
 > extends Service {
-  public abstract model?: Model<ModelAttribs, ModelCAttribs>;
+  public abstract model?:
+    | Model<ModelAttribs, ModelCAttribs>
+    | Model<ModelAttribs, ModelCAttribs>[];
 
   public get found() {
+    if (!this.model) return false;
+    if (this.model instanceof Array) {
+      return Boolean(this.model.length);
+    }
     return Boolean(this.model);
   }
   public unset() {

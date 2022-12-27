@@ -1,6 +1,9 @@
 import dotenv from 'dotenv';
-import AppServer from './src/services/servers/AppServer';
 dotenv.config();
 
+import { Settings } from 'luxon';
+Settings.defaultZone = 'utc';
+
+import AppServer from './src/services/servers/AppServer';
 const app = new AppServer();
 app.start();

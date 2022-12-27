@@ -11,6 +11,7 @@ import {
   ERROR_CODES_AUTH,
   ERROR_CODES_GOOGLE,
   ERROR_CODES_METAMASK,
+  ERROR_CODES_MISSION,
 } from './codes';
 
 export type ErrorCode = keyof typeof ERROR_CODES;
@@ -26,6 +27,7 @@ export const ERROR_CODES = Object.freeze({
   ...ERROR_CODES_AUTH,
   ...ERROR_CODES_GOOGLE,
   ...ERROR_CODES_METAMASK,
+  ...ERROR_CODES_MISSION,
 });
 
 export interface ServerErrorOptions {

@@ -1,15 +1,16 @@
 import {
   AllowNull,
+  BelongsTo,
   BelongsToMany,
   Column,
   DataType,
   Default,
   HasMany,
-  Length,
   Model,
   Table,
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
+import Action, { ActionAttribs } from './Action.model';
 import GroupPolicy from './GroupPolicy.model';
 import PointPolicy from './PointPolicy.model';
 import PrivilegePolicy from './PrivilegePolicy.model';
@@ -24,7 +25,8 @@ export interface PenaltyAttribs {
   /**
    * Action to trigger penalty
    */
-  actionName: boolean;
+  action?: Action;
+  actionId?: ActionAttribs['id'];
   /**
    * How much the penalty score is increased for each malicious activity log
    * Defaults to `1`
@@ -89,10 +91,8 @@ export default class Penalty extends Model<PenaltyAttribs, PenaltyCAttribs> {
   @Column(DataType.STRING)
   description: PenaltyAttribs['description'];
 
-  @Length({ min: 1, max: 191 })
-  @AllowNull(false)
-  @Column(DataType.STRING(191))
-  actionName!: PenaltyAttribs['actionName'];
+  @BelongsTo(() => Action, { foreignKey: 'actionId' })
+  action: PenaltyAttribs['action'];
 
   @Default(1)
   @AllowNull(false)
