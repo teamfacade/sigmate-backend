@@ -1,5 +1,8 @@
 import { Request, Response, NextFunction } from 'express';
-import { createPgRes } from '../middlewares/handlePagination';
+import {
+  createPgRes,
+  PaginationOptions,
+} from '../middlewares/handlePagination';
 import { UserPublicResponse } from '../models/User';
 import BadRequestError from '../utils/errors/BadRequestError';
 import SequelizeError from '../utils/errors/SequelizeError';
@@ -29,7 +32,7 @@ export type LeaderboardModel = {
 
 export const buildLeaderboardModels = async (
   rows: object[],
-  options: { skipUser?: boolean } = {}
+  options: { skipUser?: boolean; pg?: PaginationOptions } = {}
 ) => {
   const models: LeaderboardModel[] = [];
   for (let i = 0; i < rows.length; i++) {
@@ -53,8 +56,9 @@ export const buildLeaderboardModels = async (
           const user = await findUserById(grantedToId);
           userRes = user ? await userPublicInfoToJSON(user) : null;
         }
+        const offset = options.pg?.offset || 0;
         models.push({
-          rank: models.length + 1,
+          rank: offset + models.length + 1,
           grantedToId,
           user: userRes,
           referral: 0,

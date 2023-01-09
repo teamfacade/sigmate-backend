@@ -21,7 +21,7 @@ const leaderboardSql = `
     FROM \`user_points\`
     WHERE \`user_points\`.\`deleted_at\` IS NULL
     GROUP BY \`granted_to_id\`
-    ORDER BY \`total\` DESC
+    ORDER BY \`total\` DESC, \`grantedToId\` ASC
     LIMIT :limit
     OFFSET :offset
   ),
@@ -86,7 +86,7 @@ export const getLeaderboard = async (pg: PaginationOptions) => {
       type: QueryTypes.SELECT,
     });
 
-    const leaderboard = await buildLeaderboardModels(lbQueryResult);
+    const leaderboard = await buildLeaderboardModels(lbQueryResult, { pg });
     return leaderboard;
   } catch (error) {
     throw new SequelizeError(error as Error);
