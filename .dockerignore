@@ -1,0 +1,15 @@
+.git
+.gitignore
+.dockerignore
+.madgerc
+
+Dockerfile
+*.md
+*.yml
+*.pem
+*.env
+
+node_modules
+.husky
+dist
+keys

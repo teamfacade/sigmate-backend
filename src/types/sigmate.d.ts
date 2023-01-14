@@ -32,179 +32,52 @@ declare namespace sigmate {
       count: number;
     };
   }
+
   namespace Error {
-    export type HandlerOptions<T = string> = {
-      code?: T;
-      error?: unknown;
-      message?: string;
-    };
+    type ErrorDefaults = Partial<{
+      message: string;
+      httpCode: number;
+      logLevel: sigmate.Logger.Level;
+      notify: boolean;
+      critical: boolean;
+    }>;
 
-    export type ErrorName =
-      | 'ServerError'
-      | 'ServiceError'
-      | 'RequestError'
-      | 'ActionError'
-      | 'DatabaseError'
-      | 'LoggerError'
-      | 'AuthError'
-      | 'GoogleAuthError'
-      | 'MetamaskAuthError'
-      | 'MissionError'
-      | 'UserError'
-      | 'TokenError';
+    type ErrorDefaultsMap<CodeType = string> = Record<CodeType, ErrorDefaults>;
+  }
 
-    export type ErrorSource =
-      | 'SERVER'
-      | 'SERVICE'
-      | 'REQUEST'
-      | 'ACTION'
-      | 'UNKNOWN';
-    export type AppErrorCode = 'APP/ER_ENV' | 'APP/ER_START';
-    export type MiscErrorCode = 'UNKNOWN/ER_UNHANDLED';
-    export type ServiceErrorCode =
-      | 'SERVICE/INIT_BEFORE_START'
-      | 'SERVICE/INIT_AFTER_FAIL'
-      | 'SERVICE/NA_CLOSED'
-      | 'SERVICE/NA_FAILED'
-      | 'SERVICE/ER_CLOSE';
+  namespace Server {
+    type States = ReadOnly<{
+      INITIALIZED: 0;
+      STARTING: 1;
+      STARTED: 2;
+      CLOSING: 5;
+      CLOSED: 6;
+      FAILED: 7;
+    }>;
 
-    export type ActionErrorCode =
-      | 'ACTION/ER_TX_START'
-      | 'ACTION/ER_TX_COMMIT'
-      | 'ACTION/ER_TX_ROLLBACK'
-      | 'ACTION/CF_SET_TARGET'
-      | 'ACTION/CF_SET_SOURCE'
-      | 'ACTION/ER_RUN_FAILED'
-      | 'ACTION/RJ_UNAUTHORIZED'
-      | 'ACTION/NA_PARENT_ENDED'
-      | 'ACTION/NA_ENDED';
+    type Status = keyof States;
+  }
 
-    export type DatabaseErrorCode =
-      | 'DB/ER_CONN'
-      | 'DB/ER_ADD_MODELS'
-      | 'DB/ER_TEST_ATTEMPT'
-      | 'DB/ER_TEST'
-      | 'DB/ER_RUN'
-      | 'DB/ER_TX_START'
-      | 'DB/ER_TX_COMMIT'
-      | 'DB/ER_TX_ROLLBACK'
-      | 'DB/ER_CLOSE'
-      | 'DB/NA_CLOSED'
-      | 'DB/NA_FAILED';
+  namespace Service {
+    type States = ReadOnly<{
+      INITIALIZED: 0;
+      STARTING: 1;
+      STARTED: 2;
+      AVAILABLE: 3;
+      UNAVAILABLE: 4;
+      CLOSING: 5;
+      CLOSED: 6;
+      FAILED: 7;
+    }>;
 
-    export type GoogleErrorCode =
-      | 'GOOGLE/NA_AUTH_URL'
-      | 'GOOGLE/ER_TOKEN'
-      | 'GOOGLE/IV_DTO'
-      | 'GOOGLE/IV_TOKEN'
-      | 'GOOGLE/IV_PROFILE';
-
-    export type LoggerErrorCode =
-      | 'LOGGER/ER_INIT_AWS_CLOUDWATCH'
-      | 'LOGGER/ER_INIT_AWS_DYNAMO'
-      | 'LOGGER/ER_INIT_NO_TRANSPORT';
-
-    export type MetamaskErrorCode =
-      | 'METAMASK/ER_NONCE_GEN'
-      | 'METAMASK/NF_NONCE'
-      | 'METAMASK/NF_NONCE_GEN_AT'
-      | 'METAMASK/RJ_NONCE_EXPIRED'
-      | 'METAMASK/IV_DTO'
-      | 'METAMASK/ER_VERIFY'
-      | 'METAMASK/IV_SIGNATURE';
-
-    export type AuthErrorCode =
-      | 'AUTH/NF'
-      | 'AUTH/IV_UPDATE_DTO'
-      | 'AUTH/NF_USER_GROUP'
-      | 'AUTH/NA_USER_GROUP'
-      | 'AUTH/NA_GROUP_PRIV'
-      | 'AUTH/RJ_GROUP_UNAUTHORIZED'
-      | 'AUTH/RJ_USER_UNAUTHORIZED';
-
-    export type TokenErrorCode =
-      | 'TOKEN/NA_KEY_FILE'
-      | 'TOKEN/ER_KEY_READ'
-      | 'TOKEN/NA_KEY'
-      | 'TOKEN/NA_USER'
-      | 'TOKEN/NF_USER'
-      | 'TOKEN/NF_USER_AUTH'
-      | 'TOKEN/IV_VERIFY_PAYLOAD'
-      | 'TOKEN/ER_VERIFY_TYPE'
-      | 'TOKEN/ER_VERIFY_IAT'
-      | 'TOKEN/IV_TYPE';
-
-    export type UserErrorCode =
-      | 'USER/NF'
-      | 'USER/NF_AUTH'
-      | 'USER/IV_CREATE_DTO'
-      | 'USER/IV_UPDATE_AUTH_DTO'
-      | 'USER/RJ_UNAME_TAKEN'
-      | 'USER/NF_REF_CODE'
-      | 'USER/RJ_REF_CODE_SET';
-
-    export type MissionErrorCode =
-      | 'MISSION/NF'
-      | 'MISSION/IV_FIND_DTO'
-      | 'MISSION/NA_METRIC'
-      | 'MISSION/NA_USER_MISSION'
-      | 'MISSION/RJ_PROGRESS_METRIC_THRESHOLD'
-      | 'MISSION/RJ_PROGRESS_CLOSED'
-      | 'MISSION/RJ_PROGRESS_BEFORE_REPEATABLE'
-      | 'MISSION/CF_END_NOT_CLOSED';
-
-    export type ErrorLabel = {
-      source: ErrorSource;
-      name: string;
-    };
-
-    export type ErrorDefaults = {
-      status?: number;
-      level?: sigmate.Logger.Level;
-      critical?: boolean;
-      message?: string;
-    };
-
-    export type ErrorCodeMap<T extends string> = Record<T, ErrorDefaults>;
+    type Status = keyof States;
   }
 
   namespace Logger {
     type UUID = string;
     type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS';
-
-    type Level =
-      | 'error'
-      | 'warn' // default for all errors
-      | 'info' // default for all other logs
-      | 'http'
-      | 'verbose'
-      | 'debug'
-      | 'silly';
-
-    type AllStates = Readonly<{
-      INITIALIZED: 0;
-      STARTING: 1;
-      STARTED: 2;
-      FINISHED: 3;
-      CLOSING: 4;
-      CLOSED: 5;
-      FAILED: 6;
-    }>;
-
-    type ActionTypes = Readonly<{
-      SERVICE: 0;
-      DATABASE: 1;
-      HTTP: 2;
-    }>;
-
-    type ActionType = ActionTypes[keyof ActionTypes];
-
-    type Status = AllStates[keyof AllStates];
-
-    // format
-    // timestamp level message
-    // message
-    // SOURCE 'NAME' status: message (duration) id: info
+    type Level = 'error' | 'warn' | 'info' | 'http' | 'verbose' | 'debug';
+    type ActionType = 'SERVICE' | 'DATABASE' | 'HTTP';
 
     export interface Info {
       timestamp?: string;
@@ -219,11 +92,11 @@ declare namespace sigmate {
       error?: unknown; // log the stack
       server?: {
         name: string;
-        status: Status;
+        status: sigmate.Server.Status;
       };
       service?: {
         name: string;
-        status: Status;
+        status: sigmate.Service.Status;
       };
       request?: {
         method: string;
@@ -241,7 +114,7 @@ declare namespace sigmate {
       action?: {
         type: ActionType;
         name: string;
-        status: Status;
+        status: sigmate.Service.State;
         target?: {
           model: string;
           id: string;
@@ -251,7 +124,6 @@ declare namespace sigmate {
           id: string;
         };
         data?: Record<string, unknown>;
-        depth: number;
       };
     }
 

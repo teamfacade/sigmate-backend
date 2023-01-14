@@ -9,202 +9,118 @@ import {
   TimeoutError,
   UniqueConstraintError,
   ValidationError,
-  ValidationErrorItem as SequelizeValidationErrorItem,
 } from 'sequelize';
-import { camelize } from 'inflection';
-import ServiceError, { ServiceErrorHelperOptions } from './ServiceError';
-import { ValidationErrorItem } from './ServerError';
+import { ServerErrorOptions } from './ServerError';
+import ServiceError, {
+  ServiceErrorCode,
+  defaultsMap as serviceDefaultsMap,
+} from './ServiceError';
 
-type SequelizeErrorCode =
-  | 'AccessDenied'
-  | 'InvalidConnection'
-  | 'ConnectionTimedOut'
-  | 'Connection'
-  | 'UniqueConstraint'
-  | 'Validation'
-  | 'ForeignKeyConstraint'
-  | 'Timeout'
-  | 'EmptyResult'
-  | 'Other'
-  | 'NotBaseError';
+type DatabaseErrorCode =
+  | ServiceErrorCode
+  | 'DB/SEQ/ACCESS_DENIED'
+  | 'DB/SEQ/INVALID_CONN'
+  | 'DB/SEQ/CONN_TIMEOUT'
+  | 'DB/SEQ/CONN'
+  | 'DB/SEQ/UNIQUE_CSTR'
+  | 'DB/SEQ/VALIDATION'
+  | 'DB/SEQ/FK_CSTR'
+  | 'DB/SEQ/TIMEOUT'
+  | 'DB/SEQ/EMPTY_RESULT'
+  | 'DB/SEQ/OTHER';
 
-const ERROR_CODES_SEQUELIZE: sigmate.Error.ErrorCodeMap<SequelizeErrorCode> = {
-  AccessDenied: {
-    level: 'error',
-    status: 403,
+type ErrorDefaultsMap = sigmate.Error.ErrorDefaultsMap<DatabaseErrorCode>;
+
+const defaultsMap: ErrorDefaultsMap = {
+  ...serviceDefaultsMap,
+  'DB/SEQ/ACCESS_DENIED': {
+    httpCode: 403,
+    message: '(Sequelize) Database connection access denied',
     critical: true,
-    message: '(Sequelize: Database connection access denied)',
   },
-  InvalidConnection: {
-    level: 'error',
-    status: 500,
+  'DB/SEQ/INVALID_CONN': {
+    message: '(Sequelize) Database connection invalid',
     critical: true,
-    message: '(Sequelize: Database connection invalid)',
   },
-  ConnectionTimedOut: {
-    level: 'warn',
-    status: 500,
-    critical: false,
-    message: '(Sequelize: Database connection timed out)',
+  'DB/SEQ/CONN_TIMEOUT': {
+    logLevel: 'warn',
+    httpCode: 408,
+    message: '(Sequelize) Database connection timed out',
   },
   // Connection failed due to other reasons:
   // ConnectionAcquireTimeOut, ConnectionRefused, HostNotFound, HostNotReachable
-  Connection: {
-    level: 'warn',
-    status: 503,
+  'DB/SEQ/CONN': {
+    logLevel: 'warn',
+    httpCode: 503,
+    message: '(Sequelize) Database connection failed',
     critical: true,
-    message: '(Sequelize: Database connection failed)',
   },
-  UniqueConstraint: {
-    level: 'debug',
-    status: 409,
-    critical: false,
-    message: '(Sequelize: SQL Unique constraint violation)',
+  'DB/SEQ/UNIQUE_CSTR': {
+    logLevel: 'debug',
+    httpCode: 409,
+    message: '(Sequelize) SQL Unique constraint violation',
   },
-  Validation: {
-    level: 'debug',
-    status: 400,
-    critical: false,
-    message: '(Sequelize: Invalid value)',
+  'DB/SEQ/VALIDATION': {
+    logLevel: 'debug',
+    httpCode: 400,
+    message: '(Sequelize) Invalid value',
   },
-  ForeignKeyConstraint: {
-    level: 'debug',
-    status: 409,
-    critical: false,
-    message: '(Sequelize: SQL Foreign key constraint violation)',
+  'DB/SEQ/FK_CSTR': {
+    logLevel: 'debug',
+    httpCode: 409,
+    message: '(Sequelize) SQL Foreign key constraint violation',
   },
-  Timeout: {
-    level: 'warn',
-    status: 408,
-    critical: false,
-    message: '(Sequelize: Database timed out)',
+  'DB/SEQ/TIMEOUT': {
+    logLevel: 'warn',
+    httpCode: 408,
+    message: '(Sequelize) Database timed out',
   },
-  EmptyResult: {
-    level: 'debug',
-    status: 404,
-    critical: false,
-    message: '(Sequelize: Query result empty)',
+  'DB/SEQ/EMPTY_RESULT': {
+    logLevel: 'debug',
+    httpCode: 404,
+    message: '(Sequelize) Query result empty',
   },
-  Other: {
-    level: 'warn',
-    status: 500,
-    critical: false,
-    message: '(Sequelize: An error occurred)',
-  },
-  // Error not caused by Sequelize
-  NotBaseError: {
-    message: '',
+  'DB/SEQ/OTHER': {
+    message: '(Sequelize) Unexpected error',
   },
 };
 
 export default class DatabaseError extends ServiceError {
-  sequelizeErrorCode: SequelizeErrorCode;
-
-  constructor(options: ServiceErrorHelperOptions) {
-    const { error: cause } = options;
-    console.error(cause);
-    const { code: sequelizeErrorCode, ...defaults } =
-      DatabaseError.getSequelizeErrorDefaults(cause);
-
-    if (options.message) {
-      defaults.message += `${defaults.message ? ' ' : ''}${options.message}`;
-    }
-
+  constructor(options: ServerErrorOptions<DatabaseErrorCode>) {
     super({
       ...options,
+      code: 'DB/OTHER',
       name: 'DatabaseError',
-      serviceName: 'DATABASE',
-      ...defaults,
     });
-    this.sequelizeErrorCode = sequelizeErrorCode;
-    switch (sequelizeErrorCode) {
-      case 'UniqueConstraint':
-      case 'Validation':
-        this.validationErrors = this.databaseValidationErrors;
-        break;
-      case 'ForeignKeyConstraint':
-        this.fields = this.camelizedDatabaseFields;
-        break;
-    }
-  }
-
-  static getSequelizeErrorDefaults(
-    cause: unknown
-  ): sigmate.Error.ErrorDefaults & { code: SequelizeErrorCode } {
-    let code: SequelizeErrorCode = 'NotBaseError';
-    if (cause instanceof BaseError) {
+    let code = options.code;
+    if (options.error instanceof BaseError) {
+      const cause = options.error;
       if (cause instanceof AccessDeniedError) {
-        code = 'AccessDenied';
+        code = 'DB/SEQ/ACCESS_DENIED';
       } else if (cause instanceof InvalidConnectionError) {
-        code = 'InvalidConnection';
+        code = 'DB/SEQ/INVALID_CONN';
       } else if (cause instanceof ConnectionTimedOutError) {
-        code = 'ConnectionTimedOut';
+        code = 'DB/SEQ/CONN_TIMEOUT';
       } else if (cause instanceof ConnectionError) {
-        code = 'Connection';
+        code = 'DB/SEQ/CONN';
       } else if (cause instanceof UniqueConstraintError) {
-        code = 'UniqueConstraint';
+        code = 'DB/SEQ/UNIQUE_CSTR';
       } else if (cause instanceof ValidationError) {
-        code = 'Validation';
+        code = 'DB/SEQ/VALIDATION';
       } else if (cause instanceof ForeignKeyConstraintError) {
-        code = 'ForeignKeyConstraint';
+        code = 'DB/SEQ/FK_CSTR';
       } else if (cause instanceof TimeoutError) {
-        code = 'Timeout';
+        code = 'DB/SEQ/TIMEOUT';
       } else if (cause instanceof EmptyResultError) {
-        code = 'EmptyResult';
+        code = 'DB/SEQ/EMPTY_RESULT';
       } else {
-        code = 'Other';
+        code = 'DB/SEQ/OTHER';
       }
     }
-    return {
-      code,
-      ...ERROR_CODES_SEQUELIZE[code],
-    };
+    if (code) this.loadDefaults(code);
   }
 
-  /**
-   * Map Sequelize's `ValidationErrorItem` to Express-Validator's `ValidationError` type
-   * @returns Array of Express-Validator's `ValidationError` type
-   */
-  get databaseValidationErrors(): ValidationErrorItem[] {
-    if (
-      this.cause instanceof UniqueConstraintError ||
-      this.cause instanceof ValidationError
-    ) {
-      if (!this.cause.errors) {
-        return [];
-      }
-      return this.cause.errors.map(
-        (item: SequelizeValidationErrorItem): ValidationErrorItem => {
-          const { message, type, path, value } = item;
-
-          return {
-            msg: `${type}: ${message}`,
-            value,
-            param: path ? camelize(path, true) : '',
-            location: 'database',
-          };
-        }
-      );
-    }
-    return [];
-  }
-
-  get camelizedDatabaseFields() {
-    if (
-      this.cause instanceof ForeignKeyConstraintError ||
-      this.cause instanceof UniqueConstraintError
-    ) {
-      const fields: string[] | { [k: string]: unknown } | undefined =
-        this.cause.fields;
-      if (!fields) {
-        return [];
-      }
-      if (fields instanceof Array) {
-        return fields.map((f) => camelize(f, true));
-      } else {
-        return Object.keys(fields).map((f) => camelize(f, true));
-      }
-    }
-    return [];
+  get defaultsMap() {
+    return defaultsMap;
   }
 }

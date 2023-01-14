@@ -10,12 +10,15 @@ module.exports = {
       ignore_watch: ['node_modules'],
       env_production: {
         NODE_ENV: 'production',
+        PORT: 80,
       },
       env_development: {
         NODE_ENV: 'development',
+        PORT: 5100,
       },
       env_test: {
         NODE_ENV: 'test',
+        PORT: 80,
       },
       min_uptime: 1000,
       listen_timeout: 10000,

@@ -1,135 +1,94 @@
-import { ValidationError as ExpressValidationErrorItem } from 'express-validator';
-import {
-  ERROR_CODES_UNKNOWN,
-  ERROR_CODES_APP,
-  ERROR_CODES_SERVICE,
-  ERROR_CODES_ACTION,
-  ERROR_CODES_DB,
-  ERROR_CODES_LOGGER,
-  ERROR_CODES_TOKEN,
-  ERROR_CODES_USER,
-  ERROR_CODES_AUTH,
-  ERROR_CODES_GOOGLE,
-  ERROR_CODES_METAMASK,
-  ERROR_CODES_MISSION,
-} from './codes';
+/*
+ERROR CODE PREFIXES
+  - ER: ERROR
+  - WR: WARNING
+  - UA: UNAVAILABLE
+  - NF: NOT FOUND
+  - IV: INVALID
+*/
 
-export type ErrorCode = keyof typeof ERROR_CODES;
-export const ERROR_CODES = Object.freeze({
-  ...ERROR_CODES_UNKNOWN,
-  ...ERROR_CODES_APP,
-  ...ERROR_CODES_SERVICE,
-  ...ERROR_CODES_ACTION,
-  ...ERROR_CODES_DB,
-  ...ERROR_CODES_LOGGER,
-  ...ERROR_CODES_TOKEN,
-  ...ERROR_CODES_USER,
-  ...ERROR_CODES_AUTH,
-  ...ERROR_CODES_GOOGLE,
-  ...ERROR_CODES_METAMASK,
-  ...ERROR_CODES_MISSION,
-});
-
-export interface ServerErrorOptions {
-  name: sigmate.Error.ErrorName;
-  code?: ErrorCode;
-  error?: unknown;
-  label: sigmate.Error.ErrorLabel;
+export interface ServerErrorOptions<
+  CodeType extends string = string,
+  LogDataType = any
+> {
+  /** Human-friendly error message */
   message?: string;
-  level?: sigmate.Logger.Level;
+  /** Unique error code. (All caps) */
+  code?: CodeType;
+  /** Error name for categorization */
+  name?: string;
+  /** Original error object that caused this error */
+  error?: unknown;
+  /** HTTP status code to use in response. Defaults to 500 */
+  httpCode?: number;
+  /** Logging level */
+  logLevel?: sigmate.Logger.Level;
+  /** Additional data to keep in log */
+  logData?: LogDataType;
+  /** Notify developers when encountering this error */
+  notify?: boolean;
+  /**
+   * A critical error.
+   * Servers and services should close if an uncaught critical error occurs.
+   * By default, tests stop retrying when a critical error occurs.
+   */
   critical?: boolean;
-  httpStatus?: number;
 }
 
-export type ValidationErrorItem = Omit<
-  ExpressValidationErrorItem,
-  'location'
-> & {
-  location: ExpressValidationErrorItem['location'] | 'database';
-};
+export type ErrorOptions<
+  CodeType extends string = string,
+  LogDataType = any
+> = Omit<ServerErrorOptions<CodeType, LogDataType>, 'defaultsMap'>;
 
-export type ServerErrorResponse = {
-  success: false;
-  error: {
-    code: string;
-    msg: string;
-  };
-};
+// Fallback values to use when defaults are not specified
+const DEFAULT_ERROR_MESSAGE = 'Unexpected server error';
+const DEFAULT_ERROR_NAME = 'ServerError';
+const DEFAULT_ERROR_CODE = 'UNEXPECTED';
+const DEFAULT_ERROR_HTTPCODE = 500;
+const DEFAULT_ERROR_LOGLEVEL = 'error';
 
-export default class ServerError extends Error {
-  /**
-   * Name of the error that describes the general class of errors
-   */
-  name: string;
-  /**
-   * Error code that determines the default message, log levels,
-   * critical flag, and http status code.
-   * Also used by frontend code for error handling
-   */
-  code: ErrorCode;
+export default class ServerError<LogDataType = any> extends Error {
   cause?: unknown;
-  label: sigmate.Error.ErrorLabel;
-  // message: string;
-  level: sigmate.Logger.Level;
+  code: string;
+  httpCode: number;
+  logLevel: sigmate.Logger.Level;
+  logData?: LogDataType;
+  notify: boolean;
   critical: boolean;
-  httpStatus: number;
-  validationErrors?: ValidationErrorItem[] = undefined;
-  fields?: string[] = undefined;
 
   constructor(options: ServerErrorOptions) {
-    const {
-      name,
-      label,
-      code = 'UNKNOWN/ER_UNHANDLED',
-      error: cause,
-    } = options;
-
-    const {
-      message,
-      level,
-      critical,
-      status: httpStatus,
-    } = ServerError.getErrorDefaults(options);
-
+    const { name, error: cause, logData } = options;
+    const code = options.code || DEFAULT_ERROR_CODE;
+    const message = options.message || DEFAULT_ERROR_MESSAGE;
     super(message);
-    this.name = name || 'ServerError';
-    this.label = label;
-    this.code = code;
+    const defaults: sigmate.Error.ErrorDefaults =
+      code in this.defaultsMap ? this.defaultsMap[code] : {};
+    if (defaults.message) this.message = defaults.message;
+    this.name = name || DEFAULT_ERROR_NAME;
     this.cause = cause;
-    this.level = level;
-    this.critical = critical;
-    this.httpStatus = httpStatus;
+    this.logData = logData;
+    this.code = code;
+    this.httpCode =
+      options.httpCode || defaults.httpCode || DEFAULT_ERROR_HTTPCODE;
+    this.logLevel =
+      options.logLevel || defaults.logLevel || DEFAULT_ERROR_LOGLEVEL;
+    this.notify = options.notify || defaults.notify || false;
+    this.critical = options.critical || defaults.critical || false;
   }
 
-  static getErrorDefaults(
-    options: Partial<ServerErrorOptions>
-  ): Required<sigmate.Error.ErrorDefaults> {
-    const { code = 'UNKNOWN/ER_UNHANDLED' } = options;
-    let { message = '', level, critical, httpStatus: status } = options;
+  protected get defaultsMap(): sigmate.Error.ErrorDefaultsMap {
+    return {};
+  }
 
-    const defaults = ERROR_CODES[code];
-    if (defaults.message) {
-      message = message ? `${defaults.message}. ${message}` : defaults.message;
+  protected loadDefaults(code: keyof typeof this.defaultsMap) {
+    if (code in this.defaultsMap) {
+      const { message, httpCode, logLevel, notify, critical } =
+        this.defaultsMap[code];
+      if (message !== undefined) this.message = message;
+      if (httpCode !== undefined) this.httpCode = httpCode;
+      if (logLevel !== undefined) this.logLevel = logLevel;
+      if (notify !== undefined) this.notify = notify;
+      if (critical !== undefined) this.critical = critical;
     }
-    if (defaults.level) {
-      level = level || defaults.level;
-    }
-    if (defaults.critical !== undefined) {
-      critical = critical === undefined ? defaults.critical : critical;
-    }
-    if (defaults.status) {
-      status = status || defaults.status;
-    }
-
-    if (!level) level = 'error';
-    if (critical === undefined) critical = true;
-    if (!status) status = 500;
-
-    return {
-      message,
-      level,
-      critical,
-      status,
-    };
   }
 }

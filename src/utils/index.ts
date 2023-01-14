@@ -32,13 +32,13 @@ export function wait(time: number) {
  * Wait for a promise to fulfill only for a given amount of time
  * @param promise A Promise instance
  * @param time Max time to wait for promise
- * @returns Resolved value, or void if it times out
+ * @returns Resolved value, or null if it times out
  */
 export function waitTimeout<T>(promise: Promise<T>, time: number) {
   return Promise.race([
     promise,
-    new Promise<void>((resolve) => {
-      setTimeout(() => resolve(), time);
+    new Promise<null>((resolve) => {
+      setTimeout(() => resolve(null), time);
     }),
   ]);
 }
@@ -57,3 +57,29 @@ export const cleanWs = (string: string) => {
   const ws = /\s{2,}/g; // Consecutive whitespaces
   return string.trim().replace(nl, ' ').replace(ws, ' ');
 };
+
+/**
+ * Generate delete suffix to add to unique columns in database
+ * when soft-deleting rows
+ * @returns Generated suffix
+ */
+export const getDeleteSuffix = () => {
+  const d = Date.now().toString();
+  return `${d}`;
+};
+
+/**
+ * Generate an UnsignedByteArray to use as the input for the
+ * `ip-address` package's `Address6.fromUnsignedByteArray()`
+ * @param value 128 bit zero-padded binary string representation of a valid IPv6 address
+ * @returns UnsignedByteArray
+ */
+export function getUnsignedByteArray(value: string) {
+  let i = 0;
+  const byteArray: number[] = [];
+  while (i < value.length) {
+    byteArray.push(Number.parseInt(value.slice(i, i + 8), 2));
+    i += 8;
+  }
+  return byteArray;
+}

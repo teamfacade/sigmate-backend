@@ -1,85 +1,126 @@
 import { wait } from '.';
-
-type ErrorCallbackArgs = {
-  error: unknown;
-  retries: number;
-  maxRetries: number;
-};
-
-type ErrorCallback =
-  | ((args: ErrorCallbackArgs) => void)
-  | ((args: ErrorCallbackArgs) => Promise<void>);
+import ServerError from '../services/errors/ServerError';
 
 type RetryOptions = {
-  maxRetries: number;
-  initDelay: number;
-  incrementDelay: 'exponential' | number;
-  errorCallback: ErrorCallback;
+  /** Stop retrying after given number of attempts */
+  maxAttempts?: number;
+  /** Delay to wait between each attempts */
+  delayMs: number;
+  /** Delay does not increase more than this value */
+  delayMaxMs?: number;
+  /** Increase delay by fixed value */
+  delayIncMs?: number;
+  /** Increase delay exponentially (multiply 2) */
+  delayIncExp?: boolean;
+  /** Function to run for each failed attempts */
+  onFail?: (error: unknown, attempt: number) => unknown;
+  /** Function to decide whether to stop retrying immediately. Overrides `stopOnCriticalErrors`. */
+  shouldRetry?: (error: unknown, attempt: number) => boolean;
+  /** Stop retrying when a 'critical' ServerError is thrown. Overriden by `shouldRetry`. */
+  stopOnCriticalErrors?: boolean;
 };
 
-export default class Retry {
-  maxRetries: number;
-  initDelay: number;
-  incrementDelay: (d: number) => number;
-  errorCallback: ErrorCallback;
+export type RetryReturnType<T = unknown> = {
+  success: boolean;
+  data?: T;
+  error?: unknown;
+};
 
-  retries!: number;
-  delay!: number;
+/**
+ * Retry a certain task until it succeeds.
+ * @param task Task to retry. Must throw an error to retry.
+ * @param options Retry options
+ * @returns Return value of task
+ */
+export const retry = async <T>(
+  task: () => Promise<T>,
+  options: RetryOptions
+): Promise<RetryReturnType<T>> => {
+  let success = false;
+  let data: T | undefined = undefined;
+  let error: unknown = undefined;
+  const {
+    maxAttempts,
+    delayMs,
+    delayMaxMs,
+    delayIncMs,
+    delayIncExp,
+    onFail,
+    shouldRetry,
+    stopOnCriticalErrors = true,
+  } = options;
 
-  attempt?: Promise<unknown> = undefined;
+  if (maxAttempts && maxAttempts < 2) {
+    throw new Error('retry: maxAttempts must be larger than 1');
+  }
 
-  constructor(options: RetryOptions) {
-    const { initDelay, incrementDelay, maxRetries, errorCallback } = options;
+  if (delayMs < 0) {
+    throw new Error('retry: delayMs must be larger than 0');
+  }
 
-    this.initDelay = initDelay;
-    this.maxRetries = maxRetries;
-    this.errorCallback = errorCallback;
+  if (delayMaxMs && delayMaxMs < delayMs) {
+    throw new Error('retry: delayMaxMs must be larger than delayMs');
+  }
 
-    if (typeof incrementDelay === 'number') {
-      this.incrementDelay = (d: number) => d + incrementDelay;
-    } else {
-      switch (incrementDelay) {
-        case 'exponential':
-        default:
-          this.incrementDelay = (d: number) => d * 2;
+  if (delayIncMs && delayIncExp) {
+    throw new Error('retry: set one of delayIncMs or delayIncExp');
+  }
+
+  if (delayIncMs && delayIncMs < 0) {
+    throw new Error('retry: delayIncMs must be larger than 0');
+  }
+
+  let attempt = 0;
+  let delay = delayMs;
+  let increaseDelay = Boolean(delayIncMs || delayIncExp);
+  while (!success) {
+    try {
+      data = await task();
+      success = true;
+      break;
+    } catch (err) {
+      attempt++;
+      error = err; // To return to caller
+
+      // Run the fail hook
+      if (onFail) onFail(err, attempt);
+
+      // Decide whether to continue trying
+      if (shouldRetry !== undefined) {
+        if (!shouldRetry(err, attempt)) {
           break;
-      }
-    }
-    this.reset();
-  }
-
-  reset() {
-    this.retries = 0;
-    this.delay = this.initDelay;
-  }
-
-  private async __run(promise: Promise<void>) {
-    while (this.retries <= this.maxRetries) {
-      this.retries += 1;
-      try {
-        return await promise;
-      } catch (error) {
-        const errCb = this.errorCallback({
-          error,
-          retries: this.retries,
-          maxRetries: this.maxRetries,
-        });
-        await wait(this.delay);
-        if (errCb instanceof Promise) {
-          await errCb;
         }
-        this.delay = this.incrementDelay(this.delay);
+      } else if (stopOnCriticalErrors) {
+        // By default, stop on 'critical' errors
+        if (err instanceof ServerError) {
+          if (err.critical) break;
+        }
+      }
+
+      // Try up to maxAttempts
+      if (maxAttempts && attempt >= maxAttempts) {
+        break;
+      }
+
+      // Wait the delay
+      await wait(delay);
+
+      // Increase the delay
+      if (increaseDelay) {
+        let newDelay = delay;
+        if (delayIncMs) {
+          newDelay += delayIncMs;
+        } else if (delayIncExp) {
+          newDelay *= 2;
+        }
+        if (delayMaxMs && newDelay > delayMaxMs) {
+          newDelay = delay;
+          increaseDelay = false;
+        }
+        delay = newDelay;
       }
     }
   }
 
-  async run(promise: Promise<void>) {
-    if (!this.attempt) {
-      this.reset();
-      this.attempt = this.__run(promise);
-    }
-
-    await this.attempt;
-    this.attempt = undefined;
-  }
-}
+  return { success, data, error };
+};
