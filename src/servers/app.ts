@@ -4,6 +4,7 @@ import { Server as HttpServer } from 'http';
 import cors from 'cors';
 import luxon from 'luxon';
 import requestIp from 'request-ip';
+import hpp from 'hpp';
 import BaseServer from '.';
 import { db } from '../services/DatabaseService';
 import AppServerError from '../services/errors/AppServerError';
@@ -95,6 +96,7 @@ export default class AppServer extends BaseServer {
       app.use(cors());
       app.use(express.json());
       app.use(express.urlencoded({ extended: true, type: 'application/json' }));
+      app.use(hpp());
       app.use(requestIp.mw());
       app.use(LoggerMiddleware.mw('request'));
       app.use(HeaderMiddleware.parseDevice({ detect: true }));

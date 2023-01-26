@@ -10,12 +10,14 @@ export type RequestHandlerTypes = {
   response?: string | Record<string, unknown>;
 };
 
-export type Controller<D extends RequestHandlerTypes> = RequestHandler<
-  D['params'],
-  D['response'],
-  D['body'],
-  D['query']
->;
+export type Controller<
+  D extends RequestHandlerTypes = {
+    params: Record<string, string>;
+    query: ParsedQs;
+    body: any;
+    response: any;
+  }
+> = RequestHandler<D['params'], D['response'], D['body'], D['query']>;
 
 export default class RequestUtil {
   static PG_DEFAULTS = {
