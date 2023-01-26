@@ -1,4 +1,5 @@
 import { v4 as uuidv4 } from 'uuid';
+import LoggerService, { logger } from '../services/logger/LoggerService';
 
 export type ServerStatus = keyof typeof BaseServer['STATUS'];
 
@@ -55,9 +56,11 @@ export default abstract class BaseServer {
 
   // Hooks
   protected onStatusChange(prev: ServerStatus, cause?: unknown) {
-    // TODO logger
-    console.log(`Server '${this.name}': ${prev} -> ${this.status}`);
-    if (cause) console.error(cause);
+    logger.log({
+      server: this,
+      error: cause || undefined,
+      printStatus: true,
+    });
   }
   protected onStart?: ServerHook;
   protected onStarted?: ServerHook;

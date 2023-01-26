@@ -46,50 +46,56 @@ declare namespace sigmate {
   }
 
   namespace Server {
-    type States = ReadOnly<{
-      INITIALIZED: 0;
-      STARTING: 1;
-      STARTED: 2;
-      CLOSING: 5;
-      CLOSED: 6;
-      FAILED: 7;
-    }>;
-
-    type Status = keyof States;
+    type Status =
+      | 'INITIALIZED'
+      | 'STARTING'
+      | 'STARTED'
+      | 'CLOSING'
+      | 'CLOSED'
+      | 'FAILED';
   }
 
   namespace Service {
-    type States = ReadOnly<{
-      INITIALIZED: 0;
-      STARTING: 1;
-      STARTED: 2;
-      AVAILABLE: 3;
-      UNAVAILABLE: 4;
-      CLOSING: 5;
-      CLOSED: 6;
-      FAILED: 7;
-    }>;
+    type Status =
+      | 'INITIALIZED'
+      | 'STARTING'
+      | 'STARTED'
+      | 'AVAILABLE'
+      | 'UNAVAILABLE'
+      | 'CLOSING'
+      | 'CLOSED'
+      | 'FAILED';
+  }
 
-    type Status = keyof States;
+  namespace Action {
+    type Type = 'SERVICE' | 'DATABASE' | 'HTTP';
+    type Status =
+      | 'INITIALIZED'
+      | 'STARTING'
+      | 'STARTED'
+      | 'FINISHED'
+      | 'FAILED';
   }
 
   namespace Logger {
     type UUID = string;
     type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS';
     type Level = 'error' | 'warn' | 'info' | 'http' | 'verbose' | 'debug';
-    type ActionType = 'SERVICE' | 'DATABASE' | 'HTTP';
 
     export interface Info {
       timestamp?: string;
       level: Level;
       message: string;
       duration?: number;
-      id?: {
-        default: UUID;
-        user?: number; // -1: Unauthenticated, 0: system
-        device?: number; // 0: system
-      };
+      id?: UUID;
+      user?: string; // -1: Unauthenticated, 0: system
+      device?: UAParser.IResult; // 0: system
+      location?: string; // 0: System, IP address
       error?: unknown; // log the stack
+      logOptions?: {
+        printStatus?: boolean;
+        notify?: boolean;
+      };
       server?: {
         name: string;
         status: sigmate.Server.Status;
@@ -101,20 +107,21 @@ declare namespace sigmate {
       request?: {
         method: string;
         endpoint: string;
-        size: number; // bytes, size of body
+        size: number; // bytes, size of request body
         query?: Record<string, unknown>;
         params?: Record<string, unknown>;
         body?: Record<string, unknown>;
         response?: {
-          status: number; // HTTP Status code
-          size: number; // bytes, size of payload
+          status: number; // HTTP status code
+          size: number; // bytes, size of response payload
           body?: unknown;
         };
+        data?: Record<string, unknown>;
       };
       action?: {
-        type: ActionType;
+        type: Action.Type;
         name: string;
-        status: sigmate.Service.State;
+        status: Action.Status;
         target?: {
           model: string;
           id: string;
@@ -123,7 +130,47 @@ declare namespace sigmate {
           model: string;
           id: string;
         };
-        data?: Record<string, unknown>;
+        metrics?: Record<string, number>;
+      };
+    }
+
+    type AnalyticsInfoType =
+      | 'server'
+      | 'service'
+      | 'request'
+      | 'action'
+      | 'error'
+      | 'other';
+
+    export interface AnalyticsInfo {
+      timestamp?: number;
+      level: string;
+      message: string;
+      type: AnalyticsInfoType;
+      name: string;
+      duration?: number; // milliseconds
+      id?: UUID;
+      user?: string;
+      device?: UAParser.IResult;
+      location?: string; // IP address
+      size?: {
+        // bytes
+        request?: number;
+        response?: number;
+      };
+      metrics?: Record<string, number>;
+      target?: {
+        model: string;
+        id: string;
+      };
+      source?: {
+        model: string;
+        id: string;
+      };
+      error?: {
+        code?: string;
+        name: string;
+        message: string;
       };
     }
 
@@ -141,12 +188,13 @@ declare namespace sigmate {
        */
       id?: string;
       /**
-       * User identifier (PARTITION KEY) //
-       * Format:   `u${id.user}d${id.device}` //
-       * userId:   0: SYSTEM, -1: UNAUTHENTICATED //
-       * deviceId: 0: SYSTEM //
+       * User identifier (PARTITION KEY)
        */
-      user: string;
+      user: number;
+
+      device: number;
+
+      location: number;
       /**
        * Error information formatted as:
        * `error.name: error.message`
@@ -188,8 +236,6 @@ declare namespace sigmate {
       resSize?: number;
 
       // ACTION
-      /** action.type */
-      actType?: string;
       /** action.name */
       actName?: string;
       /** action.status */

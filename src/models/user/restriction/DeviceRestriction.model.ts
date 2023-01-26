@@ -14,8 +14,10 @@ import Restriction, { RestrictionAttribs } from './Restriction.model';
 
 export interface DeviceRestrictionAttribs {
   id: number;
+  /** The Nth time a device has been restricted */
   count: number;
   startedAt: Date;
+  endsAt?: Date | null;
   reason?: string;
   givenBy?: User;
   givenById?: UserId;
@@ -30,13 +32,13 @@ export interface DeviceRestrictionAttribs {
   modelName: 'DeviceRestriction',
   tableName: 'device_restrictions',
   timestamps: false,
-  underscored: false,
+  underscored: true,
   paranoid: false,
   charset: 'utf8mb4',
   collate: 'utf8mb4_general_ci',
 })
 export default class DeviceRestriction extends Model<DeviceRestrictionAttribs> {
-  @Default(0)
+  @Default(1)
   @AllowNull(false)
   @Column(DataType.INTEGER)
   count!: DeviceRestrictionAttribs['count'];
@@ -45,6 +47,9 @@ export default class DeviceRestriction extends Model<DeviceRestrictionAttribs> {
   @AllowNull(false)
   @Column(DataType.DATE)
   startedAt!: DeviceRestrictionAttribs['startedAt'];
+
+  @Column(DataType.DATE)
+  endsAt: DeviceRestrictionAttribs['endsAt'];
 
   @Length({ max: 255 })
   @Column(DataType.STRING)

@@ -4,11 +4,13 @@ import {
   Column,
   DataType,
   Default,
+  HasMany,
   Model,
   Table,
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
 import Device, { DeviceId } from './Device.model';
+import UserDeviceRestriction from './restriction/UserDeviceRestriction.model';
 import User, { UserId } from './User.model';
 
 export interface UserDeviceAttribs {
@@ -18,6 +20,7 @@ export interface UserDeviceAttribs {
   device?: Device;
   deviceId?: DeviceId;
   createdAt: Date;
+  restrictions?: UserDeviceRestriction[];
 }
 
 type UserDeviceCAttribs = Optional<UserDeviceAttribs, 'id' | 'createdAt'>;
@@ -43,4 +46,10 @@ export default class UserDevice extends Model<
   @AllowNull(false)
   @Column(DataType.DATE)
   createdAt!: UserDeviceAttribs['createdAt'];
+
+  @HasMany(() => UserDeviceRestriction, {
+    foreignKey: 'userDeviceId',
+    as: 'restrictions',
+  })
+  restrictions: UserDeviceAttribs['restrictions'];
 }

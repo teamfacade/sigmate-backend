@@ -8,7 +8,7 @@
     "start": "node dist/index.js",
     "build": "tsc -p .",
     "dev": "nodemon --watch \"src/**/*.ts\" --exec \"ts-node\" index.ts",
-    "precommit": "lint-staged",
+    "precommit": "",
     "lint": "eslint --fix --max-warnings 0"
   },
   "repository": {

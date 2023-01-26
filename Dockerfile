@@ -22,4 +22,4 @@ COPY package*.json ./
 RUN npm install --only=production
 COPY --from=builder /app/dist ./dist
 
-CMD ["pm2-runtime", "dist/index.js", "--env", "production"]
+CMD ["pm2-runtime", "ecosystem.config.js", "--env", "production"]

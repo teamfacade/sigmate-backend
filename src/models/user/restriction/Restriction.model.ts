@@ -20,7 +20,7 @@ import UserRestriction from './UserRestriction.model';
 
 export interface RestrictionAttribs {
   id: number;
-  type: string; // ban, throttle, limit
+  type: number;
   description?: string;
   endsAfterMinutes?: number;
 
@@ -37,12 +37,7 @@ type RestrictionCAttribs = Optional<
   'id' | 'createdAt' | 'updatedAt'
 >;
 
-export type RestrictionType = 'ban' | 'limit' | 'requireAuth';
-export const RESTRICTION_TYPES: RestrictionType[] = [
-  'ban',
-  'limit',
-  'requireAuth',
-];
+export type RestrictionType = keyof typeof Restriction['TYPES'];
 
 @Table({
   modelName: 'Restriction',
@@ -57,7 +52,9 @@ export default class Restriction extends Model<
   RestrictionAttribs,
   RestrictionCAttribs
 > {
-  @IsIn([RESTRICTION_TYPES])
+  // COLUMNS
+
+  @IsIn([Object.values(Restriction.TYPES)])
   @AllowNull(false)
   @Column(DataType.STRING(32))
   type!: RestrictionAttribs['type'];
@@ -93,4 +90,18 @@ export default class Restriction extends Model<
     otherKey: 'locationId',
   })
   locations: RestrictionAttribs['locations'];
+
+  // JS ATTRIBUTES
+
+  static TYPES = Object.freeze({
+    BAN: 10,
+    LIMIT: 20,
+    REQUIRE_AUTH: 30,
+  });
+
+  static TYPE_NAMES = Object.freeze({
+    10: 'BAN',
+    20: 'LIMIT',
+    30: 'REQUIRE_AUTH',
+  });
 }

@@ -13,8 +13,10 @@ import Restriction, { RestrictionAttribs } from './Restriction.model';
 
 export interface UserRestrictionAttribs {
   id: number;
+  /** The Nth time a user has been restricted */
   count: number;
   startedAt: Date;
+  endsAt?: Date;
   reason?: string;
   givenBy?: User;
   givenById?: UserId;
@@ -29,7 +31,7 @@ export interface UserRestrictionAttribs {
   modelName: 'UserRestriction',
   tableName: 'user_restrictions',
   timestamps: false,
-  underscored: false,
+  underscored: true,
   paranoid: false,
   charset: 'utf8mb4',
   collate: 'utf8mb4_general_ci',
@@ -44,6 +46,9 @@ export default class UserRestriction extends Model<UserRestrictionAttribs> {
   @AllowNull(false)
   @Column(DataType.DATE)
   startedAt!: UserRestrictionAttribs['startedAt'];
+
+  @Column(DataType.DATE)
+  endsAt: UserRestrictionAttribs['endsAt'];
 
   @Length({ max: 255 })
   @Column(DataType.STRING)

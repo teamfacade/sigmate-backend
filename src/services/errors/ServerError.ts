@@ -5,10 +5,14 @@ ERROR CODE PREFIXES
   - UA: UNAVAILABLE
   - NF: NOT FOUND
   - IV: INVALID
+  - IL: ILLEGAL
+  - CF: CONFLICT
 */
 
+import { AllErrorCode, ERROR_DEFAULTS_MAP } from '.';
+
 export interface ServerErrorOptions<
-  CodeType extends string = string,
+  CodeType extends string = AllErrorCode,
   LogDataType = any
 > {
   /** Human-friendly error message */
@@ -28,7 +32,7 @@ export interface ServerErrorOptions<
   /** Notify developers when encountering this error */
   notify?: boolean;
   /**
-   * A critical error.
+   * A critical error. Does NOT affect logging levels
    * Servers and services should close if an uncaught critical error occurs.
    * By default, tests stop retrying when a critical error occurs.
    */
@@ -43,7 +47,7 @@ export type ErrorOptions<
 // Fallback values to use when defaults are not specified
 const DEFAULT_ERROR_MESSAGE = 'Unexpected server error';
 const DEFAULT_ERROR_NAME = 'ServerError';
-const DEFAULT_ERROR_CODE = 'UNEXPECTED';
+const DEFAULT_ERROR_CODE = 'SERVER/OTHER';
 const DEFAULT_ERROR_HTTPCODE = 500;
 const DEFAULT_ERROR_LOGLEVEL = 'error';
 
@@ -56,39 +60,33 @@ export default class ServerError<LogDataType = any> extends Error {
   notify: boolean;
   critical: boolean;
 
-  constructor(options: ServerErrorOptions) {
+  constructor(options: ServerErrorOptions<AllErrorCode, LogDataType>) {
     const { name, error: cause, logData } = options;
+
+    // Load defaults from code
     const code = options.code || DEFAULT_ERROR_CODE;
-    const message = options.message || DEFAULT_ERROR_MESSAGE;
-    super(message);
     const defaults: sigmate.Error.ErrorDefaults =
-      code in this.defaultsMap ? this.defaultsMap[code] : {};
-    if (defaults.message) this.message = defaults.message;
+      code in ERROR_DEFAULTS_MAP ? ERROR_DEFAULTS_MAP[code] : {};
+
+    // Assemble message
+    let message = defaults.message || '';
+    message += defaults.message ? '. ' : '';
+    message += options.message || '';
+    message ||= DEFAULT_ERROR_MESSAGE;
+    super(message);
+
+    // From constructor options
     this.name = name || DEFAULT_ERROR_NAME;
     this.cause = cause;
     this.logData = logData;
     this.code = code;
+
+    // From defaults and constructor options
     this.httpCode =
       options.httpCode || defaults.httpCode || DEFAULT_ERROR_HTTPCODE;
     this.logLevel =
       options.logLevel || defaults.logLevel || DEFAULT_ERROR_LOGLEVEL;
     this.notify = options.notify || defaults.notify || false;
     this.critical = options.critical || defaults.critical || false;
-  }
-
-  protected get defaultsMap(): sigmate.Error.ErrorDefaultsMap {
-    return {};
-  }
-
-  protected loadDefaults(code: keyof typeof this.defaultsMap) {
-    if (code in this.defaultsMap) {
-      const { message, httpCode, logLevel, notify, critical } =
-        this.defaultsMap[code];
-      if (message !== undefined) this.message = message;
-      if (httpCode !== undefined) this.httpCode = httpCode;
-      if (logLevel !== undefined) this.logLevel = logLevel;
-      if (notify !== undefined) this.notify = notify;
-      if (critical !== undefined) this.critical = critical;
-    }
   }
 }

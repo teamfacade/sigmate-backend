@@ -5,4 +5,5 @@ try {
   app.start();
 } catch (error) {
   console.error(error);
+  throw error;
 }

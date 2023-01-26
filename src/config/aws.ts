@@ -1,5 +1,8 @@
 import { CloudWatchLogsClientConfig } from '@aws-sdk/client-cloudwatch-logs';
 import { DynamoDBClientConfig } from '@aws-sdk/client-dynamodb';
+import { NodeHttpHandler } from '@aws-sdk/node-http-handler';
+import { Agent } from 'http';
+
 import dotenv from 'dotenv';
 dotenv.config();
 
@@ -25,6 +28,11 @@ const awsConfig: AWSConfigs = {
         accessKeyId: process.env.AWS_LOGGER_ACCESS_KEY,
         secretAccessKey: process.env.AWS_LOGGER_SECRET_ACCESS_KEY,
       },
+      endpoint: 'http://localhost',
+      // https://docs.aws.amazon.com/sdk-for-javascript/v3/developer-guide/node-reusing-connections.html
+      requestHandler: new NodeHttpHandler({
+        httpAgent: new Agent({ keepAlive: false }),
+      }),
     },
   },
 };

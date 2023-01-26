@@ -2,10 +2,17 @@ import dotenv from 'dotenv';
 import express, { Express } from 'express';
 import { Server as HttpServer } from 'http';
 import cors from 'cors';
+import luxon from 'luxon';
+import requestIp from 'request-ip';
 import BaseServer from '.';
-import DatabaseService from '../services/DatabaseService';
+import { db } from '../services/DatabaseService';
 import AppServerError from '../services/errors/AppServerError';
 import { isEnvVarSet, waitTimeout } from '../utils';
+import LoggerMiddleware from '../middlewares/logger';
+import { logger } from '../services/logger/LoggerService';
+import { redis } from '../services/cache/RedisService';
+import HeaderMiddleware from '../middlewares/header';
+import apiRouter from '../routes/api';
 
 export default class AppServer extends BaseServer {
   app: Express;
@@ -14,7 +21,7 @@ export default class AppServer extends BaseServer {
   exitCode: number;
 
   constructor() {
-    super('App');
+    super('app');
     try {
       dotenv.config();
       this.checkEnv();
@@ -36,37 +43,30 @@ export default class AppServer extends BaseServer {
     // Check environment variables
     const requiredEnvVars = [
       'NODE_ENV',
-      'DEBUG_LOG_LEVEL',
       'SERVICE_NAME',
       'PORT',
-      'PATH_PUBLIC_KEY',
-      'PATH_PRIVATE_KEY',
-      'COOKIE_SECRET',
       'DB_PORT',
-      'DB_DATABASE_DEV',
-      'DB_DATABASE_TEST',
-      'DB_DATABASE_PROD',
-      'DB_USERNAME_DEV',
-      'DB_USERNAME_TEST',
-      'DB_USERNAME_PROD',
-      'DB_PASSWORD_DEV',
-      'DB_PASSWORD_TEST',
-      'DB_PASSWORD_PROD',
-      'DB_HOST_DEV',
-      'DB_HOST_TEST',
-      'DB_HOST_PROD',
+      'DB_DATABASE',
+      'DB_USERNAME',
+      'DB_PASSWORD',
+      'DB_HOST',
       'AWS_BUCKET_NAME',
       'AWS_ACCESS_KEY',
       'AWS_SECRET_ACCESS_KEY',
       'AWS_LOGGER_ACCESS_KEY',
       'AWS_LOGGER_SECRET_ACCESS_KEY',
       'AWS_S3_IMAGE_BASEURL',
+      'COOKIE_SECRET',
       'GOOGLE_CLIENT_ID',
       'GOOGLE_CLIENT_SECRET',
-      'DISCORD_CLIENT_ID',
-      'DISCORD_CLIENT_SECRET',
+      'PATH_PUBLIC_KEY',
+      'PATH_PRIVATE_KEY',
       'TWITTER_BEARER_TOKEN',
       'LAMBDA_BOT_URL',
+      'REDIS_HOST',
+      'REDIS_PORT',
+      'REDIS_ACL_USERNAME',
+      'REDIS_ACL_PASSWORD',
     ];
     const notSetArray: string[] = [];
     const isAllSet = requiredEnvVars.reduce(
@@ -80,20 +80,37 @@ export default class AppServer extends BaseServer {
   }
 
   public async start(): Promise<void> {
-    this.setStatus('STARTING');
-    // Start services
-    const db = new DatabaseService({ createInstance: true });
-    await db.start();
+    try {
+      // Set server timezone
+      luxon.Settings.defaultZone = 'utc';
 
-    // Setup middlewares
-    const app = this.app;
-    app.use(cors());
-    app.use(express.json());
-    app.use(express.urlencoded({ extended: true, type: 'application/json' }));
+      // Start services
+      await logger.start();
+      this.setStatus('STARTING'); // Log server starting after logger start
+      await db.start();
+      await redis.start();
 
-    // Open http server
-    const port = process.env.PORT || 5100;
-    this.server = this.app.listen(port, () => this.setStatus('STARTED'));
+      // Setup middlewares
+      const app = this.app;
+      app.use(cors());
+      app.use(express.json());
+      app.use(express.urlencoded({ extended: true, type: 'application/json' }));
+      app.use(requestIp.mw());
+      app.use(LoggerMiddleware.mw('request'));
+      app.use(HeaderMiddleware.parseDevice({ detect: true }));
+      app.use(HeaderMiddleware.parseLocation({ geo: false }));
+
+      // Setup routes
+      app.use('/api', apiRouter);
+
+      // Open http server
+      const port = process.env.PORT || 5100;
+      this.server = this.app.listen(port, () => this.setStatus('STARTED'));
+    } catch (error) {
+      await this.close();
+      this.setStatus('FAILED');
+      throw error;
+    }
   }
 
   protected onStarted = () => {
@@ -142,23 +159,23 @@ export default class AppServer extends BaseServer {
       try {
         closed = await waitTimeout(this.closeServer(), 5000);
       } catch (error) {
-        console.error(error); // TODO
+        logger.log({ server: this, error });
       }
       if (closed === null) {
         try {
           closed = await waitTimeout(this.closeServer(), 5000);
         } catch (error) {
-          console.error(error); // TODO
+          logger.log({ server: this, error });
         }
       }
     }
 
     // Close services
     try {
-      const db = DatabaseService.getInstance({ throws: false });
       if (db) await db.close();
+      if (logger) await logger.close();
     } catch (error) {
-      console.error(error); // TODO
+      logger.log({ server: this, error });
     }
 
     this.setStatus('CLOSED');

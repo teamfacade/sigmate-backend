@@ -2,6 +2,7 @@ import {
   BelongsToMany,
   Column,
   DataType,
+  HasMany,
   Model,
   Table,
   Unique,
@@ -11,7 +12,6 @@ import { Address4, Address6 } from 'ip-address';
 import User from './User.model';
 import UserLocation from './UserLocation.model';
 import { getUnsignedByteArray } from '../../utils';
-import Restriction from './restriction/Restriction.model';
 import LocationRestriction from './restriction/LocationRestriction.model';
 
 export interface LocationAttribs {
@@ -21,7 +21,8 @@ export interface LocationAttribs {
   ipv6?: string; // VARCHAR BINARY(16)
   ipAddr6?: string;
   users?: User[];
-  restrictions?: Restriction[];
+  userLocations?: UserLocation[];
+  restrictions?: LocationRestriction[];
 }
 
 type LocationCAttribs = Optional<LocationAttribs, 'id'>;
@@ -81,11 +82,15 @@ export default class Location extends Model<LocationAttribs, LocationCAttribs> {
   })
   users: LocationAttribs['users'];
 
-  @BelongsToMany(() => Restriction, {
-    through: () => LocationRestriction,
-    as: 'restrictions',
+  @HasMany(() => UserLocation, {
+    foreignKey: 'userId',
+    as: 'userLocations',
+  })
+  userLocations: LocationAttribs['userLocations'];
+
+  @HasMany(() => LocationRestriction, {
     foreignKey: 'locationId',
-    otherKey: 'restrictionId',
+    as: 'restrictions',
   })
   restrictions: LocationAttribs['restrictions'];
 }

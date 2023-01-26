@@ -3,12 +3,13 @@ import {
   BelongsToMany,
   Column,
   DataType,
+  HasMany,
   Model,
   Table,
+  Unique,
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
 import DeviceRestriction from './restriction/DeviceRestriction.model';
-import Restriction from './restriction/Restriction.model';
 import User from './User.model';
 import UserDevice from './UserDevice.model';
 
@@ -16,9 +17,9 @@ export interface DeviceAttribs {
   id: number;
   uaHash: string;
   uaText: string;
-  uaTextLong?: string;
   users?: User[];
-  restrictions?: Restriction[];
+  userDevices?: UserDevice[];
+  restrictions?: DeviceRestriction[];
 }
 
 type DeviceCAttribs = Optional<DeviceAttribs, 'id'>;
@@ -33,16 +34,14 @@ export type DeviceId = DeviceAttribs['id'];
   paranoid: true,
 })
 export default class Device extends Model<DeviceAttribs, DeviceCAttribs> {
+  @Unique('devices.uaHash')
   @AllowNull(false)
-  @Column(DataType.STRING(32))
+  @Column(DataType.STRING(64))
   uaHash!: DeviceAttribs['uaHash'];
 
   @AllowNull(false)
-  @Column(DataType.STRING(255))
-  uaText!: DeviceAttribs['uaText'];
-
   @Column(DataType.TEXT)
-  uaTextLong: DeviceAttribs['uaTextLong'];
+  uaText!: DeviceAttribs['uaText'];
 
   @BelongsToMany(() => User, {
     through: () => UserDevice,
@@ -52,11 +51,15 @@ export default class Device extends Model<DeviceAttribs, DeviceCAttribs> {
   })
   users: DeviceAttribs['users'];
 
-  @BelongsToMany(() => Restriction, {
-    through: () => DeviceRestriction,
-    as: 'restrictions',
+  @HasMany(() => UserDevice, {
     foreignKey: 'deviceId',
-    otherKey: 'restrictionId',
+    as: 'userDevices',
+  })
+  userDevices: DeviceAttribs['userDevices'];
+
+  @HasMany(() => DeviceRestriction, {
+    foreignKey: 'deviceId',
+    as: 'restrictions',
   })
   restrictions: DeviceAttribs['restrictions'];
 }

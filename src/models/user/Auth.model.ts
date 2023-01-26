@@ -2,19 +2,20 @@ import {
   BelongsTo,
   Column,
   DataType,
-  Is,
+  Length,
   Model,
   Table,
+  Scopes,
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
-import { MYSQL_VALIDATORS } from '../../middlewares/validators';
-import User from './User.model';
+import User, { UserId } from './User.model';
 
 export interface AuthAttribs {
   id: number;
   user?: User;
-  sigmateAccessTokenIat?: number;
-  sigmateRefreshTokenIat?: number;
+  userId?: UserId;
+  accessTokenNonce?: string;
+  refreshTokenNonce?: string;
   googleAccessToken?: string;
   googleRefreshToken?: string;
   metamaskNonce?: string;
@@ -23,6 +24,29 @@ export interface AuthAttribs {
 
 type AuthCAttribs = Optional<AuthAttribs, 'id'>;
 
+@Scopes(() => ({
+  token: {
+    attributes: ['id', 'accessTokenNonce', 'refreshTokenNonce'],
+  },
+  google: {
+    attributes: [
+      'id',
+      'accessTokenNonce',
+      'refreshTokenNonce',
+      'googleAccessToken',
+      'googleRefreshToken',
+    ],
+  },
+  metamask: {
+    attributes: [
+      'id',
+      'accessTokenNonce',
+      'refreshTokenNonce',
+      'metamaskNonce',
+      'metamaskNonceGeneratedAt',
+    ],
+  },
+}))
 @Table({
   modelName: 'Auth',
   tableName: 'auths',
@@ -38,13 +62,13 @@ export default class Auth extends Model<AuthAttribs, AuthCAttribs> {
   })
   user: AuthAttribs['user'];
 
-  @Is('mysqlint', MYSQL_VALIDATORS.INT)
-  @Column(DataType.INTEGER)
-  sigmateAccessTokenIat: AuthAttribs['sigmateAccessTokenIat'];
+  @Length({ max: 64 })
+  @Column(DataType.STRING(64))
+  accessTokenNonce: AuthAttribs['accessTokenNonce'];
 
-  @Is('mysqlint', MYSQL_VALIDATORS.INT)
-  @Column(DataType.INTEGER)
-  sigmateRefreshTokenIat: AuthAttribs['sigmateRefreshTokenIat'];
+  @Length({ max: 64 })
+  @Column(DataType.STRING(64))
+  refreshTokenNonce: AuthAttribs['refreshTokenNonce'];
 
   @Column(DataType.STRING(512))
   googleAccessToken: AuthAttribs['googleAccessToken'];

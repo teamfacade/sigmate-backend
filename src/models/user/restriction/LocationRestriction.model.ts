@@ -14,8 +14,10 @@ import Restriction, { RestrictionAttribs } from './Restriction.model';
 
 export interface LocationRestrictionAttribs {
   id: number;
+  /** The Nth time a location has been restricted */
   count: number;
   startedAt: Date;
+  endsAt?: Date;
   reason?: string;
   givenBy?: User;
   givenById?: UserId;
@@ -30,13 +32,13 @@ export interface LocationRestrictionAttribs {
   modelName: 'LocationRestriction',
   tableName: 'location_restrictions',
   timestamps: false,
-  underscored: false,
+  underscored: true,
   paranoid: false,
   charset: 'utf8mb4',
   collate: 'utf8mb4_general_ci',
 })
 export default class LocationRestriction extends Model<LocationRestrictionAttribs> {
-  @Default(0)
+  @Default(1)
   @AllowNull(false)
   @Column(DataType.INTEGER)
   count!: LocationRestrictionAttribs['count'];
@@ -45,6 +47,9 @@ export default class LocationRestriction extends Model<LocationRestrictionAttrib
   @AllowNull(false)
   @Column(DataType.DATE)
   startedAt!: LocationRestrictionAttribs['startedAt'];
+
+  @Column(DataType.DATE)
+  endsAt: LocationRestrictionAttribs['endsAt'];
 
   @Length({ max: 255 })
   @Column(DataType.STRING)

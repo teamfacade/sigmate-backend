@@ -1,29 +1,36 @@
 import { Sequelize } from 'sequelize-typescript';
-import Service, { ServiceOptions } from '.';
 import config from '../config';
-import { retry, RetryReturnType } from '../utils/retry';
+import { retry, RetryReturnType } from '../utils';
 import DatabaseError from './errors/DatabaseError';
+import ServerError from './errors/ServerError';
 import ServiceError from './errors/ServiceError';
+import SingletonService from './SingletonService';
 
-export default class DatabaseService extends Service {
+export default class DatabaseService extends SingletonService {
+  public static instance: DatabaseService;
+
   sequelize?: Sequelize;
-  constructor({ createInstance }: ServiceOptions = {}) {
-    if (DatabaseService.instance) {
-      throw new ServiceError({ code: 'SERVICE/ALREADY_INIT' });
-    }
-    super({ name: 'Database', createInstance });
+  constructor() {
+    super({ name: 'Database' });
   }
 
   /** Run database queries with proper error handling */
-  public async run<T>(task: () => Promise<T>) {
+  public async run<T>(task: (sequelize: Sequelize) => Promise<T>) {
+    if (!this.started) {
+      throw new ServiceError({ code: 'SERVICE/UA_NOT_STARTED' });
+    }
     if (!this.isAvailable()) await this.test();
-    if (!this.isAvailable()) {
-      throw new ServiceError({ code: 'SERVICE/UNAVAILABLE' });
+    if (!this.isAvailable() || !this.sequelize) {
+      throw new ServiceError({ code: 'SERVICE/UA' });
     }
     try {
-      return await task();
+      return await task(this.sequelize);
     } catch (error) {
-      throw new DatabaseError({ error });
+      if (error instanceof ServerError) {
+        throw error;
+      } else {
+        throw new DatabaseError({ error });
+      }
     }
   }
 
@@ -91,8 +98,11 @@ export default class DatabaseService extends Service {
 
   /** Close database connection */
   public async close() {
+    if (!this.started) return;
     this.setStatus('CLOSING');
     this.sequelize?.close();
     this.setStatus('CLOSED');
   }
 }
+
+export const db = new DatabaseService();

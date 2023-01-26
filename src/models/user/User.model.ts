@@ -21,10 +21,9 @@ import { getDeleteSuffix } from '../../utils';
 import UserDevice from './UserDevice.model';
 import UserLocation from './UserLocation.model';
 import UserPrivilege from './privilege/UserPrivilege.model';
-import { Optional } from 'sequelize/types';
+import { FindOptions, Optional } from 'sequelize/types';
 import DeviceLocation from './DeviceLocation.model';
 import UserDeviceLocation from './UserDeviceLocation.model';
-import Restriction from './restriction/Restriction.model';
 import UserRestriction from './restriction/UserRestriction.model';
 
 export interface UserAttribs {
@@ -40,6 +39,7 @@ export interface UserAttribs {
   googleAccountId?: string | null;
   twitterHandle?: string | null;
   discordAccount?: string | null;
+  profileImageUrl?: string | null;
 
   isMetamaskPublic?: boolean | null;
   isTwitterPublic?: boolean | null;
@@ -64,9 +64,10 @@ export interface UserAttribs {
   group?: Group;
   groupId?: GroupId;
   privileges?: Privilege[];
-  restrictions?: Restriction[];
+  restrictions?: UserRestriction[];
 
   devices?: Device[];
+  userDevices?: UserDevice[];
   locations?: Location[];
   deviceLocations?: DeviceLocation[];
 
@@ -77,7 +78,10 @@ export interface UserAttribs {
 
 export type UserId = UserAttribs['id'];
 
-type UserCAttribs = Optional<UserAttribs, 'id' | 'createdAt' | 'updatedAt'>;
+type UserCAttribs = Optional<
+  UserAttribs,
+  'id' | 'userName' | 'referralCode' | 'createdAt' | 'updatedAt'
+>;
 
 export const SIZE_USERNAME = 15;
 export const SIZE_EMAIL = 255;
@@ -134,6 +138,9 @@ export default class User extends Model<UserAttribs, UserCAttribs> {
 
   @Column(DataType.STRING(SIZE_DISCORD + SIZE_DEL_SUFFIX))
   discordAccount: UserAttribs['discordAccount'];
+
+  @Column(DataType.STRING(1024))
+  profileImageUrl: UserAttribs['profileImageUrl'];
 
   @Column(DataType.BOOLEAN)
   isMetamaskPublic: UserAttribs['isMetamaskPublic'];
@@ -192,11 +199,9 @@ export default class User extends Model<UserAttribs, UserCAttribs> {
   })
   privileges: UserAttribs['privileges'];
 
-  @BelongsToMany(() => Restriction, {
-    through: () => UserRestriction,
-    as: 'restrictions',
+  @HasMany(() => UserRestriction, {
     foreignKey: 'userId',
-    otherKey: 'restrictionId',
+    as: 'restrictions',
   })
   restrictions: UserAttribs['restrictions'];
 
@@ -207,6 +212,12 @@ export default class User extends Model<UserAttribs, UserCAttribs> {
     otherKey: 'deviceId',
   })
   devices: UserAttribs['devices'];
+
+  @HasMany(() => UserDevice, {
+    foreignKey: 'userId',
+    as: 'userDevices',
+  })
+  userDevices: UserAttribs['userDevices'];
 
   @BelongsToMany(() => Location, {
     through: () => UserLocation,
@@ -223,4 +234,22 @@ export default class User extends Model<UserAttribs, UserCAttribs> {
     otherKey: 'deviceLocationId',
   })
   deviceLocations: UserAttribs['deviceLocations'];
+
+  static FIND_OPTS: Record<string, FindOptions<UserAttribs>> = {
+    GOOGLE: {
+      attributes: ['id', 'googleAccount', 'googleAccountId', 'profileImageUrl'],
+      include: [
+        {
+          model: Auth.scope('google'),
+        },
+      ],
+    },
+    TOKEN: {
+      attributes: ['id'],
+      include: [{ model: Auth.scope('token') }],
+    },
+    EXISTS: {
+      attributes: ['id'],
+    },
+  };
 }
