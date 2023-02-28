@@ -1,23 +1,23 @@
 import { v4 as uuidv4 } from 'uuid';
-import e, { Request, RequestHandler } from 'express';
+import { Request, RequestHandler } from 'express';
 import isInt from 'validator/lib/isInt';
 import { ParsedQs } from 'qs';
+import User from '../models/user/User.model';
 
-export type RequestHandlerTypes = {
-  params?: Record<string, string>;
-  query?: ParsedQs;
-  body?: Record<string, unknown>;
-  response?: string | Record<string, unknown>;
+export type ReqData = {
+  params: Record<string, string>;
+  query: ParsedQs;
+  body: Record<string, unknown>;
+  response: Record<string, unknown>;
 };
 
-export type Controller<
-  D extends RequestHandlerTypes = {
-    params: Record<string, string>;
-    query: ParsedQs;
-    body: any;
-    response: any;
-  }
-> = RequestHandler<D['params'], D['response'], D['body'], D['query']>;
+/** Express RequestHandler type helper */
+export type EController<D extends Partial<ReqData> = ReqData> = RequestHandler<
+  D['params'] extends ReqData['params'] ? D['params'] : ReqData['params'],
+  D['response'] extends ReqData['response'] ? D['response'] : any,
+  D['body'] extends ReqData['body'] ? D['body'] : any,
+  D['query'] extends ReqData['query'] ? D['query'] : ReqData['query']
+>;
 
 export default class RequestUtil {
   static PG_DEFAULTS = {
@@ -140,6 +140,10 @@ export default class RequestUtil {
     } else {
       this.logger.success = false;
     }
+  }
+
+  public authenticate(user: User) {
+    this.req.user = user;
   }
 
   private pg?: Required<sigmate.Request.PaginationReq>;

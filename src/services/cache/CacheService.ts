@@ -2,7 +2,7 @@ import Service from '..';
 import DatabaseService from '../DatabaseService';
 import CacheError from '../errors/CacheError';
 import LoggerService, { logger } from '../logger/LoggerService';
-import RedisService from './RedisService';
+import RedisService from '../RedisService';
 
 export type CacheKeyLike =
   | string

@@ -4,14 +4,13 @@ import { Server as HttpServer } from 'http';
 import cors from 'cors';
 import luxon from 'luxon';
 import requestIp from 'request-ip';
-import hpp from 'hpp';
 import BaseServer from '.';
 import { db } from '../services/DatabaseService';
 import AppServerError from '../services/errors/AppServerError';
 import { isEnvVarSet, waitTimeout } from '../utils';
 import LoggerMiddleware from '../middlewares/logger';
 import { logger } from '../services/logger/LoggerService';
-import { redis } from '../services/cache/RedisService';
+import { redis } from '../services/RedisService';
 import HeaderMiddleware from '../middlewares/header';
 import apiRouter from '../routes/api';
 
@@ -96,7 +95,6 @@ export default class AppServer extends BaseServer {
       app.use(cors());
       app.use(express.json());
       app.use(express.urlencoded({ extended: true, type: 'application/json' }));
-      app.use(hpp());
       app.use(requestIp.mw());
       app.use(LoggerMiddleware.mw('request'));
       app.use(HeaderMiddleware.parseDevice({ detect: true }));

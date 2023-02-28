@@ -16,10 +16,9 @@ export interface AuthAttribs {
   userId?: UserId;
   accessTokenNonce?: string;
   refreshTokenNonce?: string;
-  googleAccessToken?: string;
-  googleRefreshToken?: string;
-  metamaskNonce?: string;
-  metamaskNonceGeneratedAt?: Date;
+  googleRefreshToken?: string | null;
+  metamaskNonce?: string | null;
+  metamaskNonceGeneratedAt?: Date | null;
 }
 
 type AuthCAttribs = Optional<AuthAttribs, 'id'>;
@@ -33,7 +32,6 @@ type AuthCAttribs = Optional<AuthAttribs, 'id'>;
       'id',
       'accessTokenNonce',
       'refreshTokenNonce',
-      'googleAccessToken',
       'googleRefreshToken',
     ],
   },
@@ -69,9 +67,6 @@ export default class Auth extends Model<AuthAttribs, AuthCAttribs> {
   @Length({ max: 64 })
   @Column(DataType.STRING(64))
   refreshTokenNonce: AuthAttribs['refreshTokenNonce'];
-
-  @Column(DataType.STRING(512))
-  googleAccessToken: AuthAttribs['googleAccessToken'];
 
   @Column(DataType.STRING(256))
   googleRefreshToken: AuthAttribs['googleRefreshToken'];

@@ -1,6 +1,5 @@
 import { DateTime } from 'luxon';
 import { Op } from 'sequelize';
-import { RequestHandler } from 'express';
 import Device from '../../models/user/Device.model';
 import Location from '../../models/user/Location.model';
 import DeviceRestriction from '../../models/user/restriction/DeviceRestriction.model';
@@ -18,7 +17,7 @@ import UserDeviceRestriction from '../../models/user/restriction/UserDeviceRestr
 import UserDevice from '../../models/user/UserDevice.model';
 import UserLocation from '../../models/user/UserLocation.model';
 import UserLocationRestriction from '../../models/user/restriction/UserLocationRestriction.model';
-import { redis } from './RedisService';
+import { redis } from '../RedisService';
 
 type KeyType = {
   /** SHA1 hash of HTTP user agent header */

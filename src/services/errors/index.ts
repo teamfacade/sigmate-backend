@@ -53,13 +53,21 @@ export type TokenErrorCode =
   | 'TOKEN/RJ_VERIFY';
 
 export type GoogleAuthErrorCode =
+  | 'GOOGLE/NF_USER'
+  | 'GOOGLE/NF_AUTH'
+  | 'GOOGLE/NF_URL'
   | 'GOOGLE/NF_CODE'
   | 'GOOGLE/ER_TOKEN_FETCH'
   | 'GOOGLE/NF_ACCESS_TOKEN'
   | 'GOOGLE/ER_PROFILE_FETCH'
   | 'GOOGLE/IV_PROFILE';
 
-export type AccountErrorCode = 'ACCOUNT/IV_CREATE_DTO';
+export type AccountErrorCode =
+  | 'ACCOUNT/IV_CREATE_DTO'
+  | 'ACCOUNT/NF_USER'
+  | 'ACCOUNT/NF_AUTH'
+  | 'ACCOUNT/CF_POLICY/GOOGLE_UPDATE'
+  | 'ACCOUNT/CF_POLICY/FULLNAME_UPDATE';
 
 export type ActionErrorCode =
   | 'ACTION/UA_DB'
@@ -318,6 +326,19 @@ const TOKEN_EDM: ErrorDefaultsMap<TokenErrorCode> = {
 };
 
 const GOOGLE_EDM: ErrorDefaultsMap<GoogleAuthErrorCode> = {
+  'GOOGLE/NF_USER': {
+    httpCode: 401,
+    logLevel: 'verbose',
+    message: 'Must be logged in to manage Google account connection',
+  },
+  'GOOGLE/NF_AUTH': {
+    message: 'Auth not found for user',
+  },
+  'GOOGLE/NF_URL': {
+    httpCode: 503,
+    logLevel: 'error',
+    message: 'Google redirect URI not defined.',
+  },
   'GOOGLE/NF_CODE': {
     httpCode: 401,
     logLevel: 'verbose',
@@ -348,6 +369,24 @@ const GOOGLE_EDM: ErrorDefaultsMap<GoogleAuthErrorCode> = {
 const ACCOUNT_EDM: ErrorDefaultsMap<AccountErrorCode> = {
   'ACCOUNT/IV_CREATE_DTO': {
     message: 'Invalid account creation data',
+  },
+  'ACCOUNT/NF_USER': {
+    httpCode: 401,
+    logLevel: 'verbose',
+    message: 'Must be logged in to manage an account',
+  },
+  'ACCOUNT/NF_AUTH': {
+    message: 'Auth not found for user',
+  },
+  'ACCOUNT/CF_POLICY/GOOGLE_UPDATE': {
+    httpCode: 409,
+    logLevel: 'verbose',
+    message: 'Cannot change Google account settings too often',
+  },
+  'ACCOUNT/CF_POLICY/FULLNAME_UPDATE': {
+    httpCode: 409,
+    logLevel: 'verbose',
+    message: 'Cannot change your full name too often',
   },
 };
 

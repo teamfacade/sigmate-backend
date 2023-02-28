@@ -12,7 +12,7 @@ import config from '../../config';
 import { waitTimeout } from '../../utils';
 import RequestUtil from '../../utils/RequestUtil';
 import SingletonService from '../SingletonService';
-import { ActionState, ActionStatus } from '../../utils/Action';
+import { ActionState, ActionStatus } from '../../utils/ActionNew';
 import stringify from 'safe-stable-stringify';
 import { DateTime } from 'luxon';
 const { printf, colorize, json } = format;
@@ -90,7 +90,7 @@ export default class LoggerService extends SingletonService {
     server?: BaseServer;
     service?: Service;
     request?: Request;
-    action?: ActionState; // TODO
+    action?: ActionState;
     message?: string;
     error?: unknown;
     duration?: number;
@@ -424,7 +424,7 @@ export default class LoggerService extends SingletonService {
       device: info.device,
       location: info.location,
       size,
-      metrics: info.action ? info.action.metrics : undefined,
+      metric: info.action ? info.action.metric : undefined,
       target: info.action ? info.action.target : undefined,
       source: info.action ? info.action.source : undefined,
       error,
@@ -564,10 +564,14 @@ export default class LoggerService extends SingletonService {
 
   private getActionInfo(
     actionState: ActionState,
-    error: unknown
+    err?: unknown
   ): sigmate.Logger.Info {
-    const { name, type, status, duration, target, source, metrics, req } =
+    const { action, status, duration, target, source, metric, req } =
       actionState;
+
+    const { name, type } = action;
+
+    const error = err || actionState.error;
 
     let level: sigmate.Logger.Level;
     if (error) {
@@ -590,14 +594,13 @@ export default class LoggerService extends SingletonService {
       }
     }
 
-    const reqUtil = req ? req.util || new RequestUtil(req) : undefined;
-
     const info: sigmate.Logger.Info = {
       level,
       message: '',
-      duration: duration >= 0 ? duration : undefined,
+      duration,
+      id: req?.util?.id,
       // TODO user
-      ...this.getDeviceLocation(reqUtil), // device, location
+      ...this.getDeviceLocation(req?.util), // device, location
       action: {
         type: type,
         name: name,
@@ -608,7 +611,7 @@ export default class LoggerService extends SingletonService {
         source: source?.id
           ? (source as Required<ActionState['source']>)
           : undefined,
-        metrics,
+        metric,
       },
     };
 
@@ -718,14 +721,14 @@ export default class LoggerService extends SingletonService {
         }
       }
     } else if (action) {
-      const { type, target, source, metrics } = action;
+      const { type, target, source, metric } = action;
       const fType = type ? `(${type[0]})` : '';
       ffMessage.type = `ACTION${fType || ''}`;
       ffMessage.name = action.name;
       ffMessage.status = action.status;
       if (target) ffMessage.target = `${target.model}:${target.id}`;
       if (source) ffMessage.source = `${source.model}:${source.id}`;
-      if (metrics) logData.metrics = metrics;
+      if (metric) logData.metric = metric;
     }
 
     let fMessage = '';

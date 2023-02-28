@@ -4,7 +4,7 @@ import jwt from 'jsonwebtoken';
 import { DateTime } from 'luxon';
 import Auth from '../../models/user/Auth.model';
 import User from '../../models/user/User.model';
-import Action, { ActionWorkerOptions } from '../../utils/Action';
+import Action, { ActionArgs } from '../../utils/ActionNew';
 import TokenError from '../errors/TokenError';
 import AuthService from './AuthService';
 
@@ -16,7 +16,7 @@ type TokenConfig = {
   TYPE: string;
 };
 
-type TokenObj<T = string> = {
+export type TokenObj<T = string> = {
   access?: T;
   refresh?: T;
   device?: T;
@@ -60,7 +60,7 @@ export default class TokenAuthService extends AuthService {
       DEVICE: {
         ALG: 'ES256',
         ISS: 'sigmate.io',
-        EXP: '2y',
+        EXP: '1y',
         TYPE: 'dvc',
       },
     });
@@ -72,19 +72,28 @@ export default class TokenAuthService extends AuthService {
   }
 
   public getToken = Action.create(
-    async (
-      { user, access, refresh, device, uaText, renew }: GetTokenDTO,
-      { transaction, action: parent }: ActionWorkerOptions
-    ) => {
+    async ({
+      user,
+      access,
+      refresh,
+      device,
+      uaText,
+      renew,
+      transaction,
+      action: parent,
+    }: ActionArgs<GetTokenDTO>) => {
       const userId = user?.id;
       if (!userId) throw new TokenError({ code: 'TOKEN/RJ_UID' });
       const auth = user.auth || (await user.$get('auth', { transaction }));
       if (!auth) throw new TokenError({ code: 'TOKEN/NF_AUTH' });
       const tokens: TokenObj = {};
-      const nonces: TokenObj = await this.getNonce(
-        { user, renew, access, refresh },
-        { parent }
-      );
+      const nonces: TokenObj = await this.getNonce({
+        user,
+        renew,
+        access,
+        refresh,
+        parent,
+      });
       const iat = DateTime.utc();
       const ps: Promise<string>[] = [];
       if (access) {
@@ -123,10 +132,11 @@ export default class TokenAuthService extends AuthService {
    * @param nonce Object containing nonce values
    */
   private renewNonce = Action.create(
-    async (
-      { auth, nonce }: { auth: Auth; nonce: TokenObj },
-      { transaction }: ActionWorkerOptions
-    ) => {
+    async ({
+      auth,
+      nonce,
+      transaction,
+    }: ActionArgs<{ auth: Auth; nonce: TokenObj }>) => {
       if (nonce.access) {
         auth.set('accessTokenNonce', nonce.access);
       }
@@ -174,20 +184,23 @@ export default class TokenAuthService extends AuthService {
    * @param type Expected token type
    */
   public verfiyToken = Action.create(
-    async (
-      { token, type }: { token: string; type: TokenType },
-      { action }: ActionWorkerOptions
-    ) => {
+    async ({
+      token,
+      type,
+      action,
+    }: ActionArgs<{ token: string; type: TokenType }>) => {
       try {
         if (!token) throw new Error('Empty token');
         const payload = this.safeDecodeJwt(token);
         if (!payload) throw new Error('Unsafe payload');
         const userId = payload.sub;
         if (!userId) throw new Error('User id not found');
-        const nonces = await this.getNonce(
-          { userId, access: type === 'ACCESS', refresh: type === 'REFRESH' },
-          { parent: action }
-        );
+        const nonces = await this.getNonce({
+          userId,
+          access: type === 'ACCESS',
+          refresh: type === 'REFRESH',
+          parent: action,
+        });
         let nonce = '';
         if (type === 'ACCESS') {
           nonce = nonces.access as NonNullable<typeof nonces.access>;
@@ -208,17 +221,24 @@ export default class TokenAuthService extends AuthService {
   );
 
   /**
-   * (Action) Fetches the user's token nonce from the database
+   * (Action) Fetches the user's token nonce from the database.
+   * If the database is empty, generate a new nonce and update the database
    * @param userId User id in string
    * @param type Token type (either `ACCESS` or `REFRESH`)
+   * @param renew If set to true, always generate a new nonce and update the database
    * @returns Fetched nonce (can be undefined)
    */
   private getNonce = Action.create(
-    async (
-      args: GetNonceArgs,
-      { transaction, action: parent }: ActionWorkerOptions
-    ) => {
-      const { user, userId, renew, access, refresh } = args;
+    async (args: ActionArgs<GetNonceArgs>) => {
+      const {
+        user,
+        userId,
+        renew,
+        access,
+        refresh,
+        transaction,
+        action: parent,
+      } = args;
       if (!user && !userId) throw new TokenError({ code: 'TOKEN/RJ_UID' });
       let auth: Auth | null = null;
       if (userId) {
@@ -253,13 +273,13 @@ export default class TokenAuthService extends AuthService {
         }
       }
       if (renewed) {
-        const p = this.renewNonce({ auth, nonce }, { parent });
+        const p = this.renewNonce({ auth, nonce, parent });
         ps.push(p);
       }
       await Promise.all(ps);
       return nonce;
     },
-    { name: 'AUTH_TOKEN_GET_NONCE', type: 'DATABASE', transaction: true }
+    { name: 'AUTH_TOKEN_GET_NONCE' }
   );
 
   /**

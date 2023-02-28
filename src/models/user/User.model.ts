@@ -25,20 +25,29 @@ import { FindOptions, Optional } from 'sequelize/types';
 import DeviceLocation from './DeviceLocation.model';
 import UserDeviceLocation from './UserDeviceLocation.model';
 import UserRestriction from './restriction/UserRestriction.model';
+import { MYSQL_LIMITS } from '../../middlewares/validators';
 
 export interface UserAttribs {
   id: number;
 
   userName: string;
   userNameUpdatedAt?: Date;
-  email?: string;
+  fullName?: string;
+  fullNameUpdatedAt?: Date;
+  bio?: string;
+  email?: string | null;
   isEmailVerified?: boolean;
 
   metamaskWallet?: string | null;
+  metamaskUpdatedAt?: Date;
   googleAccount?: string | null;
   googleAccountId?: string | null;
+  googleUpdatedAt?: Date;
   twitterHandle?: string | null;
+  twitterUpdatedAt?: Date;
   discordAccount?: string | null;
+  discordUpdatedAt?: Date;
+
   profileImageUrl?: string | null;
 
   isMetamaskPublic?: boolean | null;
@@ -83,7 +92,50 @@ type UserCAttribs = Optional<
   'id' | 'userName' | 'referralCode' | 'createdAt' | 'updatedAt'
 >;
 
+export type UserResponse = Pick<
+  UserAttribs,
+  | 'id'
+  | 'userName'
+  | 'fullName'
+  | 'bio'
+  | 'profileImageUrl'
+  | 'tier'
+  | 'group'
+  | 'metamaskWallet'
+  | 'twitterHandle'
+  | 'discordAccount'
+  | 'userNameUpdatedAt'
+  | 'email'
+  | 'isEmailVerified'
+  | 'googleAccount'
+  | 'isMetamaskPublic'
+  | 'isTwitterPublic'
+  | 'isDiscordPublic'
+  | 'locale'
+  | 'agreeTos'
+  | 'agreeLegal'
+  | 'agreePrivacy'
+  | 'referralCode'
+  | 'referredBy'
+  | 'createdAt'
+>;
+
+export type UserResponsePublic = Pick<
+  UserResponse,
+  | 'id'
+  | 'userName'
+  | 'fullName'
+  | 'bio'
+  | 'profileImageUrl'
+  | 'tier'
+  | 'group'
+  | 'metamaskWallet'
+  | 'twitterHandle'
+  | 'discordAccount'
+>;
+
 export const SIZE_USERNAME = 15;
+export const SIZE_FULLNAME = 191;
 export const SIZE_EMAIL = 255;
 export const SIZE_METAMASK = 64;
 export const SIZE_GOOGLE_ID = 32;
@@ -114,6 +166,17 @@ export default class User extends Model<UserAttribs, UserCAttribs> {
   @Column(DataType.DATE)
   userNameUpdatedAt: UserAttribs['userNameUpdatedAt'];
 
+  @Length({ min: 3, max: SIZE_FULLNAME })
+  @Column(DataType.STRING(191))
+  fullName: UserAttribs['fullName'];
+
+  @Column(DataType.DATE)
+  fullNameUpdatedAt: UserAttribs['fullNameUpdatedAt'];
+
+  @Length(MYSQL_LIMITS.TEXT)
+  @Column(DataType.TEXT)
+  bio: UserAttribs['bio'];
+
   @Unique('users.email')
   @Column(DataType.STRING(SIZE_EMAIL + SIZE_DEL_SUFFIX))
   email: UserAttribs['email'];
@@ -125,6 +188,9 @@ export default class User extends Model<UserAttribs, UserCAttribs> {
   @Column(DataType.STRING(SIZE_METAMASK + SIZE_DEL_SUFFIX))
   metamaskWallet: UserAttribs['metamaskWallet'];
 
+  @Column(DataType.DATE)
+  metamaskUpdatedAt: UserAttribs['metamaskUpdatedAt'];
+
   @Unique('users.google_account')
   @Column(DataType.STRING(SIZE_EMAIL + SIZE_DEL_SUFFIX))
   googleAccount: UserAttribs['googleAccount'];
@@ -133,11 +199,20 @@ export default class User extends Model<UserAttribs, UserCAttribs> {
   @Column(DataType.STRING(SIZE_GOOGLE_ID + SIZE_DEL_SUFFIX))
   googleAccountId: UserAttribs['googleAccountId'];
 
+  @Column(DataType.DATE)
+  googleUpdatedAt: UserAttribs['googleUpdatedAt'];
+
   @Column(DataType.STRING(SIZE_TWITTER + SIZE_DEL_SUFFIX))
   twitterHandle: UserAttribs['twitterHandle'];
 
+  @Column(DataType.DATE)
+  twitterUpdatedAt: UserAttribs['twitterUpdatedAt'];
+
   @Column(DataType.STRING(SIZE_DISCORD + SIZE_DEL_SUFFIX))
   discordAccount: UserAttribs['discordAccount'];
+
+  @Column(DataType.DATE)
+  discordUpdatedAt: UserAttribs['discordUpdatedAt'];
 
   @Column(DataType.STRING(1024))
   profileImageUrl: UserAttribs['profileImageUrl'];
@@ -235,21 +310,93 @@ export default class User extends Model<UserAttribs, UserCAttribs> {
   })
   deviceLocations: UserAttribs['deviceLocations'];
 
+  // Always load
+  static COMMON_ATTRIBS: (keyof UserAttribs)[] = ['id', 'userName'];
+
   static FIND_OPTS: Record<string, FindOptions<UserAttribs>> = {
     GOOGLE: {
-      attributes: ['id', 'googleAccount', 'googleAccountId', 'profileImageUrl'],
-      include: [
-        {
-          model: Auth.scope('google'),
-        },
+      attributes: [
+        ...User.COMMON_ATTRIBS,
+        'fullName',
+        'fullNameUpdatedAt',
+        'email',
+        'googleAccount',
+        'googleAccountId',
+        'googleUpdatedAt',
+        'profileImageUrl',
       ],
+      include: [{ model: Auth.scope('google') }],
     },
     TOKEN: {
-      attributes: ['id'],
+      attributes: [...User.COMMON_ATTRIBS],
       include: [{ model: Auth.scope('token') }],
     },
     EXISTS: {
-      attributes: ['id'],
+      attributes: [...User.COMMON_ATTRIBS],
     },
   };
+
+  /**
+   * Pick attributes from the User model that are allowed to be sent to the client.
+   * This function does not attempt to fetch attributes that was not already loaded.
+   * Load all required attributes first before calling this function.
+   * @param options Whether to include sensitive information
+   * @returns Formatted User response
+   */
+  formatResponse(
+    options: {
+      /** Include sensitive personal information */
+      sensitive?: boolean;
+    } = {}
+  ): UserResponse | UserResponsePublic {
+    const user = this.toJSON();
+
+    // Common
+    const response: UserResponsePublic = {
+      id: user.id,
+      userName: user.userName,
+      fullName: user.fullName,
+      bio: user.bio,
+      profileImageUrl: user.profileImageUrl,
+      tier: user.tier,
+      group: user.group,
+    };
+
+    // Respect privacy settings
+    const { sensitive } = options;
+    if (sensitive || user.isMetamaskPublic) {
+      response.metamaskWallet = user.metamaskWallet;
+    }
+    if (sensitive || user.isTwitterPublic) {
+      response.twitterHandle = user.twitterHandle;
+    }
+    if (sensitive || user.isDiscordPublic) {
+      response.discordAccount = user.discordAccount;
+    }
+    if (!sensitive) {
+      // For non-sensitive responses, stop here
+      return response;
+    }
+
+    // Include private information
+    const sensitiveResponse: UserResponse = {
+      ...response,
+      userNameUpdatedAt: user.userNameUpdatedAt,
+      email: user.email,
+      isEmailVerified: user.isEmailVerified,
+      googleAccount: user.googleAccount,
+      isMetamaskPublic: user.isMetamaskPublic,
+      isTwitterPublic: user.isTwitterPublic,
+      isDiscordPublic: user.isDiscordPublic,
+      locale: user.locale,
+      agreeTos: user.agreeTos,
+      agreeLegal: user.agreeLegal,
+      agreePrivacy: user.agreePrivacy,
+      referralCode: user.referralCode,
+      referredBy: user.referredBy,
+      createdAt: user.createdAt,
+    };
+
+    return sensitiveResponse;
+  }
 }

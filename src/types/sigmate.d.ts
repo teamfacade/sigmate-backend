@@ -73,6 +73,7 @@ declare namespace sigmate {
       | 'INITIALIZED'
       | 'STARTING'
       | 'STARTED'
+      | 'FINISHING'
       | 'FINISHED'
       | 'FAILED';
   }
@@ -130,7 +131,7 @@ declare namespace sigmate {
           model: string;
           id: string;
         };
-        metrics?: Record<string, number>;
+        metric?: Record<string, number>;
       };
     }
 
@@ -158,7 +159,7 @@ declare namespace sigmate {
         request?: number;
         response?: number;
       };
-      metrics?: Record<string, number>;
+      metric?: Record<string, number>;
       target?: {
         model: string;
         id: string;

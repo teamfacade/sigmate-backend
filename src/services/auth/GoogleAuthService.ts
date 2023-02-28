@@ -1,11 +1,11 @@
 import { OAuth2Client, Credentials } from 'google-auth-library';
 import { google, people_v1 } from 'googleapis';
 import User from '../../models/user/User.model';
-import Action, { ActionWorkerOptions } from '../../utils/Action';
+import Action, { ActionArgs } from '../../utils/ActionNew';
 import AccountService from '../AccountService';
 import GoogleAuthError from '../errors/GoogleAuthError';
 import AuthService from './AuthService';
-import TokenAuthService, { tokenAuth } from './TokenAuthService';
+import { tokenAuth } from './TokenAuthService';
 
 type SupportedSchemas =
   | people_v1.Schema$Name
@@ -13,7 +13,7 @@ type SupportedSchemas =
   | people_v1.Schema$CoverPhoto
   | people_v1.Schema$Locale;
 
-type ParsedProfile = {
+export type ParsedGoogleProfile = {
   id: string;
   email: string;
   displayName: string;
@@ -61,77 +61,109 @@ export default class GoogleAuthService extends AuthService {
     this.setStatus('STARTED');
   }
 
+  public connect = Action.create(
+    async ({ code, action: parent }: ActionArgs<{ code: string }>) => {
+      const tokens = await this.getGoogleTokens({ code, parent });
+      const profile = await this.getGoogleProfile({ tokens, parent });
+      const user = await this.findUser({ profile, parent });
+      if (!user) throw new GoogleAuthError({ code: 'GOOGLE/NF_USER' });
+      const account = new AccountService({ user });
+      await account.update({
+        google: {
+          googleAccount: profile.email,
+          googleAccountId: profile.id,
+          profileImageUrl: profile.photo,
+          googleRefreshToken: tokens.refresh_token,
+        },
+        parent,
+      });
+    },
+    { name: 'AUTH_GOOGLE_CONNET' }
+  );
+
+  public disconnect = Action.create(
+    async ({ user, action: parent }: ActionArgs<{ user?: User | null }>) => {
+      const account = new AccountService({ user });
+      await account.update({
+        google: {
+          googleAccount: null,
+          googleAccountId: null,
+          profileImageUrl: null,
+          googleRefreshToken: null,
+        },
+        parent,
+      });
+    },
+    { name: 'AUTH_GOOGLE_DISCONNECT' }
+  );
+
+  // Find/create user, insert/update information, add user to request, return user and token
   public authenticate = Action.create(
-    async (
-      { code }: { code: string },
-      { action: parent }: ActionWorkerOptions
-    ) => {
-      const tokens = await this.getGoogleTokens({ code }, { parent });
-      const profile = await this.getGoogleProfile({ tokens }, { parent });
-      let user = await this.findUserByGoogle({ profile, tokens });
-      if (!user) {
-        const account = new AccountService();
-        user = await account.create(
-          {
-            google: {
-              googleAccount: profile.email,
-              googleAccountId: profile.id,
-              profileImageUrl: profile.photo,
-              locale: profile.locale,
-              googleAccessToken: tokens.access_token || '',
-              googleRefreshToken: tokens.refresh_token || undefined,
-            },
+    async ({ code, action: parent, req }: ActionArgs<{ code: string }>) => {
+      const tokens = await this.getGoogleTokens({ code, parent });
+      const profile = await this.getGoogleProfile({ tokens, parent });
+
+      let user = await this.findUser({ profile, parent });
+      let created = false;
+
+      if (user) {
+        const account = new AccountService({ user });
+        user = await account.update({
+          google: {
+            googleAccount: profile.email,
+            googleAccountId: profile.id,
+            profileImageUrl: profile.photo,
           },
-          { parent }
-        );
+          parent,
+        });
+      } else {
+        created = true;
+        const account = new AccountService();
+        user = await account.create({
+          google: {
+            fullName: profile.displayName,
+            googleAccount: profile.email,
+            googleAccountId: profile.id,
+            profileImageUrl: profile.photo,
+            locale: profile.locale,
+            googleRefreshToken: tokens.refresh_token || undefined,
+          },
+          parent,
+        });
       }
+
+      parent.setTarget(user);
+      req?.util?.authenticate(user);
 
       const sigmateTokens = await tokenAuth.getToken({
         user,
         access: true,
         refresh: true,
+        parent,
       });
 
-      return { user, tokens: sigmateTokens };
+      return { created, user, tokens: sigmateTokens };
     },
-    { name: 'AUTH_GOOGLE_AUTHENTICATE', transaction: true }
+    { name: 'AUTH_GOOGLE_AUTHENTICATE', target: 'User' }
   );
 
-  public findUserByGoogle = Action.create(
-    async (
-      { profile, tokens }: { profile: ParsedProfile; tokens: Credentials },
-      { transaction }: ActionWorkerOptions
-    ) => {
-      const { id, email, photo } = profile;
+  private findUser = Action.create(
+    async ({
+      profile,
+      transaction,
+    }: ActionArgs<{ profile: ParsedGoogleProfile }>) => {
       const user = await User.findOne({
-        where: { googleAccountId: id },
+        where: { googleAccountId: profile.id },
         ...User.FIND_OPTS.GOOGLE,
         transaction,
       });
-      if (user) {
-        user.set('googleAccount', email);
-        user.set('profileImageUrl', photo);
-        await user.save({ transaction });
-        if (user.auth) {
-          if (tokens.access_token) {
-            user.auth.set('googleAccessToken', tokens.access_token);
-          }
-          if (tokens.refresh_token) {
-            user.auth.set('googleRefreshToken', tokens.refresh_token);
-          }
-
-          if (tokens.access_token || tokens.refresh_token) {
-            await user.auth.save({ transaction });
-          }
-        }
-      }
       return user;
     },
     { name: 'AUTH_GOOGLE_FIND_USER', type: 'DATABASE' }
   );
 
   private getGoogleProfile = Action.create(
-    async ({ tokens }: { tokens: Credentials }) => {
+    async ({ tokens }: ActionArgs<{ tokens: Credentials }>) => {
       if (!tokens?.access_token) {
         throw new GoogleAuthError({ code: 'GOOGLE/NF_ACCESS_TOKEN' });
       }
@@ -151,7 +183,7 @@ export default class GoogleAuthService extends AuthService {
 
       const profile = this.parseGoogleProfile(rawProfile);
       if (!profile.id || !profile.email) {
-        const expected: (keyof ParsedProfile)[] = [
+        const expected: (keyof ParsedGoogleProfile)[] = [
           'id',
           'email',
           'displayName',
@@ -174,7 +206,7 @@ export default class GoogleAuthService extends AuthService {
   );
 
   private getGoogleTokens = Action.create(
-    async ({ code }: { code: string }) => {
+    async ({ code }: ActionArgs<{ code: string }>) => {
       if (!code) throw new GoogleAuthError({ code: 'GOOGLE/NF_CODE' });
       try {
         const { tokens } = await this.client.getToken(code);
@@ -186,7 +218,9 @@ export default class GoogleAuthService extends AuthService {
     { name: 'AUTH_GOOGLE_TOKEN', type: 'HTTP' }
   );
 
-  private parseGoogleProfile(data: people_v1.Schema$Person): ParsedProfile {
+  private parseGoogleProfile(
+    data: people_v1.Schema$Person
+  ): ParsedGoogleProfile {
     const id = data.resourceName ? data.resourceName.split('people/')[1] : '';
 
     // People API returns a list of data

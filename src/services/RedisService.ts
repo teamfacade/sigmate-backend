@@ -1,6 +1,6 @@
 import { createClient, ReconnectStrategyError } from 'redis';
-import ServiceError from '../errors/ServiceError';
-import SingletonService from '../SingletonService';
+import ServiceError from './errors/ServiceError';
+import SingletonService from './SingletonService';
 
 type RedisClient = ReturnType<typeof createClient>;
 

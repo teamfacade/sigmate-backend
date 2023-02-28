@@ -7,6 +7,7 @@ declare global {
     // eslint-disable-next-line @typescript-eslint/no-empty-interface
     export interface User extends UserModel {}
     export interface Request {
+      user?: UserModel | null;
       /** Store information about request for LoggerService */
       logger?: {
         id: string;

@@ -42,7 +42,7 @@ export default class DatabaseService extends SingletonService {
 
         this.sequelize = new Sequelize({
           ...dbConfig,
-          models: [__dirname + '/**/*.model.ts'],
+          models: [__dirname + '../models/**/*.model.ts'],
           modelMatch: (filename, member) => {
             return (
               filename.substring(0, filename.indexOf('.model')) ===
