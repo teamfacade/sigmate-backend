@@ -1,70 +1,37 @@
 import { v4 as uuidv4 } from 'uuid';
-import LoggerService, { logger } from '../services/logger/LoggerService';
+import { DateTime, Settings } from 'luxon';
+import { logger } from '../services/logger';
 
-export type ServerStatus = keyof typeof BaseServer['STATUS'];
-
-type ServerHook = (prev: ServerStatus, cause?: unknown) => void;
-
-export default abstract class BaseServer {
-  public static STATUS = Object.freeze({
-    INITIALIZED: 0,
-    STARTING: 1,
-    STARTED: 2,
-    CLOSING: 5,
-    CLOSED: 6,
-    FAILED: 7,
-  });
-
-  id: sigmate.Logger.UUID;
+export default class SigmateServer {
+  id: string;
   name: string;
-  __status: ServerStatus = 'INITIALIZED';
-  get status() {
-    return this.__status;
+  status: sigmate.ServiceStatus;
+  startedAt: luxon.DateTime;
+  public get env() {
+    return process.env.NODE_ENV || 'development';
   }
 
   constructor(name: string) {
     this.id = uuidv4();
     this.name = name;
+    this.status = 'INITIALIZED';
+    this.startedAt = DateTime.now();
+    Settings.defaultZone = 'utc';
   }
 
-  protected setStatus(value: ServerStatus, cause?: unknown) {
-    const prev = this.__status;
-    this.__status = value;
-    if (prev === value) return;
-    this.onStatusChange(prev, cause);
-    switch (value) {
-      case 'STARTING':
-        this.onStart && this.onStart(prev, cause);
-        break;
-      case 'STARTED':
-        this.onStarted && this.onStarted(prev, cause);
-        break;
-      case 'CLOSING':
-        this.onClose && this.onClose(prev, cause);
-        break;
-      case 'CLOSED':
-        this.onClosed && this.onClosed(prev, cause);
-        break;
-      case 'FAILED':
-        this.onFail && this.onFail(prev, cause);
-        break;
-    }
-  }
-
-  public abstract start(): Promise<void>;
-  public abstract close(): Promise<void>;
-
-  // Hooks
-  protected onStatusChange(prev: ServerStatus, cause?: unknown) {
+  protected setStatus(
+    status: sigmate.ServiceStatus,
+    error: unknown = undefined
+  ) {
+    if (this.status === status) return;
+    this.status = status;
     logger.log({
-      server: this,
-      error: cause || undefined,
-      printStatus: true,
+      level: error ? 'error' : 'info',
+      source: 'Server',
+      event: 'SERVER/STATUS_CHANGE',
+      name: this.name,
+      status: this.status,
+      error,
     });
   }
-  protected onStart?: ServerHook;
-  protected onStarted?: ServerHook;
-  protected onClose?: ServerHook;
-  protected onClosed?: ServerHook;
-  protected onFail?: ServerHook;
 }

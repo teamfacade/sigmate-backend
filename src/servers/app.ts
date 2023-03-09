@@ -1,47 +1,29 @@
-import dotenv from 'dotenv';
-import express, { Express } from 'express';
-import { Server as HttpServer } from 'http';
-import cors from 'cors';
-import luxon from 'luxon';
+import { Server } from 'http';
+import express from 'express';
 import requestIp from 'request-ip';
-import BaseServer from '.';
-import { db } from '../services/DatabaseService';
-import AppServerError from '../services/errors/AppServerError';
-import { isEnvVarSet, waitTimeout } from '../utils';
-import LoggerMiddleware from '../middlewares/logger';
-import { logger } from '../services/logger/LoggerService';
-import { redis } from '../services/RedisService';
-import HeaderMiddleware from '../middlewares/header';
-import apiRouter from '../routes/api';
+import cors from 'cors';
+import dotenv from 'dotenv';
+import SigmateServer from '.';
+import { checkEnv, timeoutAfter } from '../utils';
+import RequestMw from '../middlewares/request';
+import { db } from '../services/database';
+import { logger } from '../services/logger';
+import apiV2Router from '../routes/api';
+import { auth } from '../services/auth';
+import ErrorMw from '../middlewares/error';
+import { googleAuth } from '../services/auth/google';
+import { account } from '../services/account';
 
-export default class AppServer extends BaseServer {
-  app: Express;
-  server?: HttpServer;
-  // TODO Prevent server from restarting on non-zero exitcode
-  exitCode: number;
+export default class AppServer extends SigmateServer {
+  static PORT = 5100;
+
+  app: express.Express;
+  server?: Server;
 
   constructor() {
-    super('app');
-    try {
-      dotenv.config();
-      this.checkEnv();
-      this.app = express();
-      this.exitCode = 0;
-    } catch (err) {
-      let error = err;
-      if (!(error instanceof AppServerError)) {
-        error = new AppServerError({
-          code: 'SERVER/APP/ER_CTOR',
-          error,
-        });
-      }
-      throw error;
-    }
-  }
-
-  private checkEnv() {
-    // Check environment variables
-    const requiredEnvVars = [
+    super('App');
+    dotenv.config();
+    checkEnv([
       'NODE_ENV',
       'SERVICE_NAME',
       'PORT',
@@ -50,13 +32,16 @@ export default class AppServer extends BaseServer {
       'DB_USERNAME',
       'DB_PASSWORD',
       'DB_HOST',
+      'AWS_REGION',
       'AWS_BUCKET_NAME',
       'AWS_ACCESS_KEY',
       'AWS_SECRET_ACCESS_KEY',
       'AWS_LOGGER_ACCESS_KEY',
       'AWS_LOGGER_SECRET_ACCESS_KEY',
       'AWS_S3_IMAGE_BASEURL',
+      'AWS_DYNAMODB_ENDPOINT',
       'COOKIE_SECRET',
+      'DEVICE_SECRET',
       'GOOGLE_CLIENT_ID',
       'GOOGLE_CLIENT_SECRET',
       'PATH_PUBLIC_KEY',
@@ -67,117 +52,84 @@ export default class AppServer extends BaseServer {
       'REDIS_PORT',
       'REDIS_ACL_USERNAME',
       'REDIS_ACL_PASSWORD',
-    ];
-    const notSetArray: string[] = [];
-    const isAllSet = requiredEnvVars.reduce(
-      (isAllSet, varName) => isAllSet && isEnvVarSet(varName, { notSetArray }),
-      true
-    );
-
-    if (!isAllSet) {
-      throw new AppServerError({ code: 'SERVER/APP/NF_ENV' });
-    }
+    ]);
+    this.app = express();
   }
 
-  public async start(): Promise<void> {
-    try {
-      // Set server timezone
-      luxon.Settings.defaultZone = 'utc';
+  public async start() {
+    // Start services
+    this.setStatus('STARTING');
+    await logger.start();
+    await db.start();
+    await Promise.all([auth.start(), googleAuth.start(), account.start()]);
 
-      // Start services
-      await logger.start();
-      this.setStatus('STARTING'); // Log server starting after logger start
-      await db.start();
-      await redis.start();
+    const app = this.app;
 
-      // Setup middlewares
-      const app = this.app;
-      app.use(cors());
-      app.use(express.json());
-      app.use(express.urlencoded({ extended: true, type: 'application/json' }));
-      app.use(requestIp.mw());
-      app.use(LoggerMiddleware.mw('request'));
-      app.use(HeaderMiddleware.parseDevice({ detect: true }));
-      app.use(HeaderMiddleware.parseLocation({ geo: false }));
+    // Middlewares
+    app.use(cors());
+    app.use(express.json());
+    app.use(express.urlencoded({ extended: true, type: 'application/json' }));
+    app.use(requestIp.mw());
+    app.use(RequestMw.device());
+    app.use(RequestMw.metadata({ log: true }));
 
-      // Setup routes
-      app.use('/api', apiRouter);
+    // Routes
+    app.use('/api/v2', apiV2Router);
 
-      // Open http server
-      const port = process.env.PORT || 5100;
-      this.server = this.app.listen(port, () => this.setStatus('STARTED'));
-    } catch (error) {
-      await this.close();
-      this.setStatus('FAILED');
-      throw error;
-    }
+    // Error handling middlwares
+    app.use(ErrorMw.request);
+
+    // Start listening
+    const port = process.env.PORT || AppServer.PORT;
+    this.server = app.listen(port, this.onStart.bind(this));
+    this.setStatus('AVAILABLE');
   }
 
-  protected onStarted = () => {
-    // Graceful shutdown on SIGINT
-    process.on('SIGINT', this.onSigint.bind(this));
-
-    // (PM2 Cluster Mode) Send a 'ready' signal to the parent process
-    if (process.send) process.send('ready');
-  };
-
-  /** Graceful shutdown on SIGINT (Ctrl+C) */
-  private onSigint(): void {
-    // Prevent listeners from accumulating on nodemon
-    process.removeAllListeners('SIGINT');
-    console.log('SIGINT(^C) received'); // Don't use logger
-    this.close().then(() => {
-      process.exit(this.exitCode || 0);
-    });
-  }
-
-  /**
-   * Stop new connections, and wait for existing ones to end
-   * @param options Set `force` to `true` to not wait for existing connections to end
-   * @returns Promise that resolves on server 'close' event
-   */
-  private closeServer(options: { force?: boolean } = {}) {
-    return new Promise<boolean>((resolve, reject) => {
-      if (!this.server) return resolve(false);
-      this.server.closeIdleConnections();
-      if (options?.force) {
-        this.server.closeAllConnections();
-      }
-      this.server.close((err) => {
-        if (err) reject(err);
-        else resolve(true);
-      });
-    });
-  }
-
-  public async close(): Promise<void> {
+  public async close() {
     this.setStatus('CLOSING');
-
-    // Close server: Stop receiving new connections
     if (this.server) {
-      let closed;
-      try {
-        closed = await waitTimeout(this.closeServer(), 5000);
-      } catch (error) {
-        logger.log({ server: this, error });
-      }
-      if (closed === null) {
+      const server = this.server;
+      let closed = true;
+      if (typeof server.closeIdleConnections === 'function') {
         try {
-          closed = await waitTimeout(this.closeServer(), 5000);
+          server.closeIdleConnections();
+          await timeoutAfter(this.closeServer(), 5000, { reject: true });
         } catch (error) {
-          logger.log({ server: this, error });
+          console.error(error);
+          closed = false;
+        }
+      }
+      if (!closed && typeof server.closeAllConnections === 'function') {
+        try {
+          server.closeAllConnections();
+          await timeoutAfter(this.closeServer(), 2000);
+        } catch (error) {
+          console.log('Failed to close server');
+          console.error(error);
         }
       }
     }
-
-    // Close services
-    try {
-      if (db) await db.close();
-      if (logger) await logger.close();
-    } catch (error) {
-      logger.log({ server: this, error });
-    }
-
     this.setStatus('CLOSED');
+  }
+
+  private onStart() {
+    process.on('SIGINT', this.onSigint.bind(this));
+    if (process.send) process.send('ready'); // PM2 Cluster Mode
+  }
+
+  private onSigint() {
+    process.removeAllListeners('SIGINT');
+    console.log('SIGINT(^C) received');
+    this.close();
+  }
+
+  private closeServer() {
+    return new Promise<void>((resolve, reject) => {
+      if (!this.server) return resolve();
+      this.server.close((err) => {
+        if (err) reject(err);
+        resolve();
+      });
+    });
   }
 }

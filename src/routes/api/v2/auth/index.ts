@@ -1,9 +1,12 @@
-import { Router } from 'express';
-import googleRouter from './google.route';
-import tokenRouter from './token.route';
+import express from 'express';
+import AuthController from '../../../../controllers/auth';
+import AuthValidator from '../../../../middlewares/validators/auth';
 
-const authRouter = Router();
-authRouter.use('/google', googleRouter);
-authRouter.use('/token', tokenRouter);
+const authRouter = express.Router();
+
+authRouter
+  .route('/google')
+  .get(AuthController.getAuthUrl)
+  .post(AuthValidator.authGoogle, AuthController.authGoogle);
 
 export default authRouter;

@@ -1,33 +1,22 @@
-import RequestUtil from '../utils/RequestUtil';
-import UserModel from '../models/user/User.model';
-import { Lookup } from 'geoip-lite';
+import { RequestMetadata } from '../middlewares/request';
+import User from '../models/User.model';
+import ClientDevice from '../utils/device';
 
 declare global {
   namespace Express {
-    // eslint-disable-next-line @typescript-eslint/no-empty-interface
-    export interface User extends UserModel {}
-    export interface Request {
-      user?: UserModel | null;
-      /** Store information about request for LoggerService */
-      logger?: {
-        id: string;
-        /** Elapsed time from request util init to response header emit */
-        duration: number;
-        /** Whether response headers have been emitted */
-        headers: boolean;
-        endpoint?: string;
-        success?: boolean;
-        body?: any;
-        data?: Record<string, unknown>;
-      };
-      util?: RequestUtil;
-      device?: UAParser.IResult;
-      location?: {
-        ipv4?: string;
-        ipv4Int?: number;
-        ipv6?: string;
-        geo?: Lookup;
-      };
+    interface Request {
+      meta: RequestMetadata;
+      pg?: sigmate.ReqPg;
+      user?: User;
+      device?: ClientDevice;
+      getLogUser?: () => sigmate.Log.Info['user'];
+      getLogDevice?: () => sigmate.Log.Info['device'];
+    }
+
+    interface Response {
+      body?: any;
+      error?: sigmate.ResErr;
+      meta: (count?: number) => sigmate.ResMeta;
     }
   }
 }

@@ -11,7 +11,7 @@ type AWSConfigs = {
   dynamoDB: Record<string, DynamoDBClientConfig>;
 };
 
-const awsConfig: AWSConfigs = {
+const CONFIG_AWS: AWSConfigs = {
   cloudWatchLogs: {
     logger: {
       region: 'ap-northeast-2',
@@ -28,7 +28,7 @@ const awsConfig: AWSConfigs = {
         accessKeyId: process.env.AWS_LOGGER_ACCESS_KEY,
         secretAccessKey: process.env.AWS_LOGGER_SECRET_ACCESS_KEY,
       },
-      endpoint: 'http://localhost',
+      endpoint: process.env.AWS_DYNAMODB_ENDPOINT,
       // https://docs.aws.amazon.com/sdk-for-javascript/v3/developer-guide/node-reusing-connections.html
       requestHandler: new NodeHttpHandler({
         httpAgent: new Agent({ keepAlive: false }),
@@ -37,4 +37,4 @@ const awsConfig: AWSConfigs = {
   },
 };
 
-export default awsConfig;
+export default CONFIG_AWS;

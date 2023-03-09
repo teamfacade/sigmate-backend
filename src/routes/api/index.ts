@@ -1,7 +1,10 @@
-import { Router } from 'express';
-import v2Router from './v2';
+import express from 'express';
+import authRouter from './v2/auth';
+import userRouter from './v2/user';
 
-const apiRouter = Router();
-apiRouter.use('/v2', v2Router);
+const apiV2Router = express.Router();
 
-export default apiRouter;
+apiV2Router.use('/auth', authRouter);
+apiV2Router.use('/user', userRouter);
+
+export default apiV2Router;

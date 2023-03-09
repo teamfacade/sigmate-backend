@@ -1,256 +1,189 @@
-declare namespace sigmate {
-  namespace Request {
-    /**
-     * DTO to use to set the pagination attribute in the Request instance
-     */
-    export type PaginationDTO = {
-      limit?: number;
-      page?: number;
-      offset?: number;
-      count?: number;
-    };
+import { ParsedQs } from 'qs';
+import { RequestHandler } from 'express';
 
-    /**
-     * Expected pagination request from client, parsed from HTTP request query
-     */
-    export type PaginationReq = {
-      limit: number;
-      page?: number;
-      offset?: number;
-    };
+declare global {
+  namespace sigmate {
+    type Optional<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;
 
-    /**
-     * Pagination data to send back in response to client
-     */
-    export type PaginationRes = {
-      limit: number;
-      offset: number;
-      page: {
-        current: number;
-        total: number;
-      };
-      count: number;
-    };
-  }
-
-  namespace Error {
-    type ErrorDefaults = Partial<{
-      message: string;
-      httpCode: number;
-      logLevel: sigmate.Logger.Level;
-      notify: boolean;
-      critical: boolean;
-    }>;
-
-    type ErrorDefaultsMap<CodeType = string> = Record<CodeType, ErrorDefaults>;
-  }
-
-  namespace Server {
-    type Status =
+    type TaskStatus = 'STARTED' | 'SUCCESS' | 'FAILED';
+    type ServiceStatus =
       | 'INITIALIZED'
       | 'STARTING'
-      | 'STARTED'
-      | 'CLOSING'
-      | 'CLOSED'
-      | 'FAILED';
-  }
-
-  namespace Service {
-    type Status =
-      | 'INITIALIZED'
-      | 'STARTING'
-      | 'STARTED'
       | 'AVAILABLE'
       | 'UNAVAILABLE'
       | 'CLOSING'
-      | 'CLOSED'
-      | 'FAILED';
-  }
+      | 'CLOSED';
+    type AnyStatus = TaskStatus | ServiceStatus;
 
-  namespace Action {
-    type Type = 'SERVICE' | 'DATABASE' | 'HTTP';
-    type Status =
-      | 'INITIALIZED'
-      | 'STARTING'
-      | 'STARTED'
-      | 'FINISHING'
-      | 'FINISHED'
-      | 'FAILED';
-  }
+    /** Pagination data in request object */
+    type ReqPg = {
+      limit: number;
+      offset: number;
+      page?: number;
+    };
 
-  namespace Logger {
-    type UUID = string;
-    type HttpMethod = 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE' | 'OPTIONS';
-    type Level = 'error' | 'warn' | 'info' | 'http' | 'verbose' | 'debug';
+    /** Request and Response typing defaults */
+    type ReqDefaultTypes = {
+      params: Record<string, string>;
+      query: ParsedQs;
+      body: Record<string, unknown>;
+      response: Record<string, unknown>;
+      pg: boolean;
+    };
 
-    export interface Info {
-      timestamp?: string;
-      level: Level;
+    type ReqTypes = Partial<ReqDefaultTypes>;
+
+    /** Utility type for request and response typing */
+    type ReqHandler<D extends Partial<ReqDefaultTypes> = ReqDefaultTypes> =
+      RequestHandler<
+        D['params'] extends ReqDefaultTypes['params']
+          ? D['params']
+          : ReqDefaultTypes['params'],
+        D['response'] extends ReqDefaultTypes['response']
+          ? D['response'] & ResMeta
+          : any,
+        D['body'] extends ReqDefaultTypes['body'] ? D['body'] : any,
+        D['query'] extends ReqDefaultTypes['query']
+          ? D['pg'] extends true
+            ? D['query'] & Partial<ReqPg>
+            : D['query']
+          : D['pg'] extends true
+          ? ReqDefaultTypes['query'] & Partial<ReqPg>
+          : ReqDefaultTypes['query']
+      >;
+
+    /** Pagination data to embed in response */
+    type ResPg = {
+      limit: number;
+      offset: number;
+      count: number;
+      page: {
+        current: number | null;
+        total: number | null;
+      };
+    };
+
+    type ResErr = {
+      code: string;
       message: string;
-      duration?: number;
-      id?: UUID;
-      user?: string; // -1: Unauthenticated, 0: system
-      device?: UAParser.IResult; // 0: system
-      location?: string; // 0: System, IP address
-      error?: unknown; // log the stack
-      logOptions?: {
-        printStatus?: boolean;
-        notify?: boolean;
-      };
-      server?: {
-        name: string;
-        status: sigmate.Server.Status;
-      };
-      service?: {
-        name: string;
-        status: sigmate.Service.Status;
-      };
-      request?: {
-        method: string;
-        endpoint: string;
-        size: number; // bytes, size of request body
-        query?: Record<string, unknown>;
-        params?: Record<string, unknown>;
-        body?: Record<string, unknown>;
-        response?: {
-          status: number; // HTTP status code
-          size: number; // bytes, size of response payload
-          body?: unknown;
-        };
-        data?: Record<string, unknown>;
-      };
-      action?: {
-        type: Action.Type;
-        name: string;
-        status: Action.Status;
-        target?: {
-          model: string;
-          id: string;
-        };
-        source?: {
-          model: string;
-          id: string;
-        };
-        metric?: Record<string, number>;
-      };
-    }
+    };
 
-    type AnalyticsInfoType =
-      | 'server'
-      | 'service'
-      | 'request'
-      | 'action'
-      | 'error'
-      | 'other';
+    /** Metadata to embed in every response */
+    type ResMeta = {
+      id: string; // UUID
+      requestedAt: string; // Date ISO-8601
+      pg: ResPg | null;
+      error: ResErr | null;
+    };
 
-    export interface AnalyticsInfo {
-      timestamp?: number;
-      level: string;
-      message: string;
-      type: AnalyticsInfoType;
-      name: string;
-      duration?: number; // milliseconds
-      id?: UUID;
-      user?: string;
-      device?: UAParser.IResult;
-      location?: string; // IP address
-      size?: {
-        // bytes
-        request?: number;
-        response?: number;
-      };
-      metric?: Record<string, number>;
-      target?: {
-        model: string;
-        id: string;
-      };
-      source?: {
-        model: string;
-        id: string;
-      };
-      error?: {
-        code?: string;
-        name: string;
+    namespace Error {
+      type Data<ErrorCode extends string = string> = {
+        code: ErrorCode;
         message: string;
+        name: string;
+        logLevel: sigmate.Log.Level;
+        httpCode: number;
+        error: unknown;
+        notify: boolean;
+        critical: boolean;
+        secure: boolean;
       };
+      type RootData<ErrorCode extends string = string> = Data<ErrorCode> & {
+        defaultsMap: DefaultsMap<ErrorCode>;
+      };
+      type Options<ErrorCode extends string = string> =
+        | ErrorCode
+        | Partial<Data<ErrorCode>>;
+      type RootOptions<ErrorCode extends string = string> = Partial<
+        RootData<ErrorCode>
+      >;
+      type Defaults = Partial<Omit<Data, 'code' | 'name' | 'cause'>>;
+      type DefaultsMap<ErrorCode extends string = string> = Record<
+        ErrorCode,
+        Defaults
+      >;
     }
 
-    export interface DynamoInfo {
-      // COMMON
-      /** Time when this log entry was created. (SORT KEY) */
-      timestamp: number;
-      level: string;
-      message: string;
-      duration?: number;
-      /**
-       * id.default
-       * Id of the request or the action that created this log entry
-       * Used as global secondary index in DynamoDB table.
-       */
-      id?: string;
-      /**
-       * User identifier (PARTITION KEY)
-       */
-      user: number;
+    namespace Log {
+      type Level = 'error' | 'warn' | 'info' | 'http' | 'verbose' | 'debug';
+      type SourceName = 'Server' | 'Service' | 'Request' | 'Action';
 
-      device: number;
+      // Events
+      type ServerEvent =
+        | 'SERVER/STATUS_CHANGE'
+        | 'SERVER/MESSAGE'
+        | 'SERVER/ERROR';
+      type ServiceEvent =
+        | 'SERVICE/STATUS_CHANGE'
+        | 'SERVICE/MESSAGE'
+        | 'SERVICE/ERROR';
+      type RequestEvent =
+        | 'REQ/START'
+        | 'REQ/FINISH'
+        | 'REQ/WARNING'
+        | 'REQ/ERROR';
+      type ActionEvent =
+        | 'ACT/START'
+        | 'ACT/FINISH'
+        | 'ACT/WARNING'
+        | 'ACT/ERROR';
+      type AuthEvent =
+        | 'ACT/AUTH/WARNING'
+        | 'ACT/AUTH/FAIL'
+        | 'ACT/AUTH/BAN'
+        | 'ACT/AUTH/UNBAN';
+      type UserEvent = 'ACT/USER/FLAG' | 'ACT/USER/BAN' | 'ACT/USER/UNBAN';
+      type MissionEvent =
+        | 'ACT/MISSION/PROGRESS'
+        | 'ACT/MISSION/COMPLETE'
+        | 'ACT/MISSION/FAIL';
+      type PointEvent = 'ACT/POINT/GIVE' | 'ACT/POINT/USE' | 'ACT/POINT/TAKE';
+      type LevelEvent = 'ACT/LEVEL/CHANGE' | 'ACT/LEVEL/EXP';
+      type AnyEvent =
+        | ServerEvent
+        | ServiceEvent
+        | RequestEvent
+        | ActionEvent
+        | AuthEvent
+        | UserEvent
+        | MissionEvent
+        | PointEvent
+        | LevelEvent;
 
-      location: number;
-      /**
-       * Error information formatted as:
-       * `error.name: error.message`
-       * For ServerError instances, include the error.cause as well
-       * `error.name: error.message (error.cause.name: error.cause.message)`
-       */
-      err?: string;
-
-      // SERVER
-      /** server.name */
-      serverName?: string;
-      /** server.status */
-      serverStatus?: string;
-
-      // SERVICE
-      /** service.name */
-      serviceName?: string;
-      /** service.status */
-      serviceStatus?: string;
-
-      // REQUEST
-      /** request.method: HTTP request method */
-      reqMtd?: string;
-      /** request.endpoint: HTTP request endpoint */
-      reqEpt?: string;
-      /** request.query/params/body: Data included in the request */
-      reqData?: {
-        query?: Record<string, any>;
-        params?: Record<string, any>;
-        body?: Record<string, any>;
+      type ActionTarget = {
+        model: string;
+        id: string | number;
       };
-      /** request.size: Size of the HTTP request payload */
-      reqSize?: number;
-      /** response.status: HTTP response status code sent to the client */
-      resStatus?: number;
-      /** response.body: Response body sent to the client */
-      resBody?: unknown;
-      /** response.size: Size of the HTTP response payload */
-      resSize?: number;
 
-      // ACTION
-      /** action.name */
-      actName?: string;
-      /** action.status */
-      actStatus?: string;
-      /** action.target.model: Action target object model name */
-      actTModel?: string;
-      /** action.target.id: Action target object primary key */
-      actTId?: string;
-      /** action.source.model: Action source object model name */
-      actSModel?: string;
-      /** action.source.id: Action source object primary key */
-      actSId?: string;
-      /** action.data: Data given to, or produced by the action */
-      actData?: Record<string, any>;
+      interface Info {
+        level: Level;
+        message: string;
+        timestamp?: string;
+
+        source?: SourceName;
+        event?: AnyEvent;
+        name?: string;
+        /** HTTP status code for requests,  */
+        status?: sigmate.AnyStatus | number;
+        duration?: number;
+        id?: string; // UUID
+        user?: {
+          id: number | string;
+          userName?: string;
+        };
+        device?: {
+          ip?: string;
+          ua?: string;
+          os?: string;
+          browser?: string;
+          model?: string;
+          type?: string;
+        };
+        error?: unknown;
+        actionTarget?: ActionTarget[];
+        /** Other data to leave in log. Will be stringified when logs are printed */
+        misc?: Record<string, unknown>;
+      }
     }
   }
 }

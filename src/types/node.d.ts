@@ -8,12 +8,14 @@ declare namespace NodeJS {
     DB_USERNAME: string;
     DB_PASSWORD: string;
     DB_HOST: string;
+    AWS_REGION: string;
     AWS_BUCKET_NAME: string;
     AWS_ACCESS_KEY: string;
     AWS_SECRET_ACCESS_KEY: string;
     AWS_LOGGER_ACCESS_KEY: string;
     AWS_LOGGER_SECRET_ACCESS_KEY: string;
     AWS_S3_IMAGE_BASEURL: string;
+    AWS_DYNAMODB_ENDPOINT: string;
     COOKIE_SECRET: string;
     DEVICE_SECRET: string;
     GOOGLE_CLIENT_ID: string;
