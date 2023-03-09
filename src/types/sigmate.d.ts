@@ -66,6 +66,10 @@ declare global {
     type ResErr = {
       code: string;
       message: string;
+      cause?: {
+        code?: string;
+        message: string;
+      };
     };
 
     /** Metadata to embed in every response */

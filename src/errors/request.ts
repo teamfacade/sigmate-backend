@@ -3,6 +3,7 @@ import ServerError from '.';
 type ErrorCode =
   | 'REQ/IV'
   | 'REQ/ER_UNCAUGHT'
+  | 'REQ/ER_OTHER'
   | 'REQ/RJ_UNAUTHENTICATED'
   | 'REQ/IL_AUTHENTICATED';
 
@@ -26,6 +27,11 @@ const defaultsMap: sigmate.Error.DefaultsMap<ErrorCode> = {
     message: 'Uncaught error from request',
     httpCode: 500,
     logLevel: 'warn',
+    secure: true,
+  },
+  'REQ/ER_OTHER': {
+    message: 'Unexpected internal server error',
+    logLevel: 'verbose',
     secure: true,
   },
 };

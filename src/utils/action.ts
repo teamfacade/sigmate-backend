@@ -1,6 +1,7 @@
 import { Request } from 'express';
 import { Model } from 'sequelize-typescript';
 import { Transaction } from 'sequelize/types';
+import ServerError from '../errors';
 import ActionError from '../errors/action';
 import { logger } from '../services/logger';
 
@@ -124,10 +125,15 @@ const __ActionMethod = (options?: ActionOptions['name'] | ActionOptions) => {
         if (result instanceof Promise) await result;
         action.finish({ success: true });
         return result;
-      } catch (error) {
-        action.finish({ success: false, error });
-        if (error instanceof ActionError) throw error;
-        throw new ActionError({ code: 'ACTION/FAILED', error });
+      } catch (err) {
+        action.finish({ success: false, error: err });
+        let error: ServerError;
+        if (err instanceof ActionError) {
+          error = err;
+        } else {
+          error = new ActionError({ code: 'ACTION/FAILED', error: err });
+        }
+        throw error;
       }
     };
 

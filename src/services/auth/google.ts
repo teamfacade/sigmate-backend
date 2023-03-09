@@ -108,6 +108,7 @@ export default class GoogleAuthService extends AuthService {
         },
       });
     }
+    console.log(user?.toJSON());
     if (req) req.user = user || undefined;
     return user;
   }

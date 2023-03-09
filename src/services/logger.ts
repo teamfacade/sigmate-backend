@@ -7,7 +7,6 @@ import stringify from 'json-stable-stringify';
 import Service from '.';
 import ServerError from '../errors';
 import { timeoutAfter } from '../utils';
-import ActionError from '../errors/action';
 const { printf, colorize, json, combine, label, timestamp, padLevels } = format;
 
 type LoggerOptions = {
@@ -311,9 +310,7 @@ export default class LoggerService extends Service {
     if (error instanceof ServerError) {
       if (error.cause) {
         fError += `${error.name}: ${error.message}\n`;
-        if (!(error instanceof ActionError)) {
-          fError += this.formatError(error.cause);
-        }
+        fError += this.formatError(error.cause);
       } else {
         fError += error.stack || '';
       }

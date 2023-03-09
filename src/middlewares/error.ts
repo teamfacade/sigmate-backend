@@ -14,10 +14,19 @@ export default class ErrorMw {
 
     const env = process.env.NODE_ENV || 'production';
     let error: ServerError;
+
     if (err instanceof Error) {
       if (err instanceof ServerError) {
         if (err instanceof ActionError) {
-          error = err.cause instanceof ServerError ? err.cause : err;
+          if (err.cause instanceof ServerError) {
+            error = err.cause;
+          } else {
+            error = new RequestError({
+              code: 'REQ/ER_OTHER',
+              error: err.cause,
+              secure: env !== 'development',
+            });
+          }
         } else {
           error = err;
         }
@@ -26,7 +35,7 @@ export default class ErrorMw {
           code: 'REQ/ER_UNCAUGHT',
           error: err,
           // (Security) Do not send uncaught error details to client in production
-          secure: env === 'production',
+          secure: env !== 'development',
         });
       }
     } else {
@@ -34,22 +43,34 @@ export default class ErrorMw {
         code: 'REQ/ER_UNCAUGHT',
         message: String(err),
         // (Security) Do not send uncaught error details to client in production
-        secure: env === 'production',
+        secure: env !== 'development',
       });
     }
 
     // Construct error response
     let code = error.code;
-    let message = error.message;
+    let message = (error.name || 'Error') + ': ' + error.message;
+    let cause: sigmate.ResErr['cause'] = undefined;
+
+    if (error instanceof ServerError && error.cause) {
+      const code =
+        error.cause instanceof ServerError ? error.cause.code : undefined;
+      const message =
+        error.cause instanceof Error
+          ? `${error.cause.name}: ${error.cause.message}`
+          : String(error);
+      cause = { code, message };
+    }
 
     // Details of errors with the secure flag set are
     // only sent to the client in development environments
     if (error.secure && env !== 'development') {
       code = 'REQ/OTHER';
       message = 'Error';
+      cause = undefined;
     }
 
-    res.error = { code, message };
+    res.error = { code, message, cause };
 
     // Send secure error details to client in development mode
     res.status(error.httpCode || 500).json({ ...res.meta() });

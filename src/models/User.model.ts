@@ -61,7 +61,7 @@ export interface UserAttribs {
   imageFiles?: ImageFile[];
 }
 
-type UserCAttribs = Optional<
+export type UserCAttribs = Optional<
   UserAttribs,
   'id' | 'userNameUpdatedAt' | 'createdAt'
 >;
