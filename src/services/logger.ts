@@ -14,6 +14,10 @@ type LoggerOptions = {
   cloudWatchLogs: boolean;
 };
 
+const KB = 1024;
+const MB = 1024 * KB;
+const GB = 1024 * MB;
+
 export default class LoggerService extends Service {
   private static CONFIG = Object.freeze({
     cloudWatchLogs: {
@@ -245,6 +249,7 @@ export default class LoggerService extends Service {
       status,
       duration,
       id,
+      size,
       user,
       device,
       error,
@@ -261,8 +266,21 @@ export default class LoggerService extends Service {
     }
     if (status) fMessage += `${this.formatStatus(status)} `;
     if (message) fMessage += `${message} `;
-    if (duration)
+    if (duration) {
       fMessage += `(${ms(Number.parseFloat(duration.toFixed(3)))}) `;
+    }
+    if (size) {
+      if (typeof size === 'number') {
+        fMessage += `${this.formatByteSize(size)} `;
+      } else {
+        fMessage += `${this.formatByteSize(size.req)}`;
+        if (size.res !== undefined) {
+          fMessage += `/${this.formatByteSize(size.res)} `;
+        } else {
+          fMessage += ' ';
+        }
+      }
+    }
     if (user) {
       const { id: uid, userName } = user;
       fMessage += `by ${userName}(${uid}) `;
@@ -304,6 +322,13 @@ export default class LoggerService extends Service {
     }
     return fMessage;
   };
+
+  private formatByteSize(size: number) {
+    if (size < KB) return `${size}B`;
+    else if (size < MB) return `${(size / KB).toFixed(2)}KB`;
+    else if (size < GB) return `${(size / MB).toFixed(2)}MB`;
+    else return `${(size / GB).toFixed(2)}GB`;
+  }
 
   private formatError(error: unknown) {
     let fError = '';
@@ -351,6 +376,7 @@ export default class LoggerService extends Service {
   }
 
   public async close() {
+    if (!this.isAvailable) return;
     this.status = 'CLOSING';
     try {
       await Promise.all([

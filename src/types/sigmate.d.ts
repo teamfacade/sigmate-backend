@@ -80,6 +80,11 @@ declare global {
       error: ResErr | null;
     };
 
+    type ResMetaSize = {
+      req: number;
+      res?: number;
+    };
+
     namespace Error {
       type Data<ErrorCode extends string = string> = {
         code: ErrorCode;
@@ -171,6 +176,7 @@ declare global {
         status?: sigmate.AnyStatus | number;
         duration?: number;
         id?: string; // UUID
+        size?: number | ResMetaSize;
         user?: {
           id: number | string;
           userName?: string;

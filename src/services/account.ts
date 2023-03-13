@@ -1,4 +1,5 @@
 import { randomBytes, randomInt } from 'crypto';
+import { DateTime, DurationLike } from 'luxon';
 import { generateSlug, RandomWordOptions } from 'random-word-slugs';
 import Service from '.';
 import AccountError, { AccountErrorCode } from '../errors/account';
@@ -21,6 +22,27 @@ type GoogleDTO = {
 
 type CreateDTO = {
   google?: GoogleDTO;
+};
+
+type UpdateDTO = {
+  user: User | null | undefined;
+  attribs: Partial<
+    Pick<
+      UserAttribs,
+      | 'userName'
+      | 'fullName'
+      | 'bio'
+      | 'email'
+      | 'isGooglePublic'
+      | 'isTwitterPublic'
+      | 'isDiscordPublic'
+      | 'isMetamaskPublic'
+      | 'locale'
+      | 'agreeTos'
+      | 'agreeLegal'
+      | 'agreePrivacy'
+    >
+  >;
 };
 
 export default class AccountService extends Service {
@@ -66,6 +88,7 @@ export default class AccountService extends Service {
     consecutiveSpChars: /[^\w]{2,}/,
     illegalChars: /[^\w.-]/,
   };
+  static INTERVAL_USERNAME_CHANGE: DurationLike = { week: 2 };
   static SIZE_USERNAME_RANDOM_SUFFIX = 6;
   static SIZE_USERNAME_MIN = 3;
 
@@ -76,7 +99,9 @@ export default class AccountService extends Service {
   @ActionMethod('ACCOUNT/CREATE')
   public async create(args: CreateDTO & ActionArgs) {
     const { google, transaction, action } = args;
-    const referralCode = await this.generateUniqueReferralCodeV1();
+    const referralCode = await this.generateUniqueReferralCodeV1({
+      parentAction: action,
+    });
 
     let userAttribs: UserCAttribs;
     if (google) {
@@ -91,7 +116,10 @@ export default class AccountService extends Service {
 
       // Generate username based on the email address
       const { id: base } = this.parseEmail(googleAccount);
-      const userName = await this.generateUniqueUserName({ base, transaction });
+      const userName = await this.generateUniqueUserName({
+        base,
+        parentAction: action,
+      });
 
       userAttribs = {
         userName,
@@ -100,6 +128,7 @@ export default class AccountService extends Service {
         isEmailVerified: true,
         googleAccount,
         googleAccountId,
+        isGooglePublic: false,
         profileImageUrl,
         locale,
         referralCode,
@@ -120,6 +149,176 @@ export default class AccountService extends Service {
 
     action?.addTarget(user);
     return user;
+  }
+
+  @ActionMethod('ACCOUNT/UPDATE')
+  public async update(args: UpdateDTO & ActionArgs) {
+    const { user, attribs, transaction } = args;
+    if (!user) throw new AccountError('ACCOUNT/RJ_UNAUTHENTICATED');
+    const {
+      userName,
+      fullName,
+      bio,
+      email,
+      isGooglePublic,
+      isTwitterPublic,
+      isDiscordPublic,
+      isMetamaskPublic,
+      locale,
+      agreeTos,
+      agreeLegal,
+      agreePrivacy,
+    } = attribs;
+
+    if (userName !== undefined) {
+      this.checkUserNamePolicy(userName);
+      this.checkCanChangeUserName(user);
+      await this.checkUserNameAvailability({ userName, throws: true });
+
+      user.set('userName', userName);
+      user.set('userNameUpdatedAt', DateTime.now().toJSDate());
+    }
+
+    if (fullName !== undefined) {
+      user.set('fullName', fullName);
+      user.set('fullNameUpdatedAt', DateTime.now().toJSDate());
+    }
+
+    if (bio !== undefined) {
+      user.set('bio', bio);
+    }
+
+    if (email !== undefined) {
+      user.set('email', email);
+      user.set('emailUpdatedAt', DateTime.now().toJSDate());
+      user.set('isEmailVerified', email ? false : undefined);
+    }
+
+    if (isGooglePublic !== undefined) {
+      user.set('isGooglePublic', isGooglePublic);
+    }
+
+    if (isTwitterPublic !== undefined) {
+      user.set('isTwitterPublic', isTwitterPublic);
+    }
+
+    if (isDiscordPublic !== undefined) {
+      user.set('isDiscordPublic', isDiscordPublic);
+    }
+
+    if (isMetamaskPublic !== undefined) {
+      user.set('isMetamaskPublic', isMetamaskPublic);
+    }
+
+    if (locale !== undefined) {
+      user.set('locale', locale);
+    }
+
+    if (agreeTos !== undefined) {
+      user.set('agreeTos', agreeTos ? DateTime.now().toJSDate() : undefined);
+    }
+
+    if (agreeLegal !== undefined) {
+      user.set(
+        'agreeLegal',
+        agreeLegal ? DateTime.now().toJSDate() : undefined
+      );
+    }
+
+    if (agreePrivacy !== undefined) {
+      user.set(
+        'agreePrivacy',
+        agreePrivacy ? DateTime.now().toJSDate() : undefined
+      );
+    }
+
+    await user.save({ transaction });
+    return user;
+  }
+
+  @ActionMethod('ACCOUNT/CONNECT_GOOGLE')
+  public async connectGoogle(
+    args: {
+      user: User;
+      google: Omit<GoogleDTO, 'fullName' | 'locale'>;
+    } & ActionArgs
+  ) {
+    const { user, google, transaction } = args;
+    const {
+      googleAccount,
+      googleAccountId,
+      profileImageUrl,
+      googleRefreshToken,
+    } = google;
+
+    user.set('googleAccount', googleAccount);
+    user.set('googleAccountId', googleAccountId);
+    user.set('googleUpdatedAt', DateTime.now().toJSDate());
+    user.set('profileImageUrl', profileImageUrl);
+    user.set('isGooglePublic', false);
+    if (user.email) {
+      if (user.email === googleAccount) {
+        user.set('isEmailVerified', true);
+      }
+    } else {
+      user.set('email', googleAccount);
+      user.set('emailUpdatedAt', undefined);
+      user.set('isEmailVerified', true);
+    }
+
+    const auth = user.auth || (await user.$get('auth', { transaction }));
+    if (!auth) throw new AccountError('ACCOUNT/NF_AUTH');
+    auth.set('googleRefreshToken', googleRefreshToken);
+
+    await user.save({ transaction });
+    await auth.save({ transaction });
+
+    return user;
+  }
+
+  private checkCanChangeUserName(user: User | null | undefined, throws = true) {
+    try {
+      if (!user) {
+        throw new AccountError('ACCOUNT/RJ_UNAUTHENTICATED');
+      }
+
+      // Cannot change usernames too often
+      if (user.userNameUpdatedAt) {
+        const userNameUpdatedAt = DateTime.fromJSDate(user.userNameUpdatedAt);
+        if (
+          DateTime.now() <
+          userNameUpdatedAt.plus(AccountService.INTERVAL_USERNAME_CHANGE)
+        ) {
+          throw new AccountError({
+            code: 'ACCOUNT/RJ_USERNAME_CHANGE_INTERVAL',
+            message: 'Usernames can only be changed every 2 weeks',
+          });
+        }
+      }
+      // TODO check authorization
+    } catch (error) {
+      if (throws) throw error;
+      if (error instanceof AccountError) {
+        return error.code;
+      }
+      return 'ER/OTHER';
+    }
+  }
+
+  @ActionMethod('ACCOUNT/CHECK_USERNAME')
+  private async checkUserNameAvailability(
+    args: { userName: string; throws?: boolean } & ActionArgs
+  ) {
+    const { userName, throws = true, transaction } = args;
+    const user = await User.findOne({ where: { userName }, transaction });
+    if (user) {
+      if (throws) {
+        throw new AccountError('ACCOUNT/IV_USERNAME_TAKEN');
+      } else {
+        return false;
+      }
+      return true;
+    }
   }
 
   /**
@@ -184,7 +383,7 @@ export default class AccountService extends Service {
    * @param email Email address
    * @returns Parsed email separated into id and domain
    */
-  private parseEmail(email: string | undefined) {
+  private parseEmail(email: string | null | undefined) {
     let id = '';
     let domain = '';
     if (email) {

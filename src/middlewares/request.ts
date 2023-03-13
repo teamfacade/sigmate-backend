@@ -19,10 +19,7 @@ export class RequestMetadata {
   res: Response;
 
   id: string;
-  size: {
-    req: number;
-    res?: number;
-  };
+  size: sigmate.ResMetaSize;
   success: boolean | null;
   requestedAt: DateTime;
   error?: unknown;
@@ -113,6 +110,7 @@ export default class RequestMw {
           event: 'REQ/START',
           name: `${meta.method} ${meta.endpoint}`,
           device: getLogDevice(),
+          id: meta.id,
         });
       }
 
@@ -124,12 +122,10 @@ export default class RequestMw {
         meta.finish();
 
         if (options.log) {
-          const misc: Record<string, unknown> = {
-            size: meta.size,
-          };
+          const misc: Record<string, unknown> = {};
 
-          if (req.query) misc.query = req.query;
-          if (req.params) misc.params = req.params;
+          if (Object.keys(req.query).length > 0) misc.query = req.query;
+          if (Object.keys(req.params).length > 0) misc.params = req.params;
 
           if (meta.status === 500) {
             misc.body = req.body;
@@ -146,6 +142,8 @@ export default class RequestMw {
             name: `${meta.method} ${meta.endpoint}`,
             status: meta.status,
             duration: meta.duration,
+            id: meta.id,
+            size: meta.size,
             user: getLogUser(),
             device: getLogDevice(),
             error: meta.error,
@@ -174,14 +172,13 @@ export default class RequestMw {
     req: Request
   ): NonNullable<Request['getLogDevice']> => {
     const device = req.device;
-    const meta = req.meta;
     return () =>
       device
         ? {
             ip: device.ip,
             ua: device.ua,
-            os: meta?.success ? device.os : device.fullOs,
-            browser: meta?.success ? device.browser : device.fullBrowser,
+            os: device.os,
+            browser: device.browser,
             model: device.model,
             type: device.type,
           }

@@ -117,6 +117,7 @@ export default class DatabaseService extends Service {
   }
 
   async close() {
+    if (!this.__sequelize) return;
     this.setStatus('CLOSING');
     await this.sequelize.close();
     this.setStatus('CLOSED');

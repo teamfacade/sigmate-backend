@@ -1,10 +1,14 @@
 import { google, people_v1 } from 'googleapis';
 import { OAuth2Client, Credentials } from 'google-auth-library';
+import axios, { AxiosError } from 'axios';
+import qs from 'qs';
 import AuthService, { AuthenticateOptions } from '.';
 import { ActionArgs, ActionMethod } from '../../utils/action';
 import GoogleAuthError from '../../errors/auth/google';
 import User, { UserAttribs } from '../../models/User.model';
 import { account } from '../account';
+import AccountError from '../../errors/account';
+import { DateTime, DurationLike } from 'luxon';
 
 type SupportedSchemas =
   | people_v1.Schema$Name
@@ -21,6 +25,8 @@ export type ParsedGoogleProfile = {
 };
 
 export default class GoogleAuthService extends AuthService {
+  static INTERVAL_GOOGLE_CHANGE: DurationLike = { month: 1 };
+
   private REDIRECT_URI = Object.freeze({
     development: 'http://localhost:3000/auth',
     test: 'https://beta.sigmate.io/auth',
@@ -82,18 +88,21 @@ export default class GoogleAuthService extends AuthService {
     type: 'COMPLEX',
   })
   public async authenticate(args: AuthenticateOptions & ActionArgs) {
-    const { google, transaction, req } = args;
+    const { google, req, action } = args;
     if (!google) throw new Error('GoogleAuthService: Code not provided');
     const { code } = google;
     // Call Google APIs to authenticate
-    const tokens = await this.getGoogleTokens({ code });
-    const profile = await this.getGoogleProfile({ tokens });
+    const tokens = await this.getGoogleTokens({ code, parentAction: action });
+    const profile = await this.getGoogleProfile({
+      tokens,
+      parentAction: action,
+    });
 
     // Check if user exists
     const googleAccountId = profile.id;
     let user: User | null = await this.findUser({
       googleAccountId,
-      transaction,
+      parentAction: action,
     });
     if (!user) {
       // If not, create an account
@@ -106,11 +115,91 @@ export default class GoogleAuthService extends AuthService {
           locale: profile.locale,
           googleRefreshToken: tokens.refresh_token || undefined,
         },
+        parentAction: action,
       });
     }
-    console.log(user?.toJSON());
     if (req) req.user = user || undefined;
     return user;
+  }
+
+  @ActionMethod({ name: 'AUTH/GOOGLE_CONNECT', type: 'COMPLEX' })
+  public async connect(args: { code: string; user: User } & ActionArgs) {
+    const { code, user, transaction, action } = args;
+    const tokens = await this.getGoogleTokens({ code, parentAction: action });
+    const profile = await this.getGoogleProfile({
+      tokens,
+      parentAction: action,
+    });
+
+    const { id, email, photo } = profile;
+
+    const alreadyExists = await User.findOne({
+      where: { googleAccountId: profile.id },
+      transaction,
+    });
+    if (alreadyExists) {
+      throw new AccountError('ACCOUNT/CF_CONNECT_GOOGLE_ALREADY_EXISTS');
+    }
+
+    await account.connectGoogle({
+      user,
+      google: {
+        googleAccount: email,
+        googleAccountId: id,
+        profileImageUrl: photo,
+        googleRefreshToken: tokens.refresh_token || undefined,
+      },
+      parentAction: action,
+    });
+
+    return user;
+  }
+
+  @ActionMethod({ name: 'AUTH/GOOGLE_DISCONNECT', type: 'COMPLEX' })
+  public async disconnect(args: { user: User } & ActionArgs) {
+    const { user, transaction, action } = args;
+
+    this.checkCanChangeGoogle(user);
+    if (!user.googleAccountId) {
+      throw new GoogleAuthError('AUTH/GOOGLE/NF_GOOGLE');
+    }
+
+    const auth = user.auth || (await user.$get('auth', { transaction }));
+    if (!auth) throw new GoogleAuthError('AUTH/GOOGLE/NF_AUTH');
+
+    // Revoke OAuth ID token
+    // Removes Sigmate from Google account's authorized apps list
+    if (auth.googleRefreshToken) {
+      await this.revoke({
+        googleRefreshToken: auth.googleRefreshToken,
+        parentAction: action,
+      });
+    }
+
+    // Remove Google information from our database
+    user.set('googleAccount', null);
+    user.set('googleAccountId', null);
+    user.set('googleUpdatedAt', null);
+    user.set('isGooglePublic', null);
+    auth.set('googleRefreshToken', null);
+
+    await user.save({ transaction });
+    await auth.save({ transaction });
+
+    return user;
+  }
+
+  private checkCanChangeGoogle(user: User) {
+    const googleUpdatedAt = user.googleUpdatedAt;
+    if (googleUpdatedAt) {
+      const updatedAt = DateTime.fromJSDate(googleUpdatedAt);
+      const canUpdateFrom = updatedAt.plus(
+        GoogleAuthService.INTERVAL_GOOGLE_CHANGE
+      );
+      if (canUpdateFrom > DateTime.now()) {
+        throw new GoogleAuthError('AUTH/GOOGLE/RJ_CHANGE_INTERVAL');
+      }
+    }
   }
 
   @ActionMethod('AUTH/GOOGLE_FIND_USER')
@@ -121,8 +210,44 @@ export default class GoogleAuthService extends AuthService {
     return await User.findOne({
       where: { googleAccountId },
       transaction,
-      ...User.FIND_OPTS.auth,
+      ...User.FIND_OPTS.my,
     });
+  }
+
+  @ActionMethod({ name: 'AUTH/GOOGLE_REVOKE', type: 'HTTP' })
+  private async revoke(args: { googleRefreshToken: string } & ActionArgs) {
+    const { googleRefreshToken } = args;
+    try {
+      await axios({
+        url: 'https://oauth2.googleapis.com:443/revoke',
+        method: 'POST',
+        headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        data: qs.stringify({ token: googleRefreshToken }),
+      });
+    } catch (err) {
+      console.error(err);
+      let message = '';
+      let error: unknown = undefined;
+      if (err instanceof AxiosError) {
+        if (err.response) {
+          message = `${err.response.status} ${
+            err.response.statusText
+          }: ${JSON.stringify(err.response.data)}`;
+        } else if (err.request) {
+          message = 'Google OAuth not responding';
+        } else {
+          message = `${err.name} ${err.message}`;
+          error = err;
+        }
+      } else {
+        error = err;
+      }
+      throw new GoogleAuthError({
+        code: 'AUTH/GOOGLE/UA_REVOKE',
+        message,
+        error,
+      });
+    }
   }
 
   @ActionMethod({

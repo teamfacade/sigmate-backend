@@ -3,12 +3,16 @@ import { Model } from 'sequelize-typescript';
 import { Transaction } from 'sequelize/types';
 import ServerError from '../errors';
 import ActionError from '../errors/action';
+import DatabaseError from '../errors/database';
+import { db } from '../services/database';
 import { logger } from '../services/logger';
 
 type ActionOptions = {
   name: string;
   type?: 'DB' | 'COMPLEX' | 'HTTP';
-  context?: any;
+  parent?: Action;
+  req?: Request;
+  transaction?: boolean | Transaction;
 };
 
 export type ActionArgs = {
@@ -21,7 +25,6 @@ export type ActionArgs = {
 export default class Action {
   name: ActionOptions['name'];
   type: ActionOptions['type'];
-  context?: any;
   status: sigmate.TaskStatus;
   __duration: number;
   get duration() {
@@ -30,22 +33,41 @@ export default class Action {
   target: sigmate.Log.ActionTarget[];
   parent?: Action;
   req?: Request;
+  transaction?: Transaction;
+  private startTx?: boolean;
 
   constructor(options: ActionOptions['name'] | ActionOptions) {
     if (typeof options === 'string') {
       this.name = options;
     } else {
-      const { name, type, context } = options;
+      const { name, type, parent, req, transaction } = options;
       this.name = name;
       this.type = type || 'DB';
-      this.context = context;
+      if (parent) {
+        this.req = parent.req;
+        this.transaction = parent.transaction;
+      } else {
+        this.req = req;
+        if (typeof transaction === 'boolean') {
+          this.startTx = true;
+        } else {
+          this.transaction = transaction;
+        }
+      }
     }
     this.status = 'STARTED';
     this.__duration = performance.now() * -1;
     this.target = [];
   }
 
-  public start() {
+  public async start() {
+    if (this.startTx) {
+      try {
+        this.transaction = await db.sequelize.transaction();
+      } catch (error) {
+        throw new DatabaseError({ error });
+      }
+    }
     this.logStart();
   }
 
@@ -72,10 +94,39 @@ export default class Action {
     }
   }
 
-  public finish(options: { success: boolean; error?: unknown }) {
-    const { success, error } = options;
+  public async finish(options: { success: boolean; error?: unknown }) {
+    let { success, error } = options;
     this.__duration += performance.now();
     this.status = success ? 'SUCCESS' : 'FAILED';
+
+    if (this.transaction && !this.parent) {
+      if (success) {
+        try {
+          await this.transaction.commit();
+        } catch (err) {
+          success = false;
+          this.status = 'FAILED';
+          error = err;
+        }
+      }
+      if (!success) {
+        try {
+          await this.transaction.rollback();
+        } catch (err) {
+          logger.log({
+            level: 'warn',
+            source: 'Action',
+            event: 'ACT/WARNING',
+            name: this.name,
+            status: this.status,
+            user: this.req?.getLogUser && this.req.getLogUser(),
+            device: this.req?.getLogDevice && this.req.getLogDevice(),
+            error: err,
+          });
+        }
+      }
+    }
+
     this.logFinish(error);
   }
 
@@ -111,13 +162,33 @@ const __ActionMethod = (options?: ActionOptions['name'] | ActionOptions) => {
     const defaultActionName = `${target.constructor.name}/${String(key)}`;
     const method = desc?.value || target[key];
     const wrapped = async function (args: Record<string, any> & ActionArgs) {
-      const action = new Action(options || defaultActionName);
+      let opts: ActionOptions;
+      if (typeof options === 'string') {
+        opts = {
+          name: options || defaultActionName,
+        };
+      } else if (options) {
+        opts = options;
+      } else {
+        opts = {
+          name: defaultActionName,
+        };
+      }
+
+      if (args.parentAction) {
+        opts.parent = args.parentAction;
+      } else {
+        opts.req = args.req;
+        opts.transaction = args.transaction;
+      }
+      const action = new Action(opts);
       try {
         if (!args) args = {};
-        action.parent = args.parentAction;
-        action.req = args.req;
         args.action = action;
+        args.transaction = action.transaction;
+        args.req = action.req;
         action.start();
+
         // TODO Check how to safely type decorators
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore

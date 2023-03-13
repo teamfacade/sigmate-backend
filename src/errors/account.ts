@@ -1,6 +1,7 @@
 import ServerError from '.';
 
 export type AccountErrorCode =
+  | 'ACCOUNT/NF_AUTH'
   | 'ACCOUNT/IV_CREATE_DTO'
   | 'ACCOUNT/IV_USERNAME_EMPTY'
   | 'ACCOUNT/IV_USERNAME_TOO_SHORT'
@@ -8,9 +9,16 @@ export type AccountErrorCode =
   | 'ACCOUNT/IV_USERNAME_ILLEGAL_CHARS'
   | 'ACCOUNT/IV_USERNAME_ILLEGAL_WORDS'
   | 'ACCOUNT/IV_USERNAME_CONSEC_SPECIAL_CHARS'
-  | 'ACCOUNT/IV_USERNAME_BEGINS_OR_ENDS_WITH_SPECIAL_CHARS';
+  | 'ACCOUNT/IV_USERNAME_BEGINS_OR_ENDS_WITH_SPECIAL_CHARS'
+  | 'ACCOUNT/RJ_UNAUTHENTICATED'
+  | 'ACCOUNT/RJ_USERNAME_CHANGE_INTERVAL'
+  | 'ACCOUNT/CF_CONNECT_GOOGLE_ALREADY_EXISTS'
+  | 'ACCOUNT/IV_USERNAME_TAKEN';
 
 const defaultsMap: sigmate.Error.DefaultsMap<AccountErrorCode> = {
+  'ACCOUNT/NF_AUTH': {
+    message: 'Auth not found',
+  },
   'ACCOUNT/IV_CREATE_DTO': {
     message: 'Invalid creation DTO',
   },
@@ -49,6 +57,26 @@ const defaultsMap: sigmate.Error.DefaultsMap<AccountErrorCode> = {
     message:
       'Username policy violation: Usernames cannot begin or end with a special character',
     httpCode: 400,
+    logLevel: 'verbose',
+  },
+  'ACCOUNT/IV_USERNAME_TAKEN': {
+    message: 'Username already taken',
+    httpCode: 400,
+    logLevel: 'verbose',
+  },
+  'ACCOUNT/RJ_UNAUTHENTICATED': {
+    message: 'Account unauthenticated',
+    httpCode: 401,
+    logLevel: 'verbose',
+  },
+  'ACCOUNT/RJ_USERNAME_CHANGE_INTERVAL': {
+    message: 'Cannot change username too often',
+    httpCode: 403,
+    logLevel: 'verbose',
+  },
+  'ACCOUNT/CF_CONNECT_GOOGLE_ALREADY_EXISTS': {
+    message: 'This google account is already connected to another account',
+    httpCode: 409,
     logLevel: 'verbose',
   },
 };

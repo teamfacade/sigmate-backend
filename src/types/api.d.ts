@@ -12,6 +12,19 @@ declare global {
         body: { code: string };
         response: AuthResponse;
       }
+
+      interface ConnectGoogle extends sigmate.ReqTypes {
+        body: {
+          code: string;
+        };
+        response: { user: User.UserResponse };
+      }
+
+      interface DisconnectGoogle extends sigmate.ReqTypes {
+        body: {
+          code: string;
+        };
+      }
     }
 
     namespace User {
@@ -46,6 +59,32 @@ declare global {
         | 'agreePrivacy'
         | 'createdAt'
       >;
+
+      interface GetMyInfo extends sigmate.ReqTypes {
+        query: { all?: string };
+        response: { user: sigmate.Api.User.UserResponse };
+      }
+
+      interface UpdateMyInfo extends sigmate.ReqTypes {
+        body: Partial<
+          Pick<
+            UserAttribs,
+            | 'userName'
+            | 'fullName'
+            | 'bio'
+            | 'email'
+            | 'isGooglePublic'
+            | 'isTwitterPublic'
+            | 'isDiscordPublic'
+            | 'isMetamaskPublic'
+            | 'locale'
+            | 'agreeTos'
+            | 'agreeLegal'
+            | 'agreePrivacy'
+          >
+        >;
+        response: { user: UserResponse };
+      }
     }
   }
 }

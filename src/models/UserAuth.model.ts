@@ -13,7 +13,7 @@ export interface UserAuthAttribs {
   user?: User;
   accessNonce?: string;
   refreshNonce?: string;
-  googleRefreshToken?: string;
+  googleRefreshToken?: string | null;
   metamaskNonce?: string;
   metamaskNonceCreatedAt?: Date;
 }

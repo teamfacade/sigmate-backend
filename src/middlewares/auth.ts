@@ -1,15 +1,21 @@
 import { Request, Response, NextFunction, RequestHandler } from 'express';
+import { FindOptions } from 'sequelize/types';
 import RequestError from '../errors/request';
+import { UserAttribs } from '../models/User.model';
 import { auth } from '../services/auth';
 
 type AuthGuardOptions = {
   login?: 'required' | 'optional';
+  findOptions?: FindOptions<UserAttribs>;
 };
 
 export default class AuthMiddleware {
   static BEARER = /Bearer (?<token>.*)/;
 
-  public static authenticate = (required = false): RequestHandler => {
+  public static authenticate = (
+    required = false,
+    findOptions?: FindOptions<UserAttribs>
+  ): RequestHandler => {
     return async (req: Request, res: Response, next: NextFunction) => {
       try {
         // Get HTTP Authorization header value
@@ -23,7 +29,10 @@ export default class AuthMiddleware {
         if (!token) return next();
 
         // Attempt to authenticate
-        const user = await auth.authenticate({ token: { access: token } });
+        const user = await auth.authenticate({
+          token: { access: token },
+          findOptions,
+        });
         if (user) req.user = user;
         else if (required) throw new RequestError('REQ/RJ_UNAUTHENTICATED');
         next();
@@ -50,7 +59,10 @@ function __AuthGuard(options: AuthGuardOptions = { login: 'optional' }) {
     const controllers: RequestHandler[] = [];
     if (options.login) {
       controllers.push(
-        AuthMiddleware.authenticate(options.login === 'required')
+        AuthMiddleware.authenticate(
+          options.login === 'required',
+          options.findOptions
+        )
       );
     }
     if (method instanceof Array) {

@@ -23,17 +23,17 @@ export interface UserAttribs {
   fullName?: string;
   fullNameUpdatedAt?: Date;
   bio?: string;
-  email?: string;
+  email?: string | null;
   emailUpdatedAt?: Date;
   isEmailVerified?: boolean;
   profileImageUrl?: string;
   profileImage?: ImageFile;
   profileImageId?: ImageFileId;
 
-  googleAccount?: string;
-  googleAccountId?: string;
-  googleUpdatedAt?: Date;
-  isGooglePublic?: boolean;
+  googleAccount?: string | null;
+  googleAccountId?: string | null;
+  googleUpdatedAt?: Date | null;
+  isGooglePublic?: boolean | null;
   twitterHandle?: string;
   twitterUpdatedAt?: Date;
   isTwitterPublic?: boolean;
@@ -89,7 +89,7 @@ const SIZE_DEL_SUFFIX = getDeleteSuffix().length;
   collate: 'utf8mb4_general_ci',
 })
 export default class User extends Model<UserAttribs, UserCAttribs> {
-  @Unique
+  @Unique('user.user_name')
   @Column(DataType.STRING(SIZE_USERNAME + SIZE_DEL_SUFFIX))
   userName!: UserAttribs['userName'];
 
@@ -106,7 +106,7 @@ export default class User extends Model<UserAttribs, UserCAttribs> {
   bio: UserAttribs['bio'];
 
   @IsEmail
-  @Unique
+  @Unique('user.email')
   @Column(DataType.STRING(SIZE_EMAIL + SIZE_DEL_SUFFIX))
   email: UserAttribs['email'];
 
@@ -122,11 +122,11 @@ export default class User extends Model<UserAttribs, UserCAttribs> {
   @BelongsTo(() => ImageFile, { foreignKey: 'profileImageId' })
   profileImage: UserAttribs['profileImage'];
 
-  @Unique
+  @Unique('user.google_acount')
   @Column(DataType.STRING(SIZE_EMAIL + SIZE_DEL_SUFFIX))
   googleAccount: UserAttribs['googleAccount'];
 
-  @Unique
+  @Unique('user.google_account_id')
   @Column(DataType.STRING(SIZE_GOOGLE_ID + SIZE_DEL_SUFFIX))
   googleAccountId: UserAttribs['googleAccountId'];
 
@@ -217,6 +217,7 @@ export default class User extends Model<UserAttribs, UserCAttribs> {
     'isEmailVerified',
     'profileImageUrl',
     'googleAccount',
+    'googleAccountId',
     'googleUpdatedAt',
     'isGooglePublic',
     'twitterHandle',
@@ -264,6 +265,9 @@ export default class User extends Model<UserAttribs, UserCAttribs> {
           model: ImageFile,
           as: 'profileImage',
           attributes: ImageFile.FIND_ATTRIBS.default,
+        },
+        {
+          model: UserAuth,
         },
       ],
     },

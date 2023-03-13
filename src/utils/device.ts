@@ -22,7 +22,9 @@ export default class ClientDevice {
   }
 
   get fullOs() {
-    return `${this.device.os.name} ${this.device.os.version}`;
+    const { name, version } = this.device.os;
+    if (!name) return undefined;
+    return `${name} ${version}`;
   }
 
   get browser() {
@@ -30,7 +32,9 @@ export default class ClientDevice {
   }
 
   get fullBrowser() {
-    return `${this.device.browser.name} ${this.device.browser.version}`;
+    const { name, version } = this.device.browser;
+    if (!name) return undefined;
+    return `${name} ${version}`;
   }
 
   get model() {

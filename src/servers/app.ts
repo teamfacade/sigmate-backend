@@ -109,7 +109,9 @@ export default class AppServer extends SigmateServer {
         }
       }
     }
+    await db.close();
     this.setStatus('CLOSED');
+    await logger.close();
   }
 
   private onStart() {

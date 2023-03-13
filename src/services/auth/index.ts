@@ -2,9 +2,10 @@ import Service from '..';
 import { readFile } from 'fs/promises';
 import { randomBytes } from 'crypto';
 import jwt from 'jsonwebtoken';
-import User from '../../models/User.model';
+import User, { UserAttribs } from '../../models/User.model';
 import AuthError from '../../errors/auth';
 import { ActionArgs, ActionMethod } from '../../utils/action';
+import { FindOptions } from 'sequelize/types';
 
 type TokenType = 'ACCESS' | 'REFRESH' | 'DEVICE';
 type TokenConfig = {
@@ -26,6 +27,7 @@ export type AuthenticateOptions = {
     wallet: string;
     nonce?: string;
   };
+  findOptions?: FindOptions<UserAttribs>;
 };
 
 const MAX_SAFE_INTEGER_LEN = Number.MAX_SAFE_INTEGER.toString().length;
@@ -82,14 +84,22 @@ export default class AuthService extends Service {
 
   @ActionMethod('AUTH/TOKEN_AUTH')
   public async authenticate(args: AuthenticateOptions & ActionArgs) {
-    const { token, req } = args;
+    const { token, findOptions, req } = args;
     if (!token) throw new Error('AuthService: Token not provided');
     const { access, refresh } = token;
     let user: User | null;
     if (access) {
-      user = await this.verifyToken({ type: 'ACCESS', token: access });
+      user = await this.verifyToken({
+        type: 'ACCESS',
+        token: access,
+        findOptions,
+      });
     } else if (refresh) {
-      user = await this.verifyToken({ type: 'REFRESH', token: refresh });
+      user = await this.verifyToken({
+        type: 'REFRESH',
+        token: refresh,
+        findOptions,
+      });
     } else {
       user = null;
     }
@@ -192,9 +202,13 @@ export default class AuthService extends Service {
 
   @ActionMethod('AUTH/TOKEN_VERIFY')
   private async verifyToken(
-    args: { type: TokenType; token: string } & ActionArgs
+    args: {
+      type: TokenType;
+      token: string;
+      findOptions?: FindOptions<UserAttribs>;
+    } & ActionArgs
   ) {
-    const { type, token, transaction } = args;
+    const { type, token, findOptions, transaction } = args;
     if (type !== 'ACCESS' && type !== 'REFRESH') {
       throw new Error('Invalid token type');
     }
@@ -206,7 +220,7 @@ export default class AuthService extends Service {
     await this.verifyJwt(type, token);
 
     const user = await User.findByPk(userId, {
-      ...User.FIND_OPTS.auth,
+      ...(findOptions || User.FIND_OPTS.auth),
       transaction,
     });
     if (!user) throw new Error('User not found');
