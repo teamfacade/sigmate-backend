@@ -125,4 +125,47 @@ export default class AuthController {
         next(error);
       }
     };
+
+  @AuthGuard({ login: 'required' })
+  public static connectMetamaskGetNonce: sigmate.ReqHandler<sigmate.Api.Auth.GetMetamaskNonce> =
+    async (req, res, next) => {
+      try {
+        const { metamaskWallet } = req.query;
+        const user = req.user as NonNullable<typeof req.user>;
+        const auth = await metamaskAuth.connect({
+          user,
+          wallet: metamaskWallet,
+        });
+        const nonce = auth.metamaskNonce;
+        if (!nonce) throw new Error('Nonce generation failed');
+        res.status(200).json({
+          meta: res.meta(),
+          success: true,
+          metamaskWallet,
+          nonce,
+        });
+      } catch (error) {
+        next(error);
+      }
+    };
+
+  @AuthGuard({ login: 'required' })
+  public static connectMetamaskVerify: sigmate.ReqHandler<sigmate.Api.Auth.ConnectMetamaskVerify> =
+    async (req, res, next) => {
+      try {
+        const { metamaskWallet, signature } = req.body;
+        const user = req.user as NonNullable<typeof req.user>;
+        await metamaskAuth.connect({
+          user,
+          wallet: metamaskWallet,
+          signature,
+        });
+        res.status(200).json({
+          meta: res.meta(),
+          success: true,
+        });
+      } catch (error) {
+        next(error);
+      }
+    };
 }

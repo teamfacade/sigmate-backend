@@ -74,6 +74,12 @@ export default class MetamaskAuthService extends AuthService {
           if (!user) {
             throw new MetamaskAuthError('AUTH/METAMASK/NF_USER');
           }
+
+          // Address from the first step should match the provided address in the second step
+          if (user.metamaskWallet !== wallet) {
+            throw new MetamaskAuthError('AUTH/METAMASK/RJ_ADDRESS_MISMATCH');
+          }
+
           const auth = user.auth;
           if (!auth) throw new AuthError('AUTH/NF_AUTH');
           try {
@@ -87,7 +93,8 @@ export default class MetamaskAuthService extends AuthService {
             const nonceExpiresAt = nonceCreatedAt.plus(
               MetamaskAuthService.NONCE_EXPIRY
             );
-            if (DateTime.now() > nonceExpiresAt) {
+            const now = DateTime.now();
+            if (now > nonceExpiresAt) {
               throw new MetamaskAuthError('AUTH/METAMASK/RJ_NONCE_EXP');
             }
 
@@ -97,15 +104,20 @@ export default class MetamaskAuthService extends AuthService {
             if (!isVerified) {
               throw new MetamaskAuthError('AUTH/METAMASK/RJ_INVALID_SIGNATURE');
             }
+
+            user.set('metamaskUpdatedAt', now.toJSDate());
+            user.set('isMetamaskVerified', true);
+            await user.save({ transaction });
           } catch (error) {
             user = null;
-
-            // If auth fails, invalidate nonce immediately
-            auth.set('metamaskNonce', null);
-            auth.set('metamaskNonceCreatedAt', null);
-            await auth.save({ transaction });
-
             throw error;
+          } finally {
+            // If auth fails, invalidate nonce immediately
+            if (auth.metamaskNonce || auth.metamaskNonceCreatedAt) {
+              auth.set('metamaskNonce', null);
+              auth.set('metamaskNonceCreatedAt', null);
+              await auth.save({ transaction });
+            }
           }
         }
       } else {
@@ -116,6 +128,79 @@ export default class MetamaskAuthService extends AuthService {
     } catch (error) {
       throw new AuthError({ code: 'AUTH/RJ_UNAUTHENTICATED', error });
     }
+  }
+
+  @ActionMethod('AUTH/METAMASK/CONNECT')
+  public async connect(
+    args: { user: User } & AuthenticateDTO['metamask'] & ActionArgs
+  ) {
+    const { user, wallet, signature, transaction } = args;
+    if (wallet) {
+      const alreadyExists = await User.findOne({
+        where: { metamaskWallet: wallet },
+        ...User.FIND_OPTS.exists,
+        transaction,
+      });
+      if (alreadyExists) {
+        if (user.id === alreadyExists.id) {
+          throw new MetamaskAuthError('AUTH/METAMASK/CF_WALLET_NOT_MINE');
+        } else {
+          throw new MetamaskAuthError('AUTH/METAMASK/CF_WALLET_ALREADY_MINE');
+        }
+      }
+    }
+
+    const auth = user.auth;
+    if (!auth) throw new AuthError('AUTH/NF_AUTH');
+
+    if (!signature) {
+      // Step 1. Generate a nonce, save it to the DB, and send to user
+      user.set('metamaskWallet', wallet);
+      user.set('isMetamaskVerified', false);
+      const nonce = await this.generateMetamaskNonce();
+      auth.set('metamaskNonce', nonce);
+      auth.set('metamaskNonceCreatedAt', DateTime.now().toJSDate());
+      await user.save({ transaction });
+      await auth.save({ transaction });
+    } else {
+      // Step 2: Verify the signed message
+      try {
+        // Provided wallet address must match the one given on the first step
+        if (user.metamaskWallet !== wallet) {
+          throw new MetamaskAuthError('AUTH/METAMASK/RJ_ADDRESS_MISMATCH');
+        }
+
+        if (!auth.metamaskNonce || !auth.metamaskNonceCreatedAt) {
+          throw new MetamaskAuthError('AUTH/METAMASK/NF_NONCE');
+        }
+        const nonceCreatedAt = DateTime.fromJSDate(auth.metamaskNonceCreatedAt);
+        const nonceExpiresAt = nonceCreatedAt.plus(
+          MetamaskAuthService.NONCE_EXPIRY
+        );
+        const now = DateTime.now();
+        if (now > nonceExpiresAt) {
+          throw new MetamaskAuthError('AUTH/METAMASK/RJ_NONCE_EXP');
+        }
+        const nonce = auth.metamaskNonce;
+        const isVerified = this.verifySignature(wallet, nonce, signature);
+        if (!isVerified) {
+          throw new MetamaskAuthError('AUTH/METAMASK/RJ_INVALID_SIGNATURE');
+        }
+        user.set('metamaskUpdatedAt', now.toJSDate());
+        user.set('isMetamaskVerified', true);
+        await user.save({ transaction });
+      } finally {
+        // Invalidate nonce immediately after auth attempt
+        // If clause guards against empty query errors
+        if (auth.metamaskNonce || auth.metamaskNonceCreatedAt) {
+          auth.set('metamaskNonce', null);
+          auth.set('metamaskNonceCreatedAt', null);
+          await auth.save({ transaction });
+        }
+      }
+    }
+
+    return auth;
   }
 
   /**

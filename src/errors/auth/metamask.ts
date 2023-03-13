@@ -5,7 +5,10 @@ type ErrorCode =
   | 'AUTH/METAMASK/NF_WALLET'
   | 'AUTH/METAMASK/NF_USER'
   | 'AUTH/METAMASK/RJ_NONCE_EXP'
-  | 'AUTH/METAMASK/RJ_INVALID_SIGNATURE';
+  | 'AUTH/METAMASK/RJ_INVALID_SIGNATURE'
+  | 'AUTH/METAMASK/CF_WALLET_NOT_MINE'
+  | 'AUTH/METAMASK/CF_WALLET_ALREADY_MINE'
+  | 'AUTH/METAMASK/RJ_ADDRESS_MISMATCH';
 
 const defaultsMap: sigmate.Error.DefaultsMap<ErrorCode> = {
   'AUTH/METAMASK/NF_WALLET': {
@@ -32,6 +35,21 @@ const defaultsMap: sigmate.Error.DefaultsMap<ErrorCode> = {
     message: 'Metamask signature invalid',
     httpCode: 401,
     logLevel: 'verbose',
+  },
+  'AUTH/METAMASK/CF_WALLET_NOT_MINE': {
+    message: 'Provided wallet address is registered to another user',
+    httpCode: 409,
+    logLevel: 'verbose',
+  },
+  'AUTH/METAMASK/CF_WALLET_ALREADY_MINE': {
+    message: 'Provided wallet address is already connected to my account',
+    httpCode: 409,
+    logLevel: 'verbose',
+  },
+  'AUTH/METAMASK/RJ_ADDRESS_MISMATCH': {
+    message: 'Provided wallet address does not match the expected value',
+    httpCode: 401,
+    logLevel: 'warn',
   },
 };
 

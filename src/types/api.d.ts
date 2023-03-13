@@ -43,6 +43,10 @@ declare global {
         body: { metamaskWallet: string; signature: string };
         response: AuthResponse;
       }
+
+      interface ConnectMetamaskVerify extends sigmate.ReqTypes {
+        body: { metamaskWallet: string; signature: string };
+      }
     }
 
     namespace User {
@@ -70,6 +74,7 @@ declare global {
         | 'metamaskWallet'
         | 'metamaskUpdatedAt'
         | 'isMetamaskPublic'
+        | 'isMetamaskVerified'
         | 'locale'
         | 'referralCode'
         | 'agreeTos'

@@ -160,6 +160,7 @@ export default class AccountService extends Service {
         metamaskWallet: wallet,
         metamaskUpdatedAt: now,
         isMetamaskPublic: isMetamaskPublic || true,
+        isMetamaskVerified: false,
         referralCode,
         auth: {
           metamaskNonce: nonce,

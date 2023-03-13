@@ -31,4 +31,15 @@ authRouter.post(
   AuthController.authMetamask
 );
 
+authRouter.get(
+  '/metamask/connect',
+  AuthValidator.getMetamaskNonce,
+  AuthController.connectMetamaskGetNonce
+);
+authRouter.post(
+  '/metamask/connect/verify',
+  AuthValidator.authMetamask,
+  AuthController.connectMetamaskVerify
+);
+
 export default authRouter;

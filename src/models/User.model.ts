@@ -43,6 +43,7 @@ export interface UserAttribs {
   isDiscordPublic?: boolean;
   metamaskWallet?: string;
   metamaskUpdatedAt?: Date;
+  isMetamaskVerified?: boolean;
   isMetamaskPublic?: boolean;
 
   locale?: string;
@@ -166,6 +167,9 @@ export default class User extends Model<UserAttribs, UserCAttribs> {
   @Column(DataType.BOOLEAN)
   isMetamaskPublic: UserAttribs['isMetamaskPublic'];
 
+  @Column(DataType.BOOLEAN)
+  isMetamaskVerified: UserAttribs['isMetamaskVerified'];
+
   @Column(DataType.STRING(8))
   locale: UserAttribs['locale'];
 
@@ -207,6 +211,7 @@ export default class User extends Model<UserAttribs, UserCAttribs> {
     'isDiscordPublic',
     'metamaskWallet',
     'isMetamaskPublic',
+    'isMetamaskVerified',
   ]);
 
   static ATTRIB_MY: Readonly<(keyof UserAttribs)[]> = Object.freeze([
@@ -232,6 +237,7 @@ export default class User extends Model<UserAttribs, UserCAttribs> {
     'metamaskWallet',
     'metamaskUpdatedAt',
     'isMetamaskPublic',
+    'isMetamaskVerified',
     'locale',
     'referralCode',
     'agreeTos',
@@ -297,7 +303,11 @@ export default class User extends Model<UserAttribs, UserCAttribs> {
         'userName',
         'googleAccount',
         'googleAccountId',
+        'googleUpdatedAt',
+        'isGooglePublic',
         'metamaskWallet',
+        'metamaskUpdatedAt',
+        'isMetamaskPublic',
       ],
       include: [UserAuth],
     },
@@ -329,6 +339,7 @@ export default class User extends Model<UserAttribs, UserCAttribs> {
       metamaskWallet: this.metamaskWallet,
       metamaskUpdatedAt: this.metamaskUpdatedAt,
       isMetamaskPublic: this.isMetamaskPublic,
+      isMetamaskVerified: this.isMetamaskVerified,
       locale: this.locale,
       referralCode: this.referralCode,
       referredBy: this.referredBy?.toResponse(),
