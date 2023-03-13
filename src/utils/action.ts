@@ -130,10 +130,11 @@ export default class Action {
     this.logFinish(error);
   }
 
-  private logEvent(
+  public logEvent(
     level: sigmate.Log.Info['level'],
     event: sigmate.Log.Info['event'],
-    message?: sigmate.Log.Info['message']
+    message?: sigmate.Log.Info['message'],
+    error?: unknown
   ) {
     logger.log({
       level: level || 'debug',
@@ -143,6 +144,7 @@ export default class Action {
       name: this.name,
       user: this.req?.getLogUser && this.req.getLogUser(),
       device: this.req?.getLogDevice && this.req.getLogDevice(),
+      error,
     });
   }
 

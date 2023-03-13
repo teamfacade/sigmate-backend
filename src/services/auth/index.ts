@@ -15,7 +15,7 @@ type TokenConfig = {
   TYPE: string;
 };
 
-export type AuthenticateOptions = {
+export type AuthenticateDTO = {
   token?: {
     access?: string;
     refresh?: string;
@@ -25,7 +25,7 @@ export type AuthenticateOptions = {
   };
   metamask?: {
     wallet: string;
-    nonce?: string;
+    signature?: string;
   };
   findOptions?: FindOptions<UserAttribs>;
 };
@@ -83,7 +83,7 @@ export default class AuthService extends Service {
   }
 
   @ActionMethod('AUTH/TOKEN_AUTH')
-  public async authenticate(args: AuthenticateOptions & ActionArgs) {
+  public async authenticate(args: AuthenticateDTO & ActionArgs) {
     const { token, findOptions, req, action } = args;
     try {
       if (!token) throw new Error('AuthService: Token not provided');

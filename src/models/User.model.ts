@@ -156,6 +156,7 @@ export default class User extends Model<UserAttribs, UserCAttribs> {
   @Column(DataType.BOOLEAN)
   isDiscordPublic: UserAttribs['isDiscordPublic'];
 
+  @Unique('user.metamask_wallet')
   @Column(DataType.STRING(SIZE_METAMASK + SIZE_DEL_SUFFIX))
   metamaskWallet: UserAttribs['metamaskWallet'];
 
@@ -291,7 +292,13 @@ export default class User extends Model<UserAttribs, UserCAttribs> {
       ],
     },
     auth: {
-      attributes: ['id', 'userName', 'googleAccount', 'googleAccountId'],
+      attributes: [
+        'id',
+        'userName',
+        'googleAccount',
+        'googleAccountId',
+        'metamaskWallet',
+      ],
       include: [UserAuth],
     },
     exists: {

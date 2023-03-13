@@ -24,6 +24,11 @@ type GoogleDTO = {
 
 type CreateDTO = {
   google?: GoogleDTO;
+  metamask?: {
+    wallet: NonNullable<UserAttribs['metamaskWallet']>;
+    nonce: NonNullable<UserAuthAttribs['metamaskNonce']>;
+    isMetamaskPublic: UserAttribs['isMetamaskPublic'];
+  };
 };
 
 type UpdateDTO = {
@@ -106,7 +111,7 @@ export default class AccountService extends Service {
 
   @ActionMethod('ACCOUNT/CREATE')
   public async create(args: CreateDTO & ActionArgs) {
-    const { google, transaction, action } = args;
+    const { google, metamask, transaction, action } = args;
     const referralCode = await this.generateUniqueReferralCodeV1({
       parentAction: action,
     });
@@ -143,6 +148,23 @@ export default class AccountService extends Service {
         auth: {
           googleRefreshToken,
         } as any, // create with association
+      };
+    } else if (metamask) {
+      const { wallet, nonce, isMetamaskPublic } = metamask;
+      const userName = await this.generateUniqueUserName({
+        parentAction: action,
+      });
+      const now = DateTime.now().toJSDate();
+      userAttribs = {
+        userName,
+        metamaskWallet: wallet,
+        metamaskUpdatedAt: now,
+        isMetamaskPublic: isMetamaskPublic || true,
+        referralCode,
+        auth: {
+          metamaskNonce: nonce,
+          metamaskNonceCreatedAt: now,
+        } as any,
       };
     } else {
       throw new AccountError('ACCOUNT/IV_CREATE_DTO');
@@ -345,6 +367,7 @@ export default class AccountService extends Service {
       await googleAuth.revoke({
         googleRefreshToken: auth.googleRefreshToken,
         parentAction: action,
+        throws: false,
       });
     }
 

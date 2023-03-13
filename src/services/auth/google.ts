@@ -2,7 +2,7 @@ import { google, people_v1 } from 'googleapis';
 import { OAuth2Client, Credentials } from 'google-auth-library';
 import axios, { AxiosError } from 'axios';
 import qs from 'qs';
-import AuthService, { AuthenticateOptions } from '.';
+import AuthService, { AuthenticateDTO } from '.';
 import { ActionArgs, ActionMethod } from '../../utils/action';
 import GoogleAuthError from '../../errors/auth/google';
 import User, { UserAttribs } from '../../models/User.model';
@@ -83,11 +83,15 @@ export default class GoogleAuthService extends AuthService {
     this.setStatus('AVAILABLE');
   }
 
+  async close() {
+    this.setStatus('CLOSED');
+  }
+
   @ActionMethod({
     name: 'AUTH/GOOGLE_AUTH',
     type: 'COMPLEX',
   })
-  public async authenticate(args: AuthenticateOptions & ActionArgs) {
+  public async authenticate(args: AuthenticateDTO & ActionArgs) {
     const { google, req, action } = args;
     if (!google) throw new Error('GoogleAuthService: Code not provided');
     const { code } = google;
@@ -173,6 +177,7 @@ export default class GoogleAuthService extends AuthService {
       await this.revoke({
         googleRefreshToken: auth.googleRefreshToken,
         parentAction: action,
+        throws: false,
       });
     }
 
@@ -215,8 +220,10 @@ export default class GoogleAuthService extends AuthService {
   }
 
   @ActionMethod({ name: 'AUTH/GOOGLE_REVOKE', type: 'HTTP' })
-  public async revoke(args: { googleRefreshToken: string } & ActionArgs) {
-    const { googleRefreshToken } = args;
+  public async revoke(
+    args: { googleRefreshToken: string; throws?: boolean } & ActionArgs
+  ) {
+    const { googleRefreshToken, throws = true, action } = args;
     try {
       await axios({
         url: 'https://oauth2.googleapis.com:443/revoke',
@@ -242,11 +249,23 @@ export default class GoogleAuthService extends AuthService {
       } else {
         error = err;
       }
-      throw new GoogleAuthError({
+
+      // The google refresh token from the DB may not work
+      const gaError = new GoogleAuthError({
         code: 'AUTH/GOOGLE/UA_REVOKE',
         message,
         error,
       });
+      if (throws) {
+        throw gaError;
+      } else {
+        action?.logEvent(
+          'warn',
+          'ACT/WARNING',
+          'Google OAuth token revoke failed',
+          gaError
+        );
+      }
     }
   }
 

@@ -20,4 +20,15 @@ authRouter
 
 authRouter.route('/google/disconnect').post(AuthController.disconnectGoogle);
 
+authRouter.get(
+  '/metamask',
+  AuthValidator.getMetamaskNonce,
+  AuthController.getMetamaskNonce
+);
+authRouter.post(
+  '/metamask/verify',
+  AuthValidator.authMetamask,
+  AuthController.authMetamask
+);
+
 export default authRouter;

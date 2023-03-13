@@ -33,6 +33,16 @@ declare global {
           code: string;
         };
       }
+
+      interface GetMetamaskNonce extends sigmate.ReqTypes {
+        query: { metamaskWallet: string };
+        response: { metamaskWallet: string; nonce: string };
+      }
+
+      interface AuthMetamask extends sigmate.ReqTypes {
+        body: { metamaskWallet: string; signature: string };
+        response: AuthResponse;
+      }
     }
 
     namespace User {

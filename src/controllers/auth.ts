@@ -3,6 +3,7 @@ import { AuthGuard } from '../middlewares/auth';
 import User from '../models/User.model';
 import { auth } from '../services/auth';
 import { googleAuth } from '../services/auth/google';
+import { metamaskAuth } from '../services/auth/metamask';
 
 export default class AuthController {
   public static renewAccess: sigmate.ReqHandler<sigmate.Api.Auth.RenewAccess> =
@@ -76,7 +77,50 @@ export default class AuthController {
       try {
         const user = req.user as NonNullable<typeof req.user>;
         await googleAuth.disconnect({ user, req });
-        res.status(200).json({ ...res.meta() });
+        res.status(200).json({ meta: res.meta(), success: true });
+      } catch (error) {
+        next(error);
+      }
+    };
+
+  public static getMetamaskNonce: sigmate.ReqHandler<sigmate.Api.Auth.GetMetamaskNonce> =
+    async (req, res, next) => {
+      try {
+        const { metamaskWallet } = req.query;
+        const user = await metamaskAuth.authenticate({
+          metamask: { wallet: metamaskWallet },
+        });
+        if (!user) throw new Error('User not found');
+        const auth = user.auth;
+        if (!auth) throw new Error('Auth not found');
+        const nonce = auth.metamaskNonce;
+        if (!nonce) throw new Error('Nonce not found');
+        res.status(200).json({
+          meta: res.meta(),
+          success: true,
+          metamaskWallet,
+          nonce,
+        });
+      } catch (error) {
+        next(error);
+      }
+    };
+
+  public static authMetamask: sigmate.ReqHandler<sigmate.Api.Auth.AuthMetamask> =
+    async (req, res, next) => {
+      try {
+        const { metamaskWallet, signature } = req.body;
+        const user = await metamaskAuth.authenticate({
+          metamask: { wallet: metamaskWallet, signature },
+        });
+        if (!user) throw new RequestError('REQ/RJ_UNAUTHENTICATED');
+        const tokens = await auth.getTokens({ user });
+        res.status(200).json({
+          meta: res.meta(),
+          success: true,
+          user: user.toResponse(),
+          ...tokens,
+        });
       } catch (error) {
         next(error);
       }

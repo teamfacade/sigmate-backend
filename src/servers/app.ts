@@ -13,6 +13,7 @@ import { auth } from '../services/auth';
 import ErrorMw from '../middlewares/error';
 import { googleAuth } from '../services/auth/google';
 import { account } from '../services/account';
+import { metamaskAuth } from '../services/auth/metamask';
 
 export default class AppServer extends SigmateServer {
   static PORT = 5100;
@@ -61,7 +62,12 @@ export default class AppServer extends SigmateServer {
     this.setStatus('STARTING');
     await logger.start();
     await db.start();
-    await Promise.all([auth.start(), googleAuth.start(), account.start()]);
+    await Promise.all([
+      auth.start(),
+      googleAuth.start(),
+      metamaskAuth.start(),
+      account.start(),
+    ]);
 
     const app = this.app;
 
@@ -110,8 +116,16 @@ export default class AppServer extends SigmateServer {
       }
     }
     await db.close();
+    await Promise.all([
+      auth.close(),
+      googleAuth.close(),
+      metamaskAuth.close(),
+      account.close(),
+    ]);
     this.setStatus('CLOSED');
     await logger.close();
+
+    // Ensure socket is released by killing the process
     process.exit(0);
   }
 
