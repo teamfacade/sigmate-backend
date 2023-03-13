@@ -68,7 +68,7 @@ export default class AppServer extends SigmateServer {
     // Middlewares
     app.use(cors());
     app.use(express.json());
-    app.use(express.urlencoded({ extended: true, type: 'application/json' }));
+    app.use(express.urlencoded({ extended: true }));
     app.use(requestIp.mw());
     app.use(RequestMw.device());
     app.use(RequestMw.metadata({ log: true }));
@@ -112,6 +112,7 @@ export default class AppServer extends SigmateServer {
     await db.close();
     this.setStatus('CLOSED');
     await logger.close();
+    process.exit(0);
   }
 
   private onStart() {

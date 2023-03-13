@@ -1,5 +1,6 @@
 import { ParsedQs } from 'qs';
 import { RequestHandler } from 'express';
+import { ValidationError } from 'express-validator';
 
 declare global {
   namespace sigmate {
@@ -40,7 +41,7 @@ declare global {
           ? D['params']
           : ReqDefaultTypes['params'],
         D['response'] extends ReqDefaultTypes['response']
-          ? D['response'] & ResMeta
+          ? D['response'] & { meta: ResMeta; success: boolean }
           : any,
         D['body'] extends ReqDefaultTypes['body'] ? D['body'] : any,
         D['query'] extends ReqDefaultTypes['query']
@@ -70,6 +71,7 @@ declare global {
         code?: string;
         message: string;
       };
+      validationErrors?: ValidationError[];
     };
 
     /** Metadata to embed in every response */
@@ -96,6 +98,7 @@ declare global {
         notify: boolean;
         critical: boolean;
         secure: boolean;
+        validationErrors?: ValidationError[];
       };
       type RootData<ErrorCode extends string = string> = Data<ErrorCode> & {
         defaultsMap: DefaultsMap<ErrorCode>;
@@ -114,7 +117,14 @@ declare global {
     }
 
     namespace Log {
-      type Level = 'error' | 'warn' | 'info' | 'http' | 'verbose' | 'debug';
+      type Level =
+        | 'error'
+        | 'warn'
+        | 'info'
+        | 'http'
+        | 'verbose'
+        | 'debug'
+        | 'silly';
       type SourceName = 'Server' | 'Service' | 'Request' | 'Action';
 
       // Events
@@ -132,10 +142,12 @@ declare global {
         | 'REQ/WARNING'
         | 'REQ/ERROR';
       type ActionEvent =
-        | 'ACT/START'
-        | 'ACT/FINISH'
+        | 'ACT/STATUS_CHANGE'
         | 'ACT/WARNING'
-        | 'ACT/ERROR';
+        | 'ACT/ERROR'
+        | 'ACT/TX/START'
+        | 'ACT/TX/COMMIT'
+        | 'ACT/TX/ROLLBACK';
       type AuthEvent =
         | 'ACT/AUTH/WARNING'
         | 'ACT/AUTH/FAIL'

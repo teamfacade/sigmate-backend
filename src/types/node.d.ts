@@ -3,6 +3,7 @@ declare namespace NodeJS {
     NODE_ENV: 'development' | 'test' | 'production';
     SERVICE_NAME: string;
     PORT: number;
+    DEBUG_LOG_LEVEL?: string;
     DB_PORT: number;
     DB_DATABASE: string;
     DB_USERNAME: string;

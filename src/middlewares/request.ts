@@ -4,11 +4,11 @@ import { Request, Response, RequestHandler } from 'express';
 import onFinished from 'on-finished';
 import onHeaders from 'on-headers';
 import isInt from 'validator/lib/isInt';
-import MySqlValidators from './validators/mysql';
 import { logger } from '../services/logger';
 import ClientDevice from '../utils/device';
 import { DateTime } from 'luxon';
 import ServerError from '../errors';
+import BaseValidator from './validators';
 
 type MetadataMwOptions = {
   log?: boolean;
@@ -124,8 +124,10 @@ export default class RequestMw {
         if (options.log) {
           const misc: Record<string, unknown> = {};
 
-          if (Object.keys(req.query).length > 0) misc.query = req.query;
-          if (Object.keys(req.params).length > 0) misc.params = req.params;
+          if (req.query && Object.keys(req.query).length > 0)
+            misc.query = req.query;
+          if (req.params && Object.keys(req.params).length > 0)
+            misc.params = req.params;
 
           if (meta.status === 500) {
             misc.body = req.body;
@@ -230,7 +232,7 @@ export default class RequestMw {
 
     // Validate the pagination request
     if (validate) {
-      const max = MySqlValidators.LIMITS[type].max;
+      const max = BaseValidator.MYSQL_LIMITS[type].max;
       middlewares.concat([
         query('limit')
           .optional()

@@ -13,7 +13,9 @@ export type AccountErrorCode =
   | 'ACCOUNT/RJ_UNAUTHENTICATED'
   | 'ACCOUNT/RJ_USERNAME_CHANGE_INTERVAL'
   | 'ACCOUNT/CF_CONNECT_GOOGLE_ALREADY_EXISTS'
-  | 'ACCOUNT/IV_USERNAME_TAKEN';
+  | 'ACCOUNT/IV_USERNAME_TAKEN'
+  | 'ACCOUNT/IV_REFERRAL_CODE'
+  | 'ACCOUNT/RJ_REFERRAL_ALREADY_SET';
 
 const defaultsMap: sigmate.Error.DefaultsMap<AccountErrorCode> = {
   'ACCOUNT/NF_AUTH': {
@@ -76,6 +78,16 @@ const defaultsMap: sigmate.Error.DefaultsMap<AccountErrorCode> = {
   },
   'ACCOUNT/CF_CONNECT_GOOGLE_ALREADY_EXISTS': {
     message: 'This google account is already connected to another account',
+    httpCode: 409,
+    logLevel: 'verbose',
+  },
+  'ACCOUNT/IV_REFERRAL_CODE': {
+    message: 'Non-existent referral code, or the user is no longer a member',
+    httpCode: 400,
+    logLevel: 'verbose',
+  },
+  'ACCOUNT/RJ_REFERRAL_ALREADY_SET': {
+    message: 'Referral code already entered.',
     httpCode: 409,
     logLevel: 'verbose',
   },

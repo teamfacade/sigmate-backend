@@ -44,12 +44,15 @@ export default class Action {
       this.name = name;
       this.type = type || 'DB';
       if (parent) {
+        this.parent = parent;
         this.req = parent.req;
         this.transaction = parent.transaction;
       } else {
         this.req = req;
-        if (typeof transaction === 'boolean') {
+        if (transaction === undefined && type !== 'HTTP') {
           this.startTx = true;
+        } else if (typeof transaction === 'boolean') {
+          if (transaction) this.startTx = true;
         } else {
           this.transaction = transaction;
         }
@@ -64,6 +67,9 @@ export default class Action {
     if (this.startTx) {
       try {
         this.transaction = await db.sequelize.transaction();
+        if (this.transaction) {
+          this.logEvent('debug', 'ACT/TX/START');
+        }
       } catch (error) {
         throw new DatabaseError({ error });
       }
@@ -103,26 +109,20 @@ export default class Action {
       if (success) {
         try {
           await this.transaction.commit();
+          this.logEvent('debug', 'ACT/TX/COMMIT');
         } catch (err) {
           success = false;
           this.status = 'FAILED';
           error = err;
+          this.logEvent('warn', 'ACT/WARNING', 'Transaction commit failed');
         }
       }
       if (!success) {
         try {
           await this.transaction.rollback();
+          this.logEvent('debug', 'ACT/TX/ROLLBACK');
         } catch (err) {
-          logger.log({
-            level: 'warn',
-            source: 'Action',
-            event: 'ACT/WARNING',
-            name: this.name,
-            status: this.status,
-            user: this.req?.getLogUser && this.req.getLogUser(),
-            device: this.req?.getLogDevice && this.req.getLogDevice(),
-            error: err,
-          });
+          this.logEvent('warn', 'ACT/WARNING', 'Transaction rollback failed');
         }
       }
     }
@@ -130,11 +130,27 @@ export default class Action {
     this.logFinish(error);
   }
 
+  private logEvent(
+    level: sigmate.Log.Info['level'],
+    event: sigmate.Log.Info['event'],
+    message?: sigmate.Log.Info['message']
+  ) {
+    logger.log({
+      level: level || 'debug',
+      message,
+      source: 'Action',
+      event: event || 'ACT/WARNING',
+      name: this.name,
+      user: this.req?.getLogUser && this.req.getLogUser(),
+      device: this.req?.getLogDevice && this.req.getLogDevice(),
+    });
+  }
+
   private logStart() {
     logger.log({
       level: 'debug',
       source: 'Action',
-      event: 'ACT/START',
+      event: 'ACT/STATUS_CHANGE',
       name: this.name,
       status: this.status,
       user: this.req?.getLogUser && this.req.getLogUser(),
@@ -146,7 +162,7 @@ export default class Action {
     logger.log({
       level: 'verbose',
       source: 'Action',
-      event: 'ACT/FINISH',
+      event: 'ACT/STATUS_CHANGE',
       name: this.name,
       status: this.status,
       duration: this.duration,
@@ -187,17 +203,17 @@ const __ActionMethod = (options?: ActionOptions['name'] | ActionOptions) => {
         args.action = action;
         args.transaction = action.transaction;
         args.req = action.req;
-        action.start();
+        await action.start();
 
         // TODO Check how to safely type decorators
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore
         const result = method.apply(this, [args]);
         if (result instanceof Promise) await result;
-        action.finish({ success: true });
+        await action.finish({ success: true });
         return result;
       } catch (err) {
-        action.finish({ success: false, error: err });
+        await action.finish({ success: false, error: err });
         let error: ServerError;
         if (err instanceof ActionError) {
           error = err;

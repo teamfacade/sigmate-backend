@@ -9,6 +9,7 @@ import {
   Default,
   HasMany,
   HasOne,
+  Length,
 } from 'sequelize-typescript';
 import { FindOptions, Optional } from 'sequelize/types';
 import { getDeleteSuffix } from '../utils';
@@ -96,6 +97,7 @@ export default class User extends Model<UserAttribs, UserCAttribs> {
   @Column(DataType.DATE)
   userNameUpdatedAt!: UserAttribs['userNameUpdatedAt'];
 
+  @Length({ max: SIZE_FULLNAME })
   @Column(DataType.STRING(SIZE_FULLNAME))
   fullName: UserAttribs['fullName'];
 
@@ -166,7 +168,7 @@ export default class User extends Model<UserAttribs, UserCAttribs> {
   @Column(DataType.STRING(8))
   locale: UserAttribs['locale'];
 
-  @BelongsTo(() => User, { foreignKey: 'referredById' })
+  @BelongsTo(() => User, { foreignKey: 'referredById', as: 'referredBy' })
   referredBy: UserAttribs['referredBy'];
 
   @Column(DataType.STRING(SIZE_REFERRAL + SIZE_DEL_SUFFIX))
@@ -267,7 +269,9 @@ export default class User extends Model<UserAttribs, UserCAttribs> {
           attributes: ImageFile.FIND_ATTRIBS.default,
         },
         {
-          model: UserAuth,
+          model: User,
+          as: 'referredBy',
+          attributes: [...User.ATTRIB_PUBLIC],
         },
       ],
     },
@@ -279,10 +283,15 @@ export default class User extends Model<UserAttribs, UserCAttribs> {
           as: 'profileImage',
           attributes: ImageFile.FIND_ATTRIBS.default,
         },
+        {
+          model: User,
+          as: 'referredBy',
+          attributes: [...User.ATTRIB_PUBLIC],
+        },
       ],
     },
     auth: {
-      attributes: ['id', 'userName'],
+      attributes: ['id', 'userName', 'googleAccount', 'googleAccountId'],
       include: [UserAuth],
     },
     exists: {
@@ -315,6 +324,7 @@ export default class User extends Model<UserAttribs, UserCAttribs> {
       isMetamaskPublic: this.isMetamaskPublic,
       locale: this.locale,
       referralCode: this.referralCode,
+      referredBy: this.referredBy?.toResponse(),
       agreeTos: this.agreeTos,
       agreeLegal: this.agreeLegal,
       agreePrivacy: this.agreePrivacy,

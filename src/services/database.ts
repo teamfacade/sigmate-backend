@@ -51,7 +51,7 @@ export default class DatabaseService extends Service {
       const database = process.env.DB_DATABASE;
       const host = process.env.DB_HOST;
       const port = process.env.DB_PORT;
-      const modelPath = resolve(__dirname, '../models/**/*.model.ts');
+      const modelPath = resolve(__dirname, '../models/**/*.model');
       this.__sequelize = new Sequelize({
         username,
         password,
@@ -66,7 +66,7 @@ export default class DatabaseService extends Service {
         logging: false,
         benchmark: process.env.NODE_ENV !== 'production',
 
-        models: [modelPath],
+        models: [`${modelPath}.ts`, `${modelPath}.js`],
         modelMatch: (filename, member) => {
           return (
             filename.substring(0, filename.indexOf('.model')) === member ||
@@ -76,7 +76,7 @@ export default class DatabaseService extends Service {
       });
 
       if (this.env === 'development') {
-        await this.__sequelize.sync({ force: true });
+        await this.__sequelize.sync({ force: false });
       }
 
       await this.test();

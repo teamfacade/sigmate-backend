@@ -210,12 +210,12 @@ export default class GoogleAuthService extends AuthService {
     return await User.findOne({
       where: { googleAccountId },
       transaction,
-      ...User.FIND_OPTS.my,
+      ...User.FIND_OPTS.auth,
     });
   }
 
   @ActionMethod({ name: 'AUTH/GOOGLE_REVOKE', type: 'HTTP' })
-  private async revoke(args: { googleRefreshToken: string } & ActionArgs) {
+  public async revoke(args: { googleRefreshToken: string } & ActionArgs) {
     const { googleRefreshToken } = args;
     try {
       await axios({

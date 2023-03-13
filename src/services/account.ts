@@ -2,14 +2,16 @@ import { randomBytes, randomInt } from 'crypto';
 import { DateTime, DurationLike } from 'luxon';
 import { generateSlug, RandomWordOptions } from 'random-word-slugs';
 import Service from '.';
-import AccountError, { AccountErrorCode } from '../errors/account';
+import AccountError from '../errors/account';
 import User, {
+  SIZE_REFERRAL,
   SIZE_USERNAME,
   UserAttribs,
   UserCAttribs,
 } from '../models/User.model';
 import UserAuth, { UserAuthAttribs } from '../models/UserAuth.model';
 import { ActionArgs, ActionMethod } from '../utils/action';
+import { googleAuth } from './auth/google';
 
 type GoogleDTO = {
   fullName: UserAttribs['fullName'];
@@ -38,11 +40,13 @@ type UpdateDTO = {
       | 'isDiscordPublic'
       | 'isMetamaskPublic'
       | 'locale'
-      | 'agreeTos'
-      | 'agreeLegal'
-      | 'agreePrivacy'
     >
-  >;
+  > & {
+    referredByCode?: UserAttribs['referralCode'];
+    agreeTos?: boolean;
+    agreeLegal?: boolean;
+    agreePrivacy?: boolean;
+  };
 };
 
 export default class AccountService extends Service {
@@ -88,7 +92,11 @@ export default class AccountService extends Service {
     consecutiveSpChars: /[^\w]{2,}/,
     illegalChars: /[^\w.-]/,
   };
+
+  /** Prevent users from changing usernames too often */
   static INTERVAL_USERNAME_CHANGE: DurationLike = { week: 2 };
+  /** Allow users to change username within this time period */
+  static GRACE_USERNAME_CHANGE: DurationLike = { minutes: 3 };
   static SIZE_USERNAME_RANDOM_SUFFIX = 6;
   static SIZE_USERNAME_MIN = 3;
 
@@ -165,12 +173,14 @@ export default class AccountService extends Service {
       isDiscordPublic,
       isMetamaskPublic,
       locale,
+      referredByCode,
       agreeTos,
       agreeLegal,
       agreePrivacy,
     } = attribs;
 
-    if (userName !== undefined) {
+    // Only run when the username changes
+    if (userName !== undefined && userName !== user.userName) {
       this.checkUserNamePolicy(userName);
       this.checkCanChangeUserName(user);
       await this.checkUserNameAvailability({ userName, throws: true });
@@ -212,6 +222,22 @@ export default class AccountService extends Service {
 
     if (locale !== undefined) {
       user.set('locale', locale);
+    }
+
+    if (referredByCode !== undefined) {
+      if (user.referredBy) {
+        throw new AccountError('ACCOUNT/RJ_REFERRAL_ALREADY_SET');
+      }
+      const referredBy = await User.findOne({
+        where: { referralCode: referredByCode },
+        attributes: [...User.ATTRIB_PUBLIC],
+        transaction,
+      });
+      if (!referredBy) {
+        throw new AccountError('ACCOUNT/IV_REFERRAL_CODE');
+      }
+      user.referredBy = referredBy;
+      user.set('referredById', referredBy.id);
     }
 
     if (agreeTos !== undefined) {
@@ -276,6 +302,64 @@ export default class AccountService extends Service {
     return user;
   }
 
+  @ActionMethod('ACCOUNT/CHECK_USERNAME')
+  public async checkUserNameAvailability(
+    args: { userName: string; throws?: boolean } & ActionArgs
+  ) {
+    const { userName, throws = true, transaction } = args;
+    const user = await User.findOne({ where: { userName }, transaction });
+    if (user) {
+      if (throws) {
+        throw new AccountError('ACCOUNT/IV_USERNAME_TAKEN');
+      } else {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  @ActionMethod('ACCOUNT/CHECK_REFERRAL')
+  public async checkReferralCode(
+    args: { referralCode: string; throws?: boolean } & ActionArgs
+  ) {
+    const { referralCode, throws = true, transaction } = args;
+    const user = await User.findOne({ where: { referralCode }, transaction });
+    if (!user) {
+      if (throws) {
+        throw new AccountError('ACCOUNT/IV_REFERRAL_CODE');
+      } else {
+        return false;
+      }
+    }
+    return true;
+  }
+
+  @ActionMethod('ACCOUNT/DELETE')
+  public async delete(args: { user: User } & ActionArgs) {
+    const { user, action, transaction } = args;
+
+    // Revoke connected accounts
+    const auth = user.auth;
+    if (!auth) throw new AccountError('ACCOUNT/NF_AUTH');
+    if (auth.googleRefreshToken) {
+      await googleAuth.revoke({
+        googleRefreshToken: auth.googleRefreshToken,
+        parentAction: action,
+      });
+    }
+
+    // Revoke all sigmate tokens and nonces
+    auth.set('accessNonce', null);
+    auth.set('refreshNonce', null);
+    auth.set('googleRefreshToken', null);
+    auth.set('metamaskNonce', null);
+    auth.set('metamaskNonceCreatedAt', null);
+    await auth.save({ transaction });
+
+    // Soft delete user from DB
+    await user.destroy({ transaction });
+  }
+
   private checkCanChangeUserName(user: User | null | undefined, throws = true) {
     try {
       if (!user) {
@@ -285,10 +369,17 @@ export default class AccountService extends Service {
       // Cannot change usernames too often
       if (user.userNameUpdatedAt) {
         const userNameUpdatedAt = DateTime.fromJSDate(user.userNameUpdatedAt);
-        if (
-          DateTime.now() <
-          userNameUpdatedAt.plus(AccountService.INTERVAL_USERNAME_CHANGE)
-        ) {
+        const now = DateTime.now();
+        // Prevent users from changing username too often
+        const canUpdateFrom = userNameUpdatedAt.plus(
+          AccountService.INTERVAL_USERNAME_CHANGE
+        );
+        // However, for a short period of time, the user can change their usernames again
+        // to allow for them to handle mistakes
+        const gracePeriod = userNameUpdatedAt.plus(
+          AccountService.GRACE_USERNAME_CHANGE
+        );
+        if (now > gracePeriod && now < canUpdateFrom) {
           throw new AccountError({
             code: 'ACCOUNT/RJ_USERNAME_CHANGE_INTERVAL',
             message: 'Usernames can only be changed every 2 weeks',
@@ -305,32 +396,13 @@ export default class AccountService extends Service {
     }
   }
 
-  @ActionMethod('ACCOUNT/CHECK_USERNAME')
-  private async checkUserNameAvailability(
-    args: { userName: string; throws?: boolean } & ActionArgs
-  ) {
-    const { userName, throws = true, transaction } = args;
-    const user = await User.findOne({ where: { userName }, transaction });
-    if (user) {
-      if (throws) {
-        throw new AccountError('ACCOUNT/IV_USERNAME_TAKEN');
-      } else {
-        return false;
-      }
-      return true;
-    }
-  }
-
   /**
    * Check if the given username follows the username policy
    * @param userName String to check
    * @param throws If set to `true`, throw on failure. If not, return a string containing the error code on failure, and an empty string on success.
    * @returns An empty string if check was successful
    */
-  private checkUserNamePolicy(
-    userName: string,
-    throws = true
-  ): AccountErrorCode | 'ER/OTHER' | '' {
+  public checkUserNamePolicy(userName: string, throws = true): boolean {
     try {
       if (!userName) throw new AccountError('ACCOUNT/IV_USERNAME_EMPTY');
       if (userName.length < AccountService.SIZE_USERNAME_MIN) {
@@ -368,13 +440,10 @@ export default class AccountService extends Service {
           'ACCOUNT/IV_USERNAME_BEGINS_OR_ENDS_WITH_SPECIAL_CHARS'
         );
       }
-      return '';
+      return true;
     } catch (error) {
       if (throws) throw error;
-      if (error instanceof AccountError) {
-        return error.code;
-      }
-      return 'ER/OTHER';
+      return false;
     }
   }
 
@@ -502,7 +571,14 @@ export default class AccountService extends Service {
 
   /** Generate a new referral code randomly */
   private generateReferralCodeV1() {
-    return randomInt(10 ** 10, 10 ** 11 - 1).toString();
+    if (SIZE_REFERRAL > 15) {
+      // Number.MAX_SAFE_INTEGER is 16 digits long
+      throw new Error('Referral code algorithm unsafe');
+    }
+    return randomInt(
+      10 ** SIZE_REFERRAL,
+      10 ** (SIZE_REFERRAL + 1) - 1
+    ).toString();
   }
 }
 

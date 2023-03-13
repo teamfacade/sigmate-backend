@@ -1,3 +1,4 @@
+import { ValidationError } from 'express-validator';
 import ServerError from '.';
 
 type ErrorCode =
@@ -37,6 +38,8 @@ const defaultsMap: sigmate.Error.DefaultsMap<ErrorCode> = {
 };
 
 export default class RequestError extends ServerError<ErrorCode> {
+  validationErrors?: ValidationError[];
+
   constructor(options: sigmate.Error.Options<ErrorCode>) {
     super(ServerError.parseOptions('RequestError', options, defaultsMap));
   }

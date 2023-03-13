@@ -1,9 +1,29 @@
 import RequestError from '../errors/request';
 import { AuthGuard } from '../middlewares/auth';
 import User from '../models/User.model';
+import { auth } from '../services/auth';
 import { googleAuth } from '../services/auth/google';
 
 export default class AuthController {
+  public static renewAccess: sigmate.ReqHandler<sigmate.Api.Auth.RenewAccess> =
+    async (req, res, next) => {
+      try {
+        const { refreshToken } = req.body;
+        const user = await auth.authenticate({
+          token: { refresh: refreshToken },
+        });
+        if (user) req.user = user;
+        const tokens = await auth.getTokens({ user });
+        res.status(200).json({
+          meta: res.meta(),
+          success: true,
+          ...tokens,
+        });
+      } catch (error) {
+        next(error);
+      }
+    };
+
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   public static getAuthUrl: sigmate.ReqHandler = (req, res, next) => {
     res.redirect(googleAuth.authorizationUrl);
@@ -20,9 +40,12 @@ export default class AuthController {
           force: false,
           req,
         });
-        res
-          .status(200)
-          .json({ ...res.meta(), user: user.toResponse(), ...tokens });
+        res.status(200).json({
+          meta: res.meta(),
+          success: true,
+          user: user.toResponse(),
+          ...tokens,
+        });
       } catch (error) {
         next(error);
       }
@@ -38,7 +61,8 @@ export default class AuthController {
         await googleAuth.connect({ user, code, req });
 
         res.status(200).json({
-          ...res.meta(),
+          meta: res.meta(),
+          success: true,
           user: user.toResponse(),
         });
       } catch (error) {

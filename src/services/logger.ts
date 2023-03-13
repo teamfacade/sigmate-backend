@@ -39,6 +39,16 @@ export default class LoggerService extends Service {
     },
   });
 
+  private static LEVEL = new Set<sigmate.Log.Level | string>([
+    'error',
+    'warn',
+    'info',
+    'http',
+    'verbose',
+    'debug',
+    'silly',
+  ]);
+
   private __cloudWatchLogs?: CloudWatchLogs;
   private get cloudWatchLogs() {
     if (!this.__cloudWatchLogs) throw new Error('Cloudwatch logs not set');
@@ -186,8 +196,10 @@ export default class LoggerService extends Service {
     this.checkLoggerOptions(options);
     const { console, cloudWatchLogs } = options;
 
+    const envLevel = process.env.DEBUG_LOG_LEVEL || 'debug';
+
     const dl = winston.createLogger({
-      level: 'debug',
+      level: LoggerService.LEVEL.has(envLevel) ? envLevel : 'debug',
       format: combine(label({ label: 'dl' }), timestamp()),
     });
 
@@ -195,7 +207,7 @@ export default class LoggerService extends Service {
       dl.add(
         new winston.transports.Console({
           format: combine(
-            timestamp({ format: 'MM/DD HH:mm:ss' }),
+            timestamp({ format: 'HH:mm:ss' }),
             padLevels(),
             this.colorizeLog,
             this.printableLog
@@ -245,6 +257,7 @@ export default class LoggerService extends Service {
     const {
       message,
       source,
+      event,
       name,
       status,
       duration,
@@ -257,7 +270,6 @@ export default class LoggerService extends Service {
       misc,
     } = info;
     let fMessage = '';
-
     if (source && source !== 'Request') {
       fMessage += `${source} `;
       if (name) fMessage += `'${name}' `;
@@ -266,6 +278,9 @@ export default class LoggerService extends Service {
     }
     if (status) fMessage += `${this.formatStatus(status)} `;
     if (message) fMessage += `${message} `;
+    if (!status && !message && event) {
+      fMessage += `${event} `;
+    }
     if (duration) {
       fMessage += `(${ms(Number.parseFloat(duration.toFixed(3)))}) `;
     }

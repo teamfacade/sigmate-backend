@@ -5,6 +5,10 @@ import AuthValidator from '../../../../middlewares/validators/auth';
 const authRouter = express.Router();
 
 authRouter
+  .route('/token/renew/access')
+  .post(AuthValidator.renewAccess, AuthController.renewAccess);
+
+authRouter
   .route('/google')
   .get(AuthController.getAuthUrl)
   .post(AuthValidator.authGoogle, AuthController.authGoogle);

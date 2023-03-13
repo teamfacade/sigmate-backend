@@ -1,3 +1,5 @@
+import { ValidationError } from 'express-validator';
+
 export default class ServerError<
   ErrorCode extends string = string
 > extends Error {
@@ -8,10 +10,11 @@ export default class ServerError<
   notify: sigmate.Error.Data['notify'];
   critical: sigmate.Error.Data['critical'];
   secure: sigmate.Error.Data['secure'];
+  validationErrors?: ValidationError[];
 
   constructor(options: sigmate.Error.RootOptions<ErrorCode>) {
     if (typeof options === 'string') options = { code: options };
-    const { code, defaultsMap, error: cause } = options;
+    const { code, defaultsMap, error: cause, validationErrors } = options;
     let { message, name, logLevel, httpCode, notify, critical, secure } =
       options;
 
@@ -46,6 +49,7 @@ export default class ServerError<
     this.notify = notify;
     this.critical = critical;
     this.secure = secure;
+    this.validationErrors = validationErrors;
   }
 
   static parseOptions<ErrorCode extends string = string>(

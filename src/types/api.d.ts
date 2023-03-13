@@ -8,6 +8,14 @@ declare global {
         accessToken?: string;
         refreshToken?: string;
       };
+
+      interface RenewAccess extends sigmate.ReqTypes {
+        body: {
+          refreshToken: string;
+        };
+        response: Omit<AuthResponse, 'user'>;
+      }
+
       interface Google extends sigmate.ReqTypes {
         body: { code: string };
         response: AuthResponse;
@@ -58,7 +66,7 @@ declare global {
         | 'agreeLegal'
         | 'agreePrivacy'
         | 'createdAt'
-      >;
+      > & { referredBy?: UserResponse };
 
       interface GetMyInfo extends sigmate.ReqTypes {
         query: { all?: string };
@@ -78,12 +86,32 @@ declare global {
             | 'isDiscordPublic'
             | 'isMetamaskPublic'
             | 'locale'
-            | 'agreeTos'
-            | 'agreeLegal'
-            | 'agreePrivacy'
           >
-        >;
+        > & {
+          referredBy?: UserAttribs['referralCode'];
+          agreeTos?: boolean;
+          agreeLegal?: boolean;
+          agreePrivacy?: boolean;
+        };
         response: { user: UserResponse };
+      }
+
+      interface Check extends sigmate.ReqTypes {
+        query: Partial<{
+          userName: string;
+          referralCode: string;
+        }>;
+        response: {
+          success: boolean;
+          userName?: {
+            userName: string;
+            isAvailable: boolean;
+          };
+          referralCode?: {
+            referralCode: string;
+            isValid: boolean;
+          };
+        };
       }
     }
   }

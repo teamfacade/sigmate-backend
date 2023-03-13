@@ -84,30 +84,36 @@ export default class AuthService extends Service {
 
   @ActionMethod('AUTH/TOKEN_AUTH')
   public async authenticate(args: AuthenticateOptions & ActionArgs) {
-    const { token, findOptions, req } = args;
-    if (!token) throw new Error('AuthService: Token not provided');
-    const { access, refresh } = token;
-    let user: User | null;
-    if (access) {
-      user = await this.verifyToken({
-        type: 'ACCESS',
-        token: access,
-        findOptions,
-      });
-    } else if (refresh) {
-      user = await this.verifyToken({
-        type: 'REFRESH',
-        token: refresh,
-        findOptions,
-      });
-    } else {
-      user = null;
+    const { token, findOptions, req, action } = args;
+    try {
+      if (!token) throw new Error('AuthService: Token not provided');
+      const { access, refresh } = token;
+      let user: User | null;
+      if (access) {
+        user = await this.verifyToken({
+          type: 'ACCESS',
+          token: access,
+          findOptions,
+          parentAction: action,
+        });
+      } else if (refresh) {
+        user = await this.verifyToken({
+          type: 'REFRESH',
+          token: refresh,
+          findOptions,
+          parentAction: action,
+        });
+      } else {
+        user = null;
+      }
+      if (req) req.user = user || undefined;
+      return user;
+    } catch (error) {
+      throw new AuthError({ code: 'AUTH/RJ_UNAUTHENTICATED', error });
     }
-    if (req) req.user = user || undefined;
-    return user;
   }
 
-  @ActionMethod('AUTH/TOKEN_RENEW')
+  @ActionMethod('AUTH/TOKEN_GET')
   public async getTokens(
     args: {
       user?: User | null;
@@ -160,7 +166,11 @@ export default class AuthService extends Service {
    * @param nonce Nonce to use in token
    * @returns New token
    */
-  private generateJwt(type: TokenType, user: User, nonce: string | undefined) {
+  private generateJwt(
+    type: TokenType,
+    user: User,
+    nonce: string | undefined | null
+  ) {
     const secret = this.SECRET_KEY;
     const config = this.JWT_CONFIG[type];
     const auth = user.auth;
@@ -224,9 +234,9 @@ export default class AuthService extends Service {
       transaction,
     });
     if (!user) throw new Error('User not found');
-    const auth = user.auth;
+    const auth = user.auth || (await user.$get('auth', { transaction }));
     if (!auth) throw new Error('Auth not found');
-    let nonce: string | undefined;
+    let nonce: string | undefined | null;
     switch (type) {
       case 'ACCESS':
         nonce = auth.accessNonce;

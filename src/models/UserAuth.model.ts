@@ -11,11 +11,11 @@ import User from './User.model';
 export interface UserAuthAttribs {
   id: number;
   user?: User;
-  accessNonce?: string;
-  refreshNonce?: string;
+  accessNonce?: string | null;
+  refreshNonce?: string | null;
   googleRefreshToken?: string | null;
-  metamaskNonce?: string;
-  metamaskNonceCreatedAt?: Date;
+  metamaskNonce?: string | null;
+  metamaskNonceCreatedAt?: Date | null;
 }
 
 type UserAuthCAttribs = Optional<UserAuthAttribs, 'id'>;

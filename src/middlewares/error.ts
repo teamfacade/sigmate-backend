@@ -51,6 +51,8 @@ export default class ErrorMw {
     let code = error.code;
     let message = (error.name || 'Error') + ': ' + error.message;
     let cause: sigmate.ResErr['cause'] = undefined;
+    const validationErrors =
+      error instanceof RequestError ? error.validationErrors : undefined;
 
     if (error instanceof ServerError && error.cause) {
       const code =
@@ -70,9 +72,11 @@ export default class ErrorMw {
       cause = undefined;
     }
 
-    res.error = { code, message, cause };
+    res.error = { code, message, cause, validationErrors };
 
     // Send secure error details to client in development mode
-    res.status(error.httpCode || 500).json({ ...res.meta() });
+    res
+      .status(error.httpCode || 500)
+      .json({ meta: res.meta(), success: false });
   };
 }
