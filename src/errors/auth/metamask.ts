@@ -8,7 +8,9 @@ type ErrorCode =
   | 'AUTH/METAMASK/RJ_INVALID_SIGNATURE'
   | 'AUTH/METAMASK/CF_WALLET_NOT_MINE'
   | 'AUTH/METAMASK/CF_WALLET_ALREADY_MINE'
-  | 'AUTH/METAMASK/RJ_ADDRESS_MISMATCH';
+  | 'AUTH/METAMASK/RJ_ADDRESS_MISMATCH'
+  | 'AUTH/METAMASK/CF_NOT_CONNECTED'
+  | 'AUTH/METAMASK/RJ_CHANGE_INTERVAL';
 
 const defaultsMap: sigmate.Error.DefaultsMap<ErrorCode> = {
   'AUTH/METAMASK/NF_WALLET': {
@@ -50,6 +52,16 @@ const defaultsMap: sigmate.Error.DefaultsMap<ErrorCode> = {
     message: 'Provided wallet address does not match the expected value',
     httpCode: 401,
     logLevel: 'warn',
+  },
+  'AUTH/METAMASK/CF_NOT_CONNECTED': {
+    message: 'Metamask wallet not connected',
+    httpCode: 409,
+    logLevel: 'verbose',
+  },
+  'AUTH/METAMASK/RJ_CHANGE_INTERVAL': {
+    message: 'Cannot change connected Metamask wallets too often',
+    httpCode: 403,
+    logLevel: 'verbose',
   },
 };
 

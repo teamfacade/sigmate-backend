@@ -1,6 +1,7 @@
 import { ErrorRequestHandler } from 'express';
 import ServerError from '../errors';
 import ActionError from '../errors/action';
+import DatabaseError from '../errors/database';
 import RequestError from '../errors/request';
 
 export default class ErrorMw {
@@ -27,6 +28,10 @@ export default class ErrorMw {
               secure: env !== 'development',
             });
           }
+        } else if (err instanceof DatabaseError) {
+          // Details of database errors should not be sent to the client
+          err.secure = env !== 'development';
+          error = err;
         } else {
           error = err;
         }

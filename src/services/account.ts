@@ -26,7 +26,6 @@ type CreateDTO = {
   google?: GoogleDTO;
   metamask?: {
     wallet: NonNullable<UserAttribs['metamaskWallet']>;
-    nonce: NonNullable<UserAuthAttribs['metamaskNonce']>;
     isMetamaskPublic: UserAttribs['isMetamaskPublic'];
   };
 };
@@ -150,7 +149,7 @@ export default class AccountService extends Service {
         } as any, // create with association
       };
     } else if (metamask) {
-      const { wallet, nonce, isMetamaskPublic } = metamask;
+      const { wallet, isMetamaskPublic } = metamask;
       const userName = await this.generateUniqueUserName({
         parentAction: action,
       });
@@ -163,8 +162,8 @@ export default class AccountService extends Service {
         isMetamaskVerified: false,
         referralCode,
         auth: {
-          metamaskNonce: nonce,
-          metamaskNonceCreatedAt: now,
+          metamaskNonce: null,
+          metamaskNonceCreatedAt: null,
         } as any,
       };
     } else {

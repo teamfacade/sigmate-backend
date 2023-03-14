@@ -41,10 +41,10 @@ export interface UserAttribs {
   discordAccount?: string;
   discordUpdatedAt?: Date;
   isDiscordPublic?: boolean;
-  metamaskWallet?: string;
-  metamaskUpdatedAt?: Date;
-  isMetamaskVerified?: boolean;
-  isMetamaskPublic?: boolean;
+  metamaskWallet?: string | null;
+  metamaskUpdatedAt?: Date | null;
+  isMetamaskVerified?: boolean | null;
+  isMetamaskPublic?: boolean | null;
 
   locale?: string;
 
