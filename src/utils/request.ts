@@ -1,66 +1,67 @@
-import { RequestHandler } from 'express';
-import ServerError from '../errors';
-import RequestError from '../errors/request';
+import { v4 as uuidv4 } from 'uuid';
+import { DateTime } from 'luxon';
+import isInt from 'validator/lib/isInt';
+import { Request, Response } from 'express';
 
-type RequestErrorGuardOptions = {
-  secure?: boolean;
-};
+export default class RequestMetadata {
+  req: Request;
+  res: Response;
 
-const __CatchRequestError = (options: RequestErrorGuardOptions = {}) => {
-  const { secure } = options;
-  return (target: any, key: string, desc?: PropertyDescriptor) => {
-    const method = desc?.value || target[key];
-    const wrapped: RequestHandler = async function (req, res, next) {
-      try {
-        const result = method(req, res, next);
-        if (result instanceof Promise) return await result;
-        else return result;
-      } catch (error) {
-        let err: unknown;
-        if (error instanceof ServerError) {
-          if (secure) error.secure = secure;
-          err = error;
-        } else if (error instanceof Error) {
-          err = new RequestError({
-            code: 'REQ/ER_UNCAUGHT',
-            error,
-            secure: true,
-          });
-        }
-        next(err);
-      }
-    };
-    desc?.value ? (desc.value = wrapped) : (target[key] = wrapped);
-  };
-};
-
-/**
- * A decorator that wraps an Express controller in a try-catch block to
- * pass over a thrown error to a error handler middleware
- * @param options Options for error handling. Set `secure` to true to turn on `secure` flags for ServerErrors (see `ServerError.secure`)
- */
-export function CatchRequestError(
-  options: RequestErrorGuardOptions
-): void | any;
-/**
- * A decorator that wraps an Express controller in a try-catch block to
- * pass over a thrown error to a error handler middleware
- */
-export function CatchRequestError(
-  target: any,
-  key: string,
-  desc?: PropertyDescriptor
-): void | any;
-/**
- * A decorator that wraps an Express controller in a try-catch block to
- * pass over a thrown error to a error handler middleware
- */
-export function CatchRequestError(...args: any[]): void | any {
-  if (args.length >= 2) {
-    __CatchRequestError()(args[0], args[1], args[2]);
-    return;
+  id: string;
+  size: sigmate.ResMetaSize;
+  success: boolean | null;
+  requestedAt: DateTime;
+  error?: unknown;
+  private __duration: number;
+  public get duration() {
+    return this.__duration >= 0 ? this.__duration : undefined;
   }
-  return (target: any, key: string, desc?: PropertyDescriptor) => {
-    __CatchRequestError(args[0])(target, key, desc);
-  };
+
+  get status() {
+    return this.res.statusCode;
+  }
+
+  get method() {
+    return this.req.method;
+  }
+
+  get endpoint() {
+    return this.req.originalUrl || this.req.url || '';
+  }
+
+  get responseBody() {
+    return this.res.body;
+  }
+
+  constructor(req: Request, res: Response) {
+    this.req = req;
+    this.res = res;
+    this.id = uuidv4();
+    this.size = {
+      req: this.parseSize(req.header('content-length')),
+    };
+    this.success = null;
+    this.requestedAt = DateTime.now();
+    this.__duration = -1 * performance.now();
+  }
+
+  headers() {
+    this.__duration += performance.now();
+    this.size.res = this.parseSize(this.res.getHeader('content-length'));
+    this.success = 200 <= this.status && this.status < 300;
+  }
+
+  finish() {
+    this.success = 200 <= this.status && this.status < 300;
+  }
+
+  private parseSize(size: string | number | string[] | undefined) {
+    let sizeNumber = 0;
+    if (typeof size === 'string' && isInt(size)) {
+      sizeNumber = Number.parseInt(size);
+    } else if (typeof size === 'number') {
+      sizeNumber = size;
+    }
+    return sizeNumber;
+  }
 }

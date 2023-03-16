@@ -3,13 +3,14 @@ import { DateTime, DurationLike } from 'luxon';
 import { generateSlug, RandomWordOptions } from 'random-word-slugs';
 import Service from '.';
 import AccountError from '../errors/account';
-import User, {
+import {
   SIZE_REFERRAL,
   SIZE_USERNAME,
   UserAttribs,
   UserCAttribs,
+  User,
 } from '../models/User.model';
-import UserAuth, { UserAuthAttribs } from '../models/UserAuth.model';
+import { UserAuthAttribs, UserAuth } from '../models/UserAuth.model';
 import { ActionArgs, ActionMethod } from '../utils/action';
 import { googleAuth } from './auth/google';
 

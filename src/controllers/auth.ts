@@ -1,6 +1,6 @@
 import RequestError from '../errors/request';
 import { AuthGuard } from '../middlewares/auth';
-import User from '../models/User.model';
+import { User } from '../models/User.model';
 import { auth } from '../services/auth';
 import { googleAuth } from '../services/auth/google';
 import { metamaskAuth } from '../services/auth/metamask';

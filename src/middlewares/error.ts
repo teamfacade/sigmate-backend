@@ -80,8 +80,12 @@ export default class ErrorMw {
     res.error = { code, message, cause, validationErrors };
 
     // Send secure error details to client in development mode
-    res
-      .status(error.httpCode || 500)
-      .json({ meta: res.meta(), success: false });
+    if (!res.headersSent) {
+      res
+        .status(error.httpCode || 500)
+        .json({ meta: res.meta(), success: false });
+    } else {
+      if (!res.writableEnded) res.end();
+    }
   };
 }

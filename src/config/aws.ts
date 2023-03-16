@@ -16,8 +16,8 @@ const CONFIG_AWS: AWSConfigs = {
     logger: {
       region: 'ap-northeast-2',
       credentials: {
-        accessKeyId: process.env.AWS_LOGGER_ACCESS_KEY,
-        secretAccessKey: process.env.AWS_LOGGER_SECRET_ACCESS_KEY,
+        accessKeyId: process.env.AWS_ACCESS_KEY,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
       },
     },
   },
@@ -25,8 +25,8 @@ const CONFIG_AWS: AWSConfigs = {
     logger: {
       region: 'ap-northeast-2',
       credentials: {
-        accessKeyId: process.env.AWS_LOGGER_ACCESS_KEY,
-        secretAccessKey: process.env.AWS_LOGGER_SECRET_ACCESS_KEY,
+        accessKeyId: process.env.AWS_ACCESS_KEY,
+        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
       },
       endpoint: process.env.AWS_DYNAMODB_ENDPOINT,
       // https://docs.aws.amazon.com/sdk-for-javascript/v3/developer-guide/node-reusing-connections.html

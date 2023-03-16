@@ -13,8 +13,8 @@ import {
 } from 'sequelize-typescript';
 import { FindOptions, Optional } from 'sequelize/types';
 import { getDeleteSuffix } from '../utils';
-import ImageFile, { ImageFileId } from './ImageFile.model';
-import UserAuth from './UserAuth.model';
+import { ImageFileId, ImageFile } from './ImageFile.model';
+import { UserAuth } from './UserAuth.model';
 
 export type UserId = number;
 export interface UserAttribs {
@@ -90,7 +90,7 @@ const SIZE_DEL_SUFFIX = getDeleteSuffix().length;
   charset: 'utf8mb4',
   collate: 'utf8mb4_general_ci',
 })
-export default class User extends Model<UserAttribs, UserCAttribs> {
+export class User extends Model<UserAttribs, UserCAttribs> {
   @Unique('user.user_name')
   @Column(DataType.STRING(SIZE_USERNAME + SIZE_DEL_SUFFIX))
   userName!: UserAttribs['userName'];

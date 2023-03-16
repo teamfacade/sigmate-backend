@@ -1,8 +1,22 @@
 import { DateTime } from 'luxon';
+import dotenv from 'dotenv';
 
-export function checkEnv(varnames: string | string[]) {
+export function checkEnv(varnames: string | string[], runConfig?: boolean) {
   if (typeof varnames === 'string') varnames = [varnames];
-  const notSet = varnames.filter((varname) => !process.env[varname]);
+
+  let checked = false;
+  let didConfig = false;
+  let notSet: string[] = [];
+  while (!checked) {
+    notSet = varnames.filter((varname) => !process.env[varname]);
+    checked = true;
+    if (!didConfig && runConfig) {
+      dotenv.config();
+      checked = false;
+      didConfig = true;
+    }
+  }
+
   if (notSet.length > 0) {
     throw new Error(
       `Required environment variables not set: ${notSet.join(', ')}`

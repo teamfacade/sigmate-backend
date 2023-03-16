@@ -1,5 +1,5 @@
 import { RequestMetadata } from '../middlewares/request';
-import User from '../models/User.model';
+import { User } from '../models/User.model';
 import ClientDevice from '../utils/device';
 
 declare global {
@@ -11,6 +11,8 @@ declare global {
       device?: ClientDevice;
       getLogUser?: () => sigmate.Log.Info['user'];
       getLogDevice?: () => sigmate.Log.Info['device'];
+      filename?: string;
+      filenames?: string[];
     }
 
     interface Response {

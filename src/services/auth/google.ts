@@ -5,7 +5,7 @@ import qs from 'qs';
 import AuthService, { AuthenticateDTO } from '.';
 import { ActionArgs, ActionMethod } from '../../utils/action';
 import GoogleAuthError from '../../errors/auth/google';
-import User, { UserAttribs } from '../../models/User.model';
+import { UserAttribs, User } from '../../models/User.model';
 import { account } from '../account';
 import AccountError from '../../errors/account';
 import { DateTime, DurationLike } from 'luxon';

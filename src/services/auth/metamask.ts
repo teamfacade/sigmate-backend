@@ -11,8 +11,8 @@ import { DateTime, DurationLike } from 'luxon';
 import AuthService, { AuthenticateDTO } from '.';
 import AuthError from '../../errors/auth';
 import MetamaskAuthError from '../../errors/auth/metamask';
-import User from '../../models/User.model';
-import UserAuth from '../../models/UserAuth.model';
+import { User } from '../../models/User.model';
+import { UserAuth } from '../../models/UserAuth.model';
 import { ActionArgs, ActionMethod } from '../../utils/action';
 import { account } from '../account';
 

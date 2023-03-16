@@ -6,7 +6,7 @@ import {
   BelongsTo,
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
-import User from './User.model';
+import { User } from './User.model';
 
 export interface UserAuthAttribs {
   id: number;
@@ -27,7 +27,7 @@ type UserAuthCAttribs = Optional<UserAuthAttribs, 'id'>;
   underscored: true,
   paranoid: false,
 })
-export default class UserAuth extends Model<UserAuthAttribs, UserAuthCAttribs> {
+export class UserAuth extends Model<UserAuthAttribs, UserAuthCAttribs> {
   @BelongsTo(() => User, {
     foreignKey: 'userId',
     onDelete: 'CASCADE',

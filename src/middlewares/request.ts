@@ -1,80 +1,12 @@
-import { v4 as uuidv4 } from 'uuid';
 import { query } from 'express-validator';
 import { Request, Response, RequestHandler } from 'express';
 import onFinished from 'on-finished';
 import onHeaders from 'on-headers';
-import isInt from 'validator/lib/isInt';
 import { logger } from '../services/logger';
 import ClientDevice from '../utils/device';
-import { DateTime } from 'luxon';
 import ServerError from '../errors';
 import BaseValidator from './validators';
-
-type MetadataMwOptions = {
-  log?: boolean;
-};
-
-export class RequestMetadata {
-  req: Request;
-  res: Response;
-
-  id: string;
-  size: sigmate.ResMetaSize;
-  success: boolean | null;
-  requestedAt: DateTime;
-  error?: unknown;
-  private __duration: number;
-  public get duration() {
-    return this.__duration >= 0 ? this.__duration : undefined;
-  }
-
-  get status() {
-    return this.res.statusCode;
-  }
-
-  get method() {
-    return this.req.method;
-  }
-
-  get endpoint() {
-    return this.req.originalUrl || this.req.url || '';
-  }
-
-  get responseBody() {
-    return this.res.body;
-  }
-
-  constructor(req: Request, res: Response) {
-    this.req = req;
-    this.res = res;
-    this.id = uuidv4();
-    this.size = {
-      req: this.parseSize(req.header('content-length')),
-    };
-    this.success = null;
-    this.requestedAt = DateTime.now();
-    this.__duration = -1 * performance.now();
-  }
-
-  headers() {
-    this.__duration += performance.now();
-    this.size.res = this.parseSize(this.res.getHeader('content-length'));
-  }
-
-  finish() {
-    this.success = 200 <= this.status && this.status < 300;
-  }
-
-  private parseSize(size: string | number | string[] | undefined) {
-    let sizeNumber = 0;
-    if (typeof size === 'string' && isInt(size)) {
-      sizeNumber = Number.parseInt(size);
-    } else if (typeof size === 'number') {
-      sizeNumber = size;
-    }
-    return sizeNumber;
-  }
-}
+import RequestMetadata from '../utils/request';
 
 export default class RequestMw {
   public static device = (): RequestHandler => {
@@ -84,78 +16,75 @@ export default class RequestMw {
     };
   };
 
-  public static metadata = (
-    options: MetadataMwOptions = {}
-  ): RequestHandler => {
-    return (req, res, next) => {
-      const meta = new RequestMetadata(req, res);
-      const getLogUser = this.createLogUserGetter(req);
-      const getLogDevice = this.createLogDeviceGetter(req);
+  public static metadata = (): RequestHandler => (req, res, next) => {
+    const meta = new RequestMetadata(req, res);
+    req.meta = meta;
+    res.meta = this.createMetadataBuilder(meta, req, res);
 
-      req.meta = meta;
-      req.getLogUser = getLogUser;
-      req.getLogDevice = getLogDevice;
-      res.meta = this.createMetadataBuilder(meta, req, res);
+    onHeaders(res, function () {
+      meta.headers();
+    });
 
-      if (options.log) {
-        const oldJson = res.json.bind(res);
-        res.json = function (body: any) {
-          res.body = body;
-          return oldJson(body);
-        };
+    next();
+  };
 
-        logger.log({
-          level: 'debug',
-          source: 'Request',
-          event: 'REQ/START',
-          name: `${meta.method} ${meta.endpoint}`,
-          device: getLogDevice(),
-          id: meta.id,
-        });
+  public static logger = (): RequestHandler => (req, res, next) => {
+    const getLogUser = this.createLogUserGetter(req);
+    const getLogDevice = this.createLogDeviceGetter(req);
+    req.getLogUser = getLogUser;
+    req.getLogDevice = getLogDevice;
+    const meta = req.meta;
+    if (!meta) return next();
+
+    const oldJson = res.json.bind(res);
+    res.json = function (body: any) {
+      res.body = body;
+      return oldJson(body);
+    };
+
+    // Log request start
+    logger.log({
+      level: 'debug',
+      source: 'Request',
+      event: 'REQ/START',
+      name: `${meta.method} ${meta.endpoint}`,
+      device: getLogDevice(),
+      id: meta.id,
+    });
+
+    onFinished(res, function () {
+      const misc: Record<string, unknown> = {};
+      if (req.query && Object.keys(req.query).length > 0)
+        misc.query = req.query;
+      if (req.params && Object.keys(req.params).length > 0)
+        misc.params = req.params;
+
+      if (meta.status === 500) {
+        misc.body = req.body;
+        misc.response = res.body;
       }
 
-      onHeaders(res, function () {
-        meta.headers();
+      const level: sigmate.Log.Level =
+        meta.error instanceof ServerError ? meta.error.logLevel : 'http';
+
+      // Log request finish
+      logger.log({
+        level,
+        source: 'Request',
+        event: 'REQ/FINISH',
+        name: `${meta.method} ${meta.endpoint}`,
+        status: meta.status,
+        duration: meta.duration,
+        id: meta.id,
+        size: meta.size,
+        user: getLogUser(),
+        device: getLogDevice(),
+        error: meta.error,
+        misc,
       });
+    });
 
-      onFinished(res, function () {
-        meta.finish();
-
-        if (options.log) {
-          const misc: Record<string, unknown> = {};
-
-          if (req.query && Object.keys(req.query).length > 0)
-            misc.query = req.query;
-          if (req.params && Object.keys(req.params).length > 0)
-            misc.params = req.params;
-
-          if (meta.status === 500) {
-            misc.body = req.body;
-            misc.response = meta.responseBody;
-          }
-
-          const level: sigmate.Log.Level =
-            meta.error instanceof ServerError ? meta.error.logLevel : 'http';
-
-          logger.log({
-            level,
-            source: 'Request',
-            event: 'REQ/FINISH',
-            name: `${meta.method} ${meta.endpoint}`,
-            status: meta.status,
-            duration: meta.duration,
-            id: meta.id,
-            size: meta.size,
-            user: getLogUser(),
-            device: getLogDevice(),
-            error: meta.error,
-            misc,
-          });
-        }
-      });
-
-      next();
-    };
+    next();
   };
 
   private static createLogUserGetter = (

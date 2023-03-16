@@ -18,12 +18,14 @@ export default class Service {
 
   protected setStatus(
     status: sigmate.ServiceStatus,
-    error: unknown = undefined
+    options: { error?: unknown; message?: string } = {}
   ) {
+    const { error, message } = options;
     if (status === this.status) return;
     this.status = status;
     logger.log({
       level: error ? 'error' : 'debug',
+      message,
       source: 'Service',
       event: 'SERVICE/STATUS_CHANGE',
       name: this.name,

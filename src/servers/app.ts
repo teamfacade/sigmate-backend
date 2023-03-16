@@ -14,6 +14,11 @@ import ErrorMw from '../middlewares/error';
 import { googleAuth } from '../services/auth/google';
 import { account } from '../services/account';
 import { metamaskAuth } from '../services/auth/metamask';
+import { s3Service } from '../services/s3';
+import { fileService } from '../services/file';
+import { imageService } from '../services/file/image';
+import staticRouter from '../routes/static';
+import uploadV2Router from '../routes/upload';
 
 export default class AppServer extends SigmateServer {
   static PORT = 5100;
@@ -26,7 +31,6 @@ export default class AppServer extends SigmateServer {
     dotenv.config();
     checkEnv([
       'NODE_ENV',
-      'SERVICE_NAME',
       'PORT',
       'DB_PORT',
       'DB_DATABASE',
@@ -37,29 +41,20 @@ export default class AppServer extends SigmateServer {
       'AWS_BUCKET_NAME',
       'AWS_ACCESS_KEY',
       'AWS_SECRET_ACCESS_KEY',
-      'AWS_LOGGER_ACCESS_KEY',
-      'AWS_LOGGER_SECRET_ACCESS_KEY',
-      'AWS_S3_IMAGE_BASEURL',
-      'AWS_DYNAMODB_ENDPOINT',
-      'COOKIE_SECRET',
-      'DEVICE_SECRET',
       'GOOGLE_CLIENT_ID',
       'GOOGLE_CLIENT_SECRET',
-      'PATH_PUBLIC_KEY',
-      'PATH_PRIVATE_KEY',
+      'DISCORD_CLIENT_ID',
+      'DISCORD_CLIENT_SECRET',
       'TWITTER_BEARER_TOKEN',
       'LAMBDA_BOT_URL',
-      'REDIS_HOST',
-      'REDIS_PORT',
-      'REDIS_ACL_USERNAME',
-      'REDIS_ACL_PASSWORD',
     ]);
     this.app = express();
   }
 
   public async start() {
-    // Start services
     this.setStatus('STARTING');
+
+    // Start services
     await logger.start();
     await db.start();
     await Promise.all([
@@ -67,6 +62,9 @@ export default class AppServer extends SigmateServer {
       googleAuth.start(),
       metamaskAuth.start(),
       account.start(),
+      s3Service.start(),
+      fileService.start(),
+      imageService.start(),
     ]);
 
     const app = this.app;
@@ -77,10 +75,15 @@ export default class AppServer extends SigmateServer {
     app.use(express.urlencoded({ extended: true }));
     app.use(requestIp.mw());
     app.use(RequestMw.device());
-    app.use(RequestMw.metadata({ log: true }));
+    app.use(RequestMw.metadata());
 
     // Routes
+    app.use('/static', staticRouter);
+
+    // Logged Routes
+    app.use(RequestMw.logger());
     app.use('/api/v2', apiV2Router);
+    app.use('/upload/v2', uploadV2Router);
 
     // Error handling middlwares
     app.use(ErrorMw.request);

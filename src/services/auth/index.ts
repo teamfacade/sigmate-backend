@@ -2,7 +2,7 @@ import Service from '..';
 import { readFile } from 'fs/promises';
 import { randomBytes } from 'crypto';
 import jwt from 'jsonwebtoken';
-import User, { UserAttribs } from '../../models/User.model';
+import { UserAttribs, User } from '../../models/User.model';
 import AuthError from '../../errors/auth';
 import { ActionArgs, ActionMethod } from '../../utils/action';
 import { FindOptions } from 'sequelize/types';
@@ -33,6 +33,9 @@ export type AuthenticateDTO = {
 const MAX_SAFE_INTEGER_LEN = Number.MAX_SAFE_INTEGER.toString().length;
 
 export default class AuthService extends Service {
+  private static PATH_PUBLIC_KEY = 'keys/cert.pem';
+  private static PATH_SECRET_KEY = 'keys/private-key.pem';
+
   private static __PUBLIC_KEY?: Buffer;
   /** Used to cancel file read on server close */
   private static pubKeyAbortController?: AbortController;
@@ -317,8 +320,8 @@ export default class AuthService extends Service {
         const sSignal = AuthService.secKeyAbortController.signal;
 
         const [pubKey, secKey] = await Promise.all([
-          readFile(process.env.PATH_PUBLIC_KEY, { signal: pSignal }),
-          readFile(process.env.PATH_PRIVATE_KEY, { signal: sSignal }),
+          readFile(AuthService.PATH_PUBLIC_KEY, { signal: pSignal }),
+          readFile(AuthService.PATH_SECRET_KEY, { signal: sSignal }),
         ]);
 
         AuthService.__PUBLIC_KEY = pubKey;

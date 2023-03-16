@@ -41,7 +41,7 @@ declare global {
           ? D['params']
           : ReqDefaultTypes['params'],
         D['response'] extends ReqDefaultTypes['response']
-          ? D['response'] & { meta: ResMeta; success: boolean }
+          ? D['response'] & { meta: ResMeta; success: boolean | number }
           : any,
         D['body'] extends ReqDefaultTypes['body'] ? D['body'] : any,
         D['query'] extends ReqDefaultTypes['query']

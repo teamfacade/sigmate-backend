@@ -1,6 +1,6 @@
 import RequestError from '../../errors/request';
 import { AuthGuard } from '../../middlewares/auth';
-import User from '../../models/User.model';
+import { User } from '../../models/User.model';
 import { account } from '../../services/account';
 
 export default class UserController {

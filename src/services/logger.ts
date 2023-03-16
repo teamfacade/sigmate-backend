@@ -99,8 +99,8 @@ export default class LoggerService extends Service {
       this.__cloudWatchLogs = new CloudWatchLogs({
         region: process.env.AWS_REGION,
         credentials: {
-          accessKeyId: process.env.AWS_LOGGER_ACCESS_KEY,
-          secretAccessKey: process.env.AWS_LOGGER_SECRET_ACCESS_KEY,
+          accessKeyId: process.env.AWS_ACCESS_KEY,
+          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
         },
       });
 
