@@ -43,8 +43,8 @@ export default class ImageFileService extends FileService {
     return await ImageFile.findOne({ where: { path, basename }, transaction });
   }
 
-  @ActionMethod('FILE/IMAGE/HANDLE_UPLOAD')
-  public async handleUpload(
+  @ActionMethod('FILE/IMAGE/CREATE_METADATA')
+  public async createMetadata(
     args: { file?: Express.Multer.File; path?: string } & ActionArgs
   ) {
     const { req, transaction } = args;

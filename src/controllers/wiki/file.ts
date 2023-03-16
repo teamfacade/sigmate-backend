@@ -8,7 +8,7 @@ export default class WikiFileController {
     };
   }> = async (req, res, next) => {
     try {
-      const image = await imageService.handleUpload({
+      const image = await imageService.createMetadata({
         file: req.file,
         path: ImageFileService.PATH_WIKI_BLOCK_IMAGE,
       });
