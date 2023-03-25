@@ -30,11 +30,6 @@ export default class LoggerService extends Service {
         issue: 'app/issue',
         analytics: 'app/analytics',
         debug: 'app/debug',
-        auth: 'app/activites/auth',
-        user: 'app/activites/user',
-        mission: 'app/activities/reward/mission',
-        point: 'app/activities/reward/point',
-        tier: 'app/activities/reward/tier',
       },
     },
   });

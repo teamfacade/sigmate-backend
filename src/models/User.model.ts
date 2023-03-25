@@ -16,7 +16,7 @@ import { getDeleteSuffix } from '../utils';
 import { ImageFileId, ImageFile } from './ImageFile.model';
 import { UserAuth } from './UserAuth.model';
 
-export type UserId = number;
+export type UserId = string;
 export interface UserAttribs {
   id: UserId;
   userName: string;

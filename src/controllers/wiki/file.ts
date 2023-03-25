@@ -12,7 +12,13 @@ export default class WikiFileController {
         file: req.file,
         path: ImageFileService.PATH_WIKI_BLOCK_IMAGE,
       });
-      const url = `${ImageFileService.BASEURL_UPLOADS}/${image.path}/${image.basename}`;
+
+      const baseUrl = ImageFileService.BASEURL_UPLOADS;
+      const ext =
+        ImageFileService.MIME_EXT_IMG[
+          image.mimetype as keyof typeof ImageFileService['MIME_EXT_IMG']
+        ];
+      const url = `${baseUrl}/${image.path}/${image.id}.${ext}`;
       res.status(200).json({
         meta: res.meta(),
         success: 1,

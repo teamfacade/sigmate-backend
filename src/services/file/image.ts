@@ -1,4 +1,3 @@
-import { v4 as uuidv4 } from 'uuid';
 import multer from 'multer';
 import multerS3 from 'multer-s3';
 import { existsSync, rmSync } from 'node:fs';
@@ -9,6 +8,7 @@ import { ActionArgs, ActionMethod } from '../../utils/action';
 import { s3Service } from '../s3';
 import RequestError from '../../errors/request';
 import { DateTime } from 'luxon';
+import Droplet from '../../utils/droplet';
 
 type StorageEngineOptions = {
   path: string;
@@ -38,9 +38,8 @@ export default class ImageFileService extends FileService {
   @ActionMethod('FILE/IMAGE/GET_METADATA')
   public async getImageMetadata(args: { filepath: string } & ActionArgs) {
     const { filepath, transaction } = args;
-    const basename = this.getBasename(filepath);
-    const path = filepath.slice(0, -1 * basename.length - 1);
-    return await ImageFile.findOne({ where: { path, basename }, transaction });
+    const basename = this.getBasenameMinusExt(filepath);
+    return await ImageFile.findOne({ where: { id: basename }, transaction });
   }
 
   @ActionMethod('FILE/IMAGE/CREATE_METADATA')
@@ -53,7 +52,7 @@ export default class ImageFileService extends FileService {
 
     const filepath = file.filename || file.key;
 
-    const basename = this.getBasename(filepath);
+    const basename = this.getBasenameMinusExt(filepath);
     const path =
       this.storage === FileService.STORAGE_DISK
         ? (args.path as string)
@@ -63,9 +62,9 @@ export default class ImageFileService extends FileService {
 
     return await ImageFile.create(
       {
+        id: basename,
         storage: this.storage,
         path,
-        basename,
         mimetype: file.mimetype,
         size: file.size,
         createdById,
@@ -90,8 +89,7 @@ export default class ImageFileService extends FileService {
       if (existsSync(joinedPath)) rmSync(joinedPath);
     }
 
-    const basename = this.getBasename(filepath);
-    const path = filepath.slice(0, -1 * basename.length - 1);
+    const basename = this.getBasenameMinusExt(filepath);
 
     // Delete from our DB
     await ImageFile.update(
@@ -99,7 +97,7 @@ export default class ImageFileService extends FileService {
         deletedAt: DateTime.now().toJSDate(),
         deletedById: req?.user?.id,
       },
-      { where: { basename, path }, transaction }
+      { where: { id: basename }, transaction }
     );
   }
 
@@ -112,7 +110,7 @@ export default class ImageFileService extends FileService {
         bucket: process.env.AWS_BUCKET_NAME,
         contentType: multerS3.AUTO_CONTENT_TYPE,
         key: (req, file, cb) => {
-          const filename = this.getUUIDFilename(file.originalname);
+          const filename = this.getDropletFilename(file.originalname);
           cb(null, `${path}/${filename}`);
         },
       });
@@ -120,7 +118,7 @@ export default class ImageFileService extends FileService {
       storage = multer.diskStorage({
         destination: join(FileService.BASEPATH_DISK, options.path),
         filename: (req, file, cb) => {
-          const filename = this.getUUIDFilename(file.originalname);
+          const filename = this.getDropletFilename(file.originalname);
           cb(null, filename);
         },
       });
@@ -155,8 +153,8 @@ export default class ImageFileService extends FileService {
     });
   }
 
-  private getUUIDFilename(originalname: string) {
-    return `${uuidv4()}.${this.getFileExtension(originalname)}`;
+  private getDropletFilename(originalname: string) {
+    return `${Droplet.generate()}.${this.getFileExtension(originalname)}`;
   }
 }
 

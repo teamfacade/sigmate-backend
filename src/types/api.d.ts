@@ -1,4 +1,6 @@
 import { UserAttribs } from '../models/User.model';
+import { BlockVerificationAttribs } from '../models/wiki/test/BlockVerification.model';
+import { BlockVersionId } from '../models/wiki/BlockVersion.model';
 
 declare global {
   namespace sigmate.Api {
@@ -128,6 +130,27 @@ declare global {
           };
         };
       }
+    }
+
+    namespace Wiki {
+      type BlockVerificationRequest = {
+        id?: BlockVerificationAttribs['id']; // Create: No id
+        type: BlockVerificationAttribs['type'];
+        comment?: BlockVerificationAttribs['comment'];
+        blockVersion: BlockVersionId;
+      };
+
+      type BlockVerificationResponse = {
+        id: BlockVerificationAttribs['id'];
+        type: BlockVerificationAttribs['type'];
+        comment?: BlockVerificationAttribs['comment'];
+        blockVersion: BlockVersionId;
+        createdBy: User.UserResponse;
+        createdAt: BlockVerificationAttribs['createdAt'];
+        updatedAt: BlockVerificationAttribs['updatedAt'];
+        deletedBy?: User.UserResponse;
+        deletedAt?: BlockVerificationAttribs['deletedAt'];
+      };
     }
   }
 }

@@ -19,6 +19,9 @@ import { fileService } from '../services/file';
 import { imageService } from '../services/file/image';
 import staticRouter from '../routes/static';
 import uploadV2Router from '../routes/upload';
+import { dynamodb } from '../services/dynamodb';
+import { wikiDiff } from '../services/wiki/diff';
+import { wikiExtData } from '../services/wiki/extdata';
 
 export default class AppServer extends SigmateServer {
   static PORT = 5100;
@@ -57,6 +60,7 @@ export default class AppServer extends SigmateServer {
     // Start services
     await logger.start();
     await db.start();
+    await dynamodb.start();
     await Promise.all([
       auth.start(),
       googleAuth.start(),
@@ -65,6 +69,8 @@ export default class AppServer extends SigmateServer {
       s3Service.start(),
       fileService.start(),
       imageService.start(),
+      wikiDiff.start(),
+      wikiExtData.start(),
     ]);
 
     const app = this.app;
@@ -124,6 +130,9 @@ export default class AppServer extends SigmateServer {
       googleAuth.close(),
       metamaskAuth.close(),
       account.close(),
+      dynamodb.close(),
+      wikiDiff.close(),
+      wikiExtData.close(),
     ]);
     this.setStatus('CLOSED');
     await logger.close();

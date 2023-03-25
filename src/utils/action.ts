@@ -7,9 +7,12 @@ import DatabaseError from '../errors/database';
 import { db } from '../services/database';
 import { logger } from '../services/logger';
 
-type ActionOptions = {
+type ActionDecoratorOptions = {
   name: string;
-  type?: 'DB' | 'COMPLEX' | 'HTTP';
+  type?: 'DB' | 'COMPLEX' | 'HTTP' | 'AWS';
+};
+
+type ActionOptions = ActionDecoratorOptions & {
   parent?: Action;
   req?: Request;
   transaction?: boolean | Transaction;
@@ -35,6 +38,7 @@ export default class Action {
   req?: Request;
   transaction?: Transaction;
   private startTx?: boolean;
+  logData?: Record<string, unknown>;
 
   constructor(options: ActionOptions['name'] | ActionOptions) {
     if (typeof options === 'string') {
@@ -49,7 +53,10 @@ export default class Action {
         this.transaction = parent.transaction;
       } else {
         this.req = req;
-        if (transaction === undefined && type !== 'HTTP') {
+        if (
+          transaction === undefined &&
+          (type === 'DB' || type === 'COMPLEX')
+        ) {
           this.startTx = true;
         } else if (typeof transaction === 'boolean') {
           if (transaction) this.startTx = true;
@@ -61,6 +68,7 @@ export default class Action {
     this.status = 'STARTED';
     this.__duration = performance.now() * -1;
     this.target = [];
+    this.logData = undefined;
   }
 
   public async start() {
@@ -98,6 +106,11 @@ export default class Action {
     } else {
       this.target.push(target);
     }
+  }
+
+  public setLogData(key: string, value: unknown) {
+    if (!this.logData) this.logData = {};
+    this.logData[key] = value;
   }
 
   public async finish(options: { success: boolean; error?: unknown }) {
@@ -145,6 +158,7 @@ export default class Action {
       user: this.req?.getLogUser && this.req.getLogUser(),
       device: this.req?.getLogDevice && this.req.getLogDevice(),
       error,
+      misc: this.logData,
     });
   }
 
@@ -175,7 +189,9 @@ export default class Action {
   }
 }
 
-const __ActionMethod = (options?: ActionOptions['name'] | ActionOptions) => {
+const __ActionMethod = (
+  options?: ActionDecoratorOptions['name'] | ActionDecoratorOptions
+) => {
   return (target: any, key: string, desc?: PropertyDescriptor) => {
     const defaultActionName = `${target.constructor.name}/${String(key)}`;
     const method = desc?.value || target[key];
@@ -200,6 +216,7 @@ const __ActionMethod = (options?: ActionOptions['name'] | ActionOptions) => {
         opts.transaction = args.transaction;
       }
       const action = new Action(opts);
+      let result: any = undefined;
       try {
         if (!args) args = {};
         args.action = action;
@@ -210,8 +227,10 @@ const __ActionMethod = (options?: ActionOptions['name'] | ActionOptions) => {
         // TODO Check how to safely type decorators
         // eslint-disable-next-line @typescript-eslint/ban-ts-comment
         // @ts-ignore
-        const result = method.apply(this, [args]);
-        if (result instanceof Promise) await result;
+        result = method.apply(this, [args]);
+        if (result instanceof Promise) {
+          await result;
+        }
         await action.finish({ success: true });
         return result;
       } catch (err) {

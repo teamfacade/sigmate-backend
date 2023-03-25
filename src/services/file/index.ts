@@ -76,6 +76,13 @@ export default class FileService extends Service {
     if (basenameIdx < 0) basenameIdx = 0;
     return filepath.slice(basenameIdx);
   }
+
+  protected getBasenameMinusExt(filepath: string) {
+    const basename = this.getBasename(filepath);
+    const extIdx = basename.search(FileService.REGEX_EXT);
+    if (extIdx < 0) return basename;
+    return basename.slice(0, extIdx);
+  }
 }
 
 export const fileService = new FileService();

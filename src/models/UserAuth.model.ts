@@ -26,6 +26,8 @@ type UserAuthCAttribs = Optional<UserAuthAttribs, 'id'>;
   timestamps: false,
   underscored: true,
   paranoid: false,
+  charset: 'utf8mb4',
+  collate: 'utf8mb4_general_ci',
 })
 export class UserAuth extends Model<UserAuthAttribs, UserAuthCAttribs> {
   @BelongsTo(() => User, {
