@@ -9,7 +9,8 @@ type ErrorCode =
   | 'WIKI/BLOCK/IV_ITEM'
   | 'WIKI/BLOCK/NF_LATEST'
   | 'WIKI/BLOCK/NF_VERSION'
-  | 'WIKI/BLOCK/IV_DTO';
+  | 'WIKI/BLOCK/IV_DTO'
+  | 'WIKI/BLOCK/ER_ID';
 
 const defaultsMap: sigmate.Error.DefaultsMap<ErrorCode> = {
   'WIKI/BLOCK/IV_KEYINFO_NAME_CHANGE': {
@@ -46,9 +47,13 @@ const defaultsMap: sigmate.Error.DefaultsMap<ErrorCode> = {
     httpCode: 400,
     logLevel: 'verbose',
   },
+  'WIKI/BLOCK/ER_ID': {
+    message:
+      'Unexpected block ID. Cannot set version with data of a different block',
+  },
 };
 
-export default class WikiBlockError extends ServerError {
+export default class WikiBlockError extends ServerError<ErrorCode> {
   constructor(options: sigmate.Error.Options<ErrorCode>) {
     super(ServerError.parseOptions('WikiBlockError', options, defaultsMap));
   }

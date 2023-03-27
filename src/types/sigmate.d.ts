@@ -174,6 +174,8 @@ declare global {
       type ActionTarget = {
         model: string;
         id: string | number;
+        type?: 'sql' | 'dynamo';
+        version?: string;
       };
 
       interface Info {

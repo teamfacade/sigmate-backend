@@ -11,12 +11,13 @@ import {
   WikiBlockId,
   WikiBlockSchema,
   WikiBlockVersionId,
-  BlockAuditAction,
+  AuditAction,
 } from '../../models/wiki/WikiBlock.schema';
 import {
   WikiDocumentId,
   WikiDocumentVersionId,
 } from '../../models/wiki/WikiDocument.schema';
+import { ActionArgs, ActionMethod } from '../../utils/action';
 import Droplet, { DropletId } from '../../utils/droplet';
 import { dynamodb, DynamoQueryArgs } from '../dynamodb';
 import WikiDiff from './diff';
@@ -34,7 +35,7 @@ export interface BlockDTO {
     label?: string;
   };
   version: DropletId; // Block version ID
-  blockAction: BlockAuditAction | null;
+  blockAction: AuditAction | null;
   attribActions: Partial<BlockAttribActions>;
   verificationCount: {
     verify: number;
@@ -109,76 +110,6 @@ export default class WikiBlock {
   static VERSION_LATEST = 'latest';
   static VERSION_ALL = 'all';
 
-  static fromVersions(versions: BlockDTO[]) {
-    const blockIdMap = new Map<string, WikiBlock>();
-    versions.forEach((version) => {
-      if (!blockIdMap.has(version.id)) {
-        blockIdMap.set(version.id, new WikiBlock({ id: version.id }));
-      }
-      blockIdMap.get(version.id)?.setVersion(version);
-    });
-    return Array.from(blockIdMap.values());
-  }
-
-  public static async create(dto: CreateBlockDTO) {
-    return await this.batchCreate([dto]);
-  }
-
-  public static async batchCreate(dtos: CreateBlockDTO[]) {
-    // TODO validate create request
-
-    // TODO Fetch external data
-
-    // Generate items
-    const items: WikiBlockSchema[] = [];
-    dtos.forEach((dto) => {
-      const created = WikiDiff.generateCreatedBlock(dto);
-      // Create new version
-      items.push(WikiBlock.toItem(created));
-      // Create latest copy
-      items.push(WikiBlock.toItem(created, true));
-    });
-
-    await dynamodb.batchWriteItem({
-      items: {
-        [WikiBlock.TABLE_VERSIONS]: items.map((i) => ({
-          PutRequest: { Item: i },
-        })),
-      },
-    });
-  }
-
-  public static async batchUpdate(dtos: UpdateBlockDTO[], blocks: WikiBlock[]) {
-    const blocksMap = new Map<WikiBlockId, WikiBlock>();
-    blocks.forEach((block) => {
-      blocksMap.set(block.id, block);
-    });
-
-    // TODO validate update request
-
-    // Generate items
-    const items: WikiBlockSchema[] = [];
-    dtos.forEach((dto) => {
-      const block = blocksMap.get(dto.id);
-      if (!block) {
-        throw new WikiBlockError({
-          code: 'WIKI/BLOCK/NF_VERSION',
-          message: `Version ${dto.id}`,
-        });
-      }
-      const updated = block.generateUpdatedBlock(dto);
-      items.push(WikiBlock.toItem(updated));
-    });
-
-    await dynamodb.batchWriteItem({
-      items: {
-        [WikiBlock.TABLE_VERSIONS]: items.map((i) => ({
-          PutRequest: { Item: i },
-        })),
-      },
-    });
-  }
-
   public id: WikiBlockId; // Block ID
   public document: WikiDocumentId;
   public versions: Map<WikiBlockVersionId, BlockDTO>;
@@ -228,9 +159,12 @@ export default class WikiBlock {
   }
 
   public setVersion(dto: BlockDTO) {
+    if (dto.id !== this.id) {
+      throw new WikiBlockError('WIKI/BLOCK/ER_ID');
+    }
     this.versions.set(dto.version, dto);
+    const latest = this.latest;
     if (dto.isLatestCopy) {
-      const latest = this.latest;
       if (latest) {
         if (latest.version !== dto.version) {
           latest.isLatestCopy = false;
@@ -239,61 +173,93 @@ export default class WikiBlock {
       } else {
         this.latestVersion = dto.version;
       }
-    }
-  }
-
-  public async loadAll() {
-    // Fetch all versions
-    const { items } = await dynamodb.query(this.generateAllVersionsQuery());
-    const blocks: BlockDTO[] = [];
-    items.forEach((i) => {
-      const item = WikiBlock.validateItem(i);
-      const block = WikiBlock.toDTO(item);
-      this.setVersion(block);
-      blocks.push(block);
-    });
-    return blocks;
-  }
-
-  public async loadOne(options: {
-    version: WikiBlockVersionId;
-    force?: boolean;
-  }) {
-    const { force } = options;
-    const version: WikiBlockVersionId = options.version;
-    if (version === WikiBlock.VERSION_LATEST) {
-      // Fetch latest version
-      let latest: BlockDTO;
-      if (!this.latest || force) {
-        const { item } = await dynamodb.getItem({
-          tableName: WikiBlock.TABLE_VERSIONS,
-          key: this.generateLatestKey(),
-        });
-        const blockItem = WikiBlock.validateItem(item);
-        latest = WikiBlock.toDTO(blockItem);
-        this.setVersion(latest);
-      } else {
-        latest = this.latest;
-      }
-      return latest;
-    } else if (version === WikiBlock.VERSION_ALL) {
-      throw new Error('Use the loadAll() method instead');
     } else {
-      // Fetch a specific version
-      const block = this.versions.get(version);
-      if (!block || force) {
-        const { item } = await dynamodb.getItem({
-          tableName: WikiBlock.TABLE_VERSIONS,
-          key: this.generateKey(version),
-        });
-        const blockItem = WikiBlock.validateItem(item);
-        const fetchedBlock = WikiBlock.toDTO(blockItem);
-        this.setVersion(fetchedBlock);
-        return fetchedBlock;
-      } else {
-        return block;
+      if (latest) {
+        const latestCreatedAt = Droplet.getDateTime(latest.version);
+        const versionCreatedAt = Droplet.getDateTime(dto.version);
+        if (versionCreatedAt > latestCreatedAt) {
+          latest.isLatestCopy = false;
+          this.latestVersion = undefined;
+        }
       }
     }
+  }
+
+  @ActionMethod({
+    name: 'WIKI/BLOCK/LOAD_ALL',
+    type: 'AWS',
+  })
+  public async getAllVersions(args: { force?: boolean } & ActionArgs = {}) {
+    // Fetch all versions
+    const { force, action } = args;
+    if (force || this.versions.size === 0) {
+      const { items } = await dynamodb.query(this.generateAllVersionsQuery());
+      const blocks: BlockDTO[] = [];
+      items.forEach((i) => {
+        const item = WikiBlock.checkItem(i);
+        const block = WikiBlock.toDTO(item);
+        this.setVersion(block);
+        blocks.push(block);
+        action?.addTarget({
+          model: 'WikiBlock',
+          id: block.id,
+          version: block.version,
+          type: 'dynamo',
+        });
+      });
+      return blocks;
+    } else {
+      return Array.from(this.versions.values());
+    }
+  }
+
+  @ActionMethod({
+    name: 'WIKI/BLOCK/LOAD_ONE',
+    type: 'AWS',
+  })
+  public async getVersion(
+    options: {
+      version: WikiBlockVersionId;
+      force?: boolean;
+    } & ActionArgs
+  ) {
+    const { version, force, action } = options;
+    let block: BlockDTO | undefined;
+    if (version === WikiBlock.VERSION_ALL) {
+      throw new Error(
+        'This method only loads a single version. Use loadAll() instead'
+      );
+    } else if (version === WikiBlock.VERSION_LATEST) {
+      // Fetch latest version
+      block = this.latest;
+    } else {
+      // Fetch a specified version
+      block = this.versions.get(version);
+    }
+
+    // Need to fetch from DB
+    if (!block || force) {
+      const { item } = await dynamodb.getItem({
+        tableName: WikiBlock.TABLE_VERSIONS,
+        key:
+          version === WikiBlock.VERSION_LATEST
+            ? this.generateLatestKey()
+            : this.generateKey(version),
+      });
+      const blockItem = WikiBlock.checkItem(item);
+      block = WikiBlock.toDTO(blockItem);
+      this.setVersion(block);
+    }
+
+    // Log loaded block for analytics
+    action?.addTarget({
+      model: 'WikiBlock',
+      id: block.id,
+      version: block.version,
+      type: 'dynamo',
+    });
+
+    return block;
   }
 
   /**
@@ -319,14 +285,78 @@ export default class WikiBlock {
     return block;
   }
 
+  public static async create(dto: CreateBlockDTO) {
+    // TODO make it an actio
+    return await this.batchCreate([dto]);
+  }
+
+  public static async batchCreate(dtos: CreateBlockDTO[]) {
+    // TODO move to service and make it an Action
+    // TODO validate create request
+
+    // TODO Fetch external data
+
+    // Generate items
+    const items: WikiBlockSchema[] = [];
+    dtos.forEach((dto) => {
+      const created = WikiDiff.generateCreatedBlock(dto);
+      // Create new version
+      items.push(WikiBlock.toItem(created));
+      // Create latest copy
+      items.push(WikiBlock.toItem(created, true));
+    });
+
+    // Create items in DB
+    await dynamodb.batchWriteItem({
+      items: {
+        [WikiBlock.TABLE_VERSIONS]: items.map((i) => ({
+          PutRequest: { Item: i },
+        })),
+      },
+    });
+  }
+
+  public static async batchUpdate(dtos: UpdateBlockDTO[], blocks: WikiBlock[]) {
+    // TODO move to service and make it an Action
+    const blocksMap = new Map<WikiBlockId, WikiBlock>();
+    blocks.forEach((block) => {
+      blocksMap.set(block.id, block);
+    });
+
+    // TODO validate update request
+
+    // Generate items
+    const items: WikiBlockSchema[] = [];
+    dtos.forEach((dto) => {
+      const block = blocksMap.get(dto.id);
+      if (!block) {
+        throw new WikiBlockError({
+          code: 'WIKI/BLOCK/NF_VERSION',
+          message: `Version ${dto.id}`,
+        });
+      }
+      const updated = block.generateUpdatedBlock(dto);
+      items.push(WikiBlock.toItem(updated));
+    });
+
+    // Overwrite items in DB
+    await dynamodb.batchWriteItem({
+      items: {
+        [WikiBlock.TABLE_VERSIONS]: items.map((i) => ({
+          PutRequest: { Item: i },
+        })),
+      },
+    });
+  }
+
   /** RegEx for parsing document ID from block partition key */
-  private static BlockPKRegEx = /Document#(?<document>\d+)/;
+  private static PK_REGEX = /Document#(?<document>\d+)/;
   private static getPK(document: WikiDocumentId) {
     return `Document#${document}`;
   }
 
   /** RegEx for parsing block ID and block version ID from sort key */
-  private static BlockSKRegEx = /Block#(?<id>\d+)#v_(?<version>\d+)/;
+  private static SK_REGEX = /Block#(?<id>\d+)#v_(?<version>\d+)/;
   private static getSK(id: WikiBlockId, version: WikiBlockVersionId) {
     return `Block#${id}#v_${version}`;
   }
@@ -335,18 +365,17 @@ export default class WikiBlock {
   }
 
   /** RegEx for parsing block ID and block version ID from sort key of the latest version copy */
-  private static BlockSKLatestRegEx = /Block#v_(?<version>\w+)#(?<id>\d+)/;
+  private static SK_LATEST_REGEX = /Block#v_(?<version>\w+)#(?<id>\d+)/;
   private static getLatestSK(id: WikiBlockId) {
     return `Block#v_latest#${id}`;
   }
 
-  private static BlockGSIPKRegEx = /DocVersion#(?<document>\d+)/;
+  private static GSI_PK_REGEX = /DocVersion#(?<document>\d+)/;
   private static getGSIPK(document: WikiDocumentId) {
     return `DocVersion#${document}`;
   }
 
-  private static BlockGSISKRegEx =
-    /Block#dv_(?<documentVersion>\d+)#(?<id>\d+)/;
+  private static GSI_SK_REGEX = /Block#dv_(?<documentVersion>\d+)#(?<id>\d+)/;
   private static getGSISK(
     id: WikiBlockId,
     documentVersion: WikiDocumentVersionId
@@ -400,7 +429,7 @@ export default class WikiBlock {
     };
   }
 
-  private static validateItem(
+  private static checkItem(
     item: Record<string, unknown> | undefined
   ): WikiBlockSchema {
     if (!item) throw new WikiBlockError('WIKI/BLOCK/IV_ITEM');
@@ -585,7 +614,7 @@ export default class WikiBlock {
     } = item;
 
     // Parse document ID from partition key
-    const pkMatch = WikiBlock.BlockPKRegEx.exec(WikiPK);
+    const pkMatch = WikiBlock.PK_REGEX.exec(WikiPK);
     if (!pkMatch) {
       throw new WikiBlockError({
         code: 'WIKI/BLOCK/IV_PK',
@@ -601,14 +630,14 @@ export default class WikiBlock {
     }
 
     // Parse block ID and block version from sort key
-    const skMatch = WikiBlock.BlockSKRegEx.exec(WikiSK);
+    const skMatch = WikiBlock.SK_REGEX.exec(WikiSK);
     let id: string | undefined = undefined;
     let version: string | undefined = undefined;
     if (skMatch) {
       id = skMatch.groups?.id;
       version = skMatch.groups?.version;
     } else {
-      const skLatestMatch = WikiBlock.BlockSKLatestRegEx.exec(WikiSK);
+      const skLatestMatch = WikiBlock.SK_LATEST_REGEX.exec(WikiSK);
       if (skLatestMatch) {
         id = skLatestMatch.groups?.id;
         version = skLatestMatch.groups?.version;

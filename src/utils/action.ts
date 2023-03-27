@@ -100,6 +100,7 @@ export default class Action {
         );
       }
       this.target.push({
+        type: 'sql',
         model: modelName,
         id: String(id),
       });

@@ -98,7 +98,7 @@ export interface WikiBlockSchema extends SigmateWikiSchema {
    * Action on a block level.
    * * `null`: No changes were made to the block. This entry is created when a document version is "cached".
    */
-  BlockAction: BlockAuditAction | null;
+  BlockAction: AuditAction | null;
 
   /**
    * Action that occured on each of the attributes
@@ -131,11 +131,11 @@ export interface WikiBlockSchema extends SigmateWikiSchema {
 }
 
 export type BlockAttribActions = {
-  Type: BlockAuditAction | null;
-  Data: BlockAuditAction | null;
-  Ext?: Record<string, BlockAuditAction | null> | null;
+  Type: AuditAction | null;
+  Data: AuditAction | null;
+  Ext?: Record<string, AuditAction | null> | null;
   KeyInfo?: {
-    label: BlockAuditAction | null;
+    label: AuditAction | null;
   } | null;
 };
 
@@ -220,7 +220,7 @@ export type WarningBlockData = {
   message: string;
 };
 
-export type BlockAuditAction = 'create' | 'update' | 'delete';
+export type AuditAction = 'create' | 'update' | 'delete';
 
 export type BlockType =
   | 'header'

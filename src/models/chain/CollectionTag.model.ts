@@ -2,6 +2,7 @@ import { Model, Table, ForeignKey, Column } from 'sequelize-typescript';
 import { CollectionAttribs, Collection } from './Collection.model';
 import { WikiTagAttribs, WikiTag } from '../wiki/WikiTag.model';
 
+/** Through table between WikiTag and Collection */
 @Table({
   modelName: 'CollectionTag',
   tableName: 'collection_tags',

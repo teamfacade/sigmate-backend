@@ -8,15 +8,15 @@ import {
   DataType,
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
-import { DropletId } from '../../utils/droplet';
 import { CollectionAttribs, Collection } from '../chain/Collection.model';
 import { NftAttribs, Nft } from '../chain/Nft.model';
 import { WikiTag } from './WikiTag.model';
 import { User, UserId } from '../User.model';
 import { WikiDocumentTag } from './WikiDocumentTag.model';
+import { WikiDocumentId } from './WikiDocument.schema';
 
-export interface WikiDocumentAttribs {
-  id: DropletId;
+export interface WikiDocumentRelAttribs {
+  id: WikiDocumentId;
   collection?: Collection;
   collectionId?: CollectionAttribs['id'];
   nft?: Nft;
@@ -24,11 +24,9 @@ export interface WikiDocumentAttribs {
   tags?: WikiTag[];
   createdBy?: User;
   createdById?: UserId;
-  updatedBy?: User;
-  updatedById?: UserId;
 }
 
-type WikiDocumentCAttribs = Optional<WikiDocumentAttribs, 'id'>;
+type WikiDocumentRelCAttribs = Optional<WikiDocumentRelAttribs, 'id'>;
 
 @Table({
   modelName: 'WikiDocument',
@@ -39,30 +37,27 @@ type WikiDocumentCAttribs = Optional<WikiDocumentAttribs, 'id'>;
   charset: 'utf8mb4',
   collate: 'utf8mb4_general_ci',
 })
-export class WikiDocument extends Model<
-  WikiDocumentAttribs,
-  WikiDocumentCAttribs
+export class WikiDocumentRel extends Model<
+  WikiDocumentRelAttribs,
+  WikiDocumentRelCAttribs
 > {
   @PrimaryKey
   @Column(DataType.STRING(32))
-  id!: WikiDocumentAttribs['id'];
+  id!: WikiDocumentRelAttribs['id'];
 
   @BelongsTo(() => Collection, { foreignKey: 'collectionId' })
-  collection: WikiDocumentAttribs['collection'];
+  collection: WikiDocumentRelAttribs['collection'];
 
   @BelongsTo(() => Nft, { foreignKey: 'nftId' })
-  nft: WikiDocumentAttribs['nft'];
+  nft: WikiDocumentRelAttribs['nft'];
 
   @BelongsToMany(() => WikiTag, {
     through: () => WikiDocumentTag,
     foreignKey: 'documentId',
     otherKey: 'tagId',
   })
-  tags: WikiDocumentAttribs['tags'];
+  tags: WikiDocumentRelAttribs['tags'];
 
   @BelongsTo(() => User, { foreignKey: 'createdById', as: 'createdBy' })
-  createdBy: WikiDocumentAttribs['createdBy'];
-
-  @BelongsTo(() => User, { foreignKey: 'updatedById', as: 'updatedBy' })
-  updatedBy: WikiDocumentAttribs['updatedBy'];
+  createdBy: WikiDocumentRelAttribs['createdBy'];
 }

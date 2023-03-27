@@ -2,6 +2,9 @@ import { Table, Model, ForeignKey, Column } from 'sequelize-typescript';
 import { NftAttribs, Nft } from './Nft.model';
 import { WikiTagAttribs, WikiTag } from '../wiki/WikiTag.model';
 
+/**
+ * Through table between WikiTag and Nft
+ */
 @Table({
   modelName: 'NftTag',
   tableName: 'nft_tags',

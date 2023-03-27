@@ -47,6 +47,54 @@ export default class WikiValidator {
 
   /** Possible values for `BlockAuditAction` typed attributes */
   static ACTIONS = new Set<string>(['create', 'update', 'delete']);
+  static STRUCT_ACTIONS = new Set<string>([
+    'create',
+    'update',
+    'delete',
+    'move',
+  ]);
+
+  public static validateBlockStructureHistory(object: unknown, throws = false) {
+    try {
+      if (!object || typeof object !== 'object') {
+        throw new Error('Invalid type');
+      }
+      const { id, version, action, children } = object as Record<
+        string,
+        unknown
+      >;
+      if (!id || typeof id !== 'string') {
+        throw new Error('Invalid block ID');
+      }
+      if (!Droplet.isValid(id)) {
+        throw new Error('Invalid Droplet (block ID)');
+      }
+      if (!version || typeof version !== 'string') {
+        throw new Error('Invalid block version ID');
+      }
+      if (!Droplet.isValid(version)) {
+        throw new Error('Invalid Droplet (block version ID)');
+      }
+      if (action !== null) {
+        if (typeof action !== 'string' || !this.STRUCT_ACTIONS.has(action)) {
+          throw new Error('Invalid action');
+        }
+      }
+      if (children) {
+        if (children instanceof Array) {
+          children.forEach((child) => {
+            this.validateBlockStructureHistory(child, true);
+          });
+        } else {
+          throw new Error('Invalid children: Not an array');
+        }
+      }
+      return true;
+    } catch (error) {
+      if (throws) throw error;
+      return false;
+    }
+  }
 
   public static validateBlock(dto: Partial<BlockDTO>): ValidationResults {
     const results: ValidationResults = {

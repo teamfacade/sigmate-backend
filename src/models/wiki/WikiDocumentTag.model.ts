@@ -1,6 +1,9 @@
 import { Column, ForeignKey, Model, Table } from 'sequelize-typescript';
 import { WikiTag, WikiTagAttribs } from './WikiTag.model';
-import { WikiDocument, WikiDocumentAttribs } from './WikiDocument.model';
+import {
+  WikiDocumentRel,
+  WikiDocumentRelAttribs,
+} from './WikiDocumentRel.model';
 
 @Table({
   modelName: 'WikiDocumentTag',
@@ -11,9 +14,9 @@ import { WikiDocument, WikiDocumentAttribs } from './WikiDocument.model';
   collate: 'utf8mb4_general_ci',
 })
 export class WikiDocumentTag extends Model {
-  @ForeignKey(() => WikiDocument)
+  @ForeignKey(() => WikiDocumentRel)
   @Column
-  documentId!: WikiDocumentAttribs['id'];
+  documentId!: WikiDocumentRelAttribs['id'];
 
   @ForeignKey(() => WikiTag)
   @Column

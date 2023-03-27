@@ -2,7 +2,7 @@ import { isEqual } from 'lodash';
 import WikiBlockError from '../../errors/wiki/block';
 import {
   BlockAttribActions,
-  BlockAuditAction,
+  AuditAction,
 } from '../../models/wiki/WikiBlock.schema';
 import { ObjectHistory } from '../../models/wiki/WikiDocument.schema';
 import Droplet from '../../utils/droplet';
@@ -236,7 +236,7 @@ export default class WikiDiff {
       return { data: before, action: null };
     } else if (after === null) {
       // delete
-      const action: Record<string, BlockAuditAction | null> = {};
+      const action: Record<string, AuditAction | null> = {};
       if (before) {
         Object.keys(before).forEach((k) => {
           action[k] = 'delete';
@@ -244,7 +244,7 @@ export default class WikiDiff {
       }
       return { data: undefined, action: before ? action : null };
     } else {
-      const action: Record<string, BlockAuditAction | null> = {};
+      const action: Record<string, AuditAction | null> = {};
       if (before) {
         Object.keys(after).forEach((k) => {
           action[k] = k in before ? null : 'create';

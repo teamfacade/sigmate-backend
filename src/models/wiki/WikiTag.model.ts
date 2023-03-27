@@ -8,7 +8,7 @@ import {
   Table,
   Unique,
 } from 'sequelize-typescript';
-import { WikiDocument } from './WikiDocument.model';
+import { WikiDocumentRel } from './WikiDocumentRel.model';
 import { WikiDocumentTag } from './WikiDocumentTag.model';
 import { Collection } from '../chain/Collection.model';
 import { CollectionTag } from '../chain/CollectionTag.model';
@@ -19,7 +19,7 @@ export interface WikiTagAttribs {
   id: number;
   name: string;
   isDefault: boolean;
-  documents?: WikiDocument[];
+  documents?: WikiDocumentRel[];
   collections?: Collection[];
   nfts?: Nft[];
 }
@@ -44,7 +44,7 @@ export class WikiTag extends Model<WikiTagAttribs> {
   @Column(DataType.BOOLEAN)
   isDefault!: WikiTagAttribs['isDefault'];
 
-  @BelongsToMany(() => WikiDocument, {
+  @BelongsToMany(() => WikiDocumentRel, {
     through: () => WikiDocumentTag,
     foreignKey: 'tagId',
     otherKey: 'documentId',
