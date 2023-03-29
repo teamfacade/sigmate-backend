@@ -8,7 +8,8 @@ type ErrorCode =
   | 'WIKI/DOC/ER_ITEM'
   | 'WIKI/DOC/ER_ID'
   | 'WIKI/DOC/NF_LATEST'
-  | 'WIKI/DOC/NF_VERSION';
+  | 'WIKI/DOC/NF_VERSION'
+  | 'WIKI/DOC/ER_BUILD_NF_BLOCK';
 
 const defaultsMap: sigmate.Error.DefaultsMap<ErrorCode> = {
   'WIKI/DOC/IV_PK': {
@@ -41,6 +42,9 @@ const defaultsMap: sigmate.Error.DefaultsMap<ErrorCode> = {
     message: 'Specified document version not found',
     httpCode: 404,
     logLevel: 'verbose',
+  },
+  'WIKI/DOC/ER_BUILD_NF_BLOCK': {
+    message: 'Document build failed. Block not loaded',
   },
 };
 

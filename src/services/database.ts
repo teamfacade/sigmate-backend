@@ -1,9 +1,16 @@
 import { resolve } from 'path';
 import { Sequelize } from 'sequelize-typescript';
+import { Agent } from 'http';
+import * as dynamoose from 'dynamoose';
 import Service from '.';
+import { NodeHttpHandler } from '@aws-sdk/node-http-handler';
 import DatabaseError from '../errors/database';
 import { waitFor } from '../utils';
+import { DynamoDB } from '@aws-sdk/client-dynamodb';
 
+/**
+ * Initialize Database ORMs (Sequelize, Dynamoose)
+ */
 export default class DatabaseService extends Service {
   static RETRY = 500;
   static DELAY = 500;
@@ -80,6 +87,22 @@ export default class DatabaseService extends Service {
       }
 
       await this.test();
+
+      // Dynamoose
+      const client = new DynamoDB({
+        region: process.env.AWS_REGION,
+        credentials: {
+          accessKeyId: process.env.AWS_ACCESS_KEY,
+          secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY,
+        },
+        // Prevent re-using TCP connections
+        // https://docs.aws.amazon.com/sdk-for-javascript/v3/developer-guide/node-reusing-connections.html
+        requestHandler: new NodeHttpHandler({
+          httpAgent: new Agent({ keepAlive: false }),
+        }),
+      });
+      dynamoose.aws.ddb.set(client);
+
       this.setStatus('AVAILABLE');
     } catch (error) {
       this.setStatus('UNAVAILABLE');

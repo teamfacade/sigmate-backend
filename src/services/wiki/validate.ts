@@ -1,7 +1,6 @@
 import { forEach } from 'lodash';
 import { DateTime } from 'luxon';
 import Droplet from '../../utils/droplet';
-import { BlockDTO } from './block';
 
 type ValidationResult = {
   isValid: boolean;
@@ -12,6 +11,8 @@ export type ValidationResults = {
   isValid: boolean;
   message: Record<string, string>;
 };
+
+type BlockItemAttribs = sigmate.Wiki.BlockItemAttribs;
 
 // type CollectionKIName =
 //   | 'KIClTeam'
@@ -96,28 +97,33 @@ export default class WikiValidator {
     }
   }
 
-  public static validateBlock(dto: Partial<BlockDTO>): ValidationResults {
+  public static validateBlock(
+    item: Partial<BlockItemAttribs>
+  ): ValidationResults {
     const results: ValidationResults = {
       isValid: true,
       message: {},
     };
-    if (dto.id !== undefined) {
-      const { isValid, message } = this.validateBlockId(dto.id);
+    if (item.id !== undefined) {
+      const { isValid, message } = this.validateBlockId(item.id);
       if (!isValid && message) {
         results.isValid = false;
         results.message.id = message;
       }
     }
-    if (dto.type !== undefined) {
-      const { isValid, message } = this.validateBlockType(dto.type);
+    if (item.type !== undefined) {
+      const { isValid, message } = this.validateBlockType(item.type);
       if (!isValid && message) {
         results.isValid = false;
         results.message.type = message;
       }
     }
-    if (dto.data !== undefined) {
-      if (dto.type !== undefined) {
-        const { isValid, message } = this.validateBlockData(dto.data, dto.type);
+    if (item.data !== undefined) {
+      if (item.type !== undefined) {
+        const { isValid, message } = this.validateBlockData(
+          item.data,
+          item.type
+        );
         if (!isValid && message) {
           results.isValid = false;
           results.message.data = message;
@@ -127,93 +133,88 @@ export default class WikiValidator {
         results.message.type = 'Missing type';
       }
     }
-    if (dto.version !== undefined) {
-      const { isValid, message } = this.validateBlockVersion(dto.version);
+    if (item.version !== undefined) {
+      const { isValid, message } = this.validateBlockVersion(item.version);
       if (!isValid && message) {
         results.isValid = false;
         results.message.version = message;
       }
     }
-    if (dto.blockAction !== undefined) {
-      const { isValid, message } = this.validateBlockAction(dto.blockAction);
+    if (item.blockAction !== undefined) {
+      const { isValid, message } = this.validateBlockAction(item.blockAction);
       if (!isValid && message) {
         results.isValid = false;
         results.message.blockAction = message;
       }
     }
-    if (dto.attribActions !== undefined) {
+    if (item.attribActions !== undefined) {
       const { isValid, message } = this.validateBlockAttribActions(
-        dto.attribActions
+        item.attribActions
       );
       if (!isValid && message) {
         results.isValid = false;
         results.message.attribActions = message;
       }
     }
-    if (dto.verificationCount !== undefined) {
+    if (item.verificationCount !== undefined) {
       const { isValid, message } = this.validateBlockVerificationCount(
-        dto.verificationCount
+        item.verificationCount
       );
       if (!isValid && message) {
         results.isValid = false;
         results.message.verificationCount = message;
       }
     }
-    if (dto.external !== undefined) {
-      const { isValid, message } = this.validateBlockExternal(dto.external);
+    if (item.external !== undefined) {
+      const { isValid, message } = this.validateBlockExternal(item.external);
       if (!isValid && message) {
         results.isValid = false;
         results.message.external = message;
       }
     }
-    if (dto.document !== undefined) {
-      const { isValid, message } = this.validateDocumentId(dto.document);
+    if (item.document !== undefined) {
+      const { isValid, message } = this.validateDocumentId(item.document);
       if (!isValid && message) {
         results.isValid = false;
         results.message.document = message;
       }
     }
-    if (dto.documentVersion !== undefined) {
+    if (item.documentVersion !== undefined) {
       const { isValid, message } = this.validateDocumentVersionId(
-        dto.documentVersion
+        item.documentVersion
       );
       if (!isValid && message) {
         results.isValid = false;
         results.message.documentVersion = message;
       }
     }
-    if (dto.updatedById !== undefined) {
-      const { isValid, message } = this.validateUserId(dto.updatedById);
+    if (item.auditedById !== undefined) {
+      const { isValid, message } = this.validateUserId(item.auditedById);
       if (!isValid && message) {
         results.isValid = false;
-        results.message.updatedById = message;
-      }
-    }
-    if (dto.createdById !== undefined) {
-      const { isValid, message } = this.validateUserId(dto.createdById);
-      if (!isValid && message) {
-        results.isValid = false;
-        results.message.createdById = message;
+        results.message.auditedById = message;
       }
     }
     return results;
   }
 
-  private static validateBlockId(id: BlockDTO['id']): ValidationResult {
+  private static validateBlockId(id: BlockItemAttribs['id']): ValidationResult {
     const isValid = Droplet.isValid(id);
     const message = isValid ? undefined : 'Invalid Droplet';
     return { isValid, message };
   }
 
-  private static validateBlockType(type: BlockDTO['type']): ValidationResult {
+  private static validateBlockType(
+    type: BlockItemAttribs['type']
+  ): ValidationResult {
     const isValid = this.BLOCK_TYPES.has(type);
     const message = isValid ? undefined : 'Unsupported type';
     return { isValid, message };
   }
 
   private static validateBlockData(
-    data: BlockDTO['data'],
-    type: BlockDTO['type']
+    data: BlockItemAttribs['data'],
+    type: BlockItemAttribs['type']
   ): ValidationResult {
     if (!data) return { isValid: true };
     let isValid = true;
@@ -341,7 +342,7 @@ export default class WikiValidator {
   }
 
   private static validateBlockKI(
-    keyInfo: BlockDTO['keyInfo']
+    keyInfo: BlockItemAttribs['keyInfo']
   ): ValidationResult {
     if (keyInfo === undefined) return { isValid: true };
     if (!keyInfo.name || typeof keyInfo.name !== 'string') {
@@ -368,39 +369,41 @@ export default class WikiValidator {
   }
 
   private static validateBlockVersion(
-    version: BlockDTO['version']
+    version: BlockItemAttribs['version']
   ): ValidationResult {
     const isValid = Droplet.isValid(version);
     return { isValid, message: isValid ? undefined : 'Invalid Droplet' };
   }
 
-  private static validateBlockAction(blockAction: BlockDTO['blockAction']) {
+  private static validateBlockAction(
+    blockAction: BlockItemAttribs['blockAction']
+  ) {
     const isValid = blockAction === null || this.ACTIONS.has(blockAction);
     return { isValid, message: isValid ? undefined : 'Invalid block action' };
   }
 
   private static validateBlockAttribActions(
-    attribActions: BlockDTO['attribActions']
+    attribActions: BlockItemAttribs['attribActions']
   ): ValidationResult {
     if (!attribActions) {
       return { isValid: false, message: 'attribActions not found' };
     }
-    if (attribActions.Type && !this.ACTIONS.has(attribActions.Type)) {
+    if (attribActions.type && !this.ACTIONS.has(attribActions.type)) {
       return {
         isValid: false,
-        message: 'Invalid attribActions (Type)',
+        message: 'Invalid attribActions (type)',
       };
     }
-    if (attribActions.Data && !this.ACTIONS.has(attribActions.Data)) {
+    if (attribActions.data && !this.ACTIONS.has(attribActions.data)) {
       return {
         isValid: false,
-        message: 'Invalid attribActions (Data)',
+        message: 'Invalid attribActions (data)',
       };
     }
 
-    if (attribActions.Ext) {
+    if (attribActions.ext) {
       try {
-        forEach(attribActions.Ext, (v) => {
+        forEach(attribActions.ext, (v) => {
           if (v !== null && !this.ACTIONS.has(v)) {
             throw new Error();
           }
@@ -413,12 +416,12 @@ export default class WikiValidator {
       }
     }
 
-    if (attribActions.KeyInfo) {
-      const label = attribActions.KeyInfo?.label;
+    if (attribActions.keyInfo) {
+      const label = attribActions.keyInfo?.label;
       if (label !== null && label !== undefined && !this.ACTIONS.has(label)) {
         return {
           isValid: false,
-          message: 'Invalid attribActions (KeyInfo)',
+          message: 'Invalid attribActions (keyInfo)',
         };
       }
     }
@@ -427,7 +430,7 @@ export default class WikiValidator {
   }
 
   private static validateBlockVerificationCount(
-    verificationCount: BlockDTO['verificationCount']
+    verificationCount: BlockItemAttribs['verificationCount']
   ): ValidationResult {
     const { verify, beAware } = verificationCount;
     if (typeof verify !== 'number' || verify < 0) {
@@ -448,7 +451,7 @@ export default class WikiValidator {
   }
 
   private static validateBlockExternal(
-    external: BlockDTO['external']
+    external: BlockItemAttribs['external']
   ): ValidationResult {
     try {
       forEach(external, (ext, key) => {

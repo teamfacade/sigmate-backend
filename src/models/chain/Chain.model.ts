@@ -52,8 +52,12 @@ export class Chain extends Model<ChainAttribs> {
 
   @BelongsToMany(() => Collection, {
     through: () => CollectionChain,
-    foreignKey: 'chainId',
+    foreignKey: 'chainSymbol',
     otherKey: 'collectionid',
   })
   collections: ChainAttribs['collections'];
+
+  static FIND_ATTRIBS: Record<'base', (keyof ChainAttribs)[]> = {
+    base: ['symbol', 'name'],
+  };
 }

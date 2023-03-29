@@ -3,6 +3,7 @@ import {
   Column,
   DataType,
   Default,
+  IsIn,
   Model,
 } from 'sequelize-typescript';
 import { DropletId } from '../../utils/droplet';
@@ -41,6 +42,7 @@ export class CalendarEvent<
   @Column(DataType.DATE)
   startsAt!: MintingEventAttribs['startsAt'];
 
+  @IsIn([['month', 'week', 'day', 'time']])
   @Default('time')
   @AllowNull(false)
   @Column(DataType.STRING(8))
@@ -49,6 +51,7 @@ export class CalendarEvent<
   @Column(DataType.DATE)
   endsAt: MintingEventAttribs['endsAt'];
 
+  @IsIn([['month', 'week', 'day', 'time']])
   @Column(DataType.STRING(8))
   endsAtPrecision: MintingEventAttribs['endsAtPrecision'];
 

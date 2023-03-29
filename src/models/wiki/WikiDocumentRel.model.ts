@@ -13,10 +13,9 @@ import { NftAttribs, Nft } from '../chain/Nft.model';
 import { WikiTag } from './WikiTag.model';
 import { User, UserId } from '../User.model';
 import { WikiDocumentTag } from './WikiDocumentTag.model';
-import { WikiDocumentId } from './WikiDocument.schema';
 
 export interface WikiDocumentRelAttribs {
-  id: WikiDocumentId;
+  id: sigmate.Wiki.DocumentId;
   collection?: Collection;
   collectionId?: CollectionAttribs['id'];
   nft?: Nft;

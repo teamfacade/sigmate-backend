@@ -17,5 +17,5 @@ export class CollectionChain extends Model {
 
   @ForeignKey(() => Chain)
   @Column
-  chainId!: ChainAttribs['id'];
+  chainSymbol!: ChainAttribs['symbol'];
 }

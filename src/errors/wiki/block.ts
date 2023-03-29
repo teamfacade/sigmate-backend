@@ -9,8 +9,13 @@ type ErrorCode =
   | 'WIKI/BLOCK/IV_ITEM'
   | 'WIKI/BLOCK/NF_LATEST'
   | 'WIKI/BLOCK/NF_VERSION'
+  | 'WIKI/BLOCK/NF'
   | 'WIKI/BLOCK/IV_DTO'
-  | 'WIKI/BLOCK/ER_ID';
+  | 'WIKI/BLOCK/ER_BUILD_ID'
+  | 'WIKI/BLOCK/ER_BUILD_VERSION'
+  | 'WIKI/BLOCK/ER_BUILD_DOC_VERSION'
+  | 'WIKI/BLOCK/ER_BUILD_NF_STRUCT'
+  | 'WIKI/BLOCK/ER_BUILD_NF_EXT_NEVER_CACHED';
 
 const defaultsMap: sigmate.Error.DefaultsMap<ErrorCode> = {
   'WIKI/BLOCK/IV_KEYINFO_NAME_CHANGE': {
@@ -42,14 +47,30 @@ const defaultsMap: sigmate.Error.DefaultsMap<ErrorCode> = {
     httpCode: 404,
     logLevel: 'verbose',
   },
+  'WIKI/BLOCK/NF': {
+    message: 'Block does not exist',
+    httpCode: 404,
+    logLevel: 'warn',
+  },
   'WIKI/BLOCK/IV_DTO': {
     message: 'Block data is invalid',
     httpCode: 400,
     logLevel: 'verbose',
   },
-  'WIKI/BLOCK/ER_ID': {
-    message:
-      'Unexpected block ID. Cannot set version with data of a different block',
+  'WIKI/BLOCK/ER_BUILD_ID': {
+    message: 'Block build failed. Block ID mismatch',
+  },
+  'WIKI/BLOCK/ER_BUILD_VERSION': {
+    message: 'Block build failed. Version ID mismatch',
+  },
+  'WIKI/BLOCK/ER_BUILD_DOC_VERSION': {
+    message: 'Block build failed. Document Version ID mismatch',
+  },
+  'WIKI/BLOCK/ER_BUILD_NF_STRUCT': {
+    message: 'Block build failed. No structure provided',
+  },
+  'WIKI/BLOCK/ER_BUILD_NF_EXT_NEVER_CACHED': {
+    message: 'ExtData not provided for a block that was never cached',
   },
 };
 

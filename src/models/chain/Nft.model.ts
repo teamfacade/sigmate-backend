@@ -30,7 +30,7 @@ export interface NftAttribs {
   createdAt: Date;
 }
 
-type NftCAttribs = Optional<NftAttribs, 'id'>;
+type NftCAttribs = Optional<NftAttribs, 'id' | 'createdAt'>;
 
 @Table({
   modelName: 'Nft',

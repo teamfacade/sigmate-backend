@@ -1,4 +1,5 @@
 import { BelongsTo, Column, DataType, Table } from 'sequelize-typescript';
+import { Includeable } from 'sequelize/types';
 import { CalendarEvent, EventAttribs } from '.';
 import { Chain, ChainAttribs } from '../chain/Chain.model';
 import { Collection, CollectionAttribs } from '../chain/Collection.model';
@@ -29,8 +30,12 @@ export class MintingEvent extends CalendarEvent<MintingEventAttribs> {
   price: MintingEventAttribs['price'];
 
   @Column(DataType.DATE)
-  priceUpdatedAt: MintingEventAttribs['price'];
+  priceUpdatedAt: MintingEventAttribs['priceUpdatedAt'];
 
   @BelongsTo(() => Chain, { foreignKey: 'chainSymbol', as: 'chain' })
   chain: MintingEventAttribs['chain'];
+
+  static INCLUDE_OPTS: Record<'chain', Includeable[]> = {
+    chain: [{ model: Chain, as: 'chain' }],
+  };
 }

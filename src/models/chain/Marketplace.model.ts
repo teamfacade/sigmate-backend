@@ -7,6 +7,7 @@ import {
   Model,
   Table,
 } from 'sequelize-typescript';
+import { Includeable } from 'sequelize/types';
 import { ImageFile, ImageFileId } from '../ImageFile.model';
 import { Collection } from './Collection.model';
 import { CollectionMarketplace } from './CollectionMarketplace.model';
@@ -38,7 +39,7 @@ export class Marketplace extends Model<MarketplaceAttribs> {
   @Column(DataType.STRING(512))
   url!: MarketplaceAttribs['url'];
 
-  @BelongsTo(() => ImageFile, 'logoImageId')
+  @BelongsTo(() => ImageFile, { foreignKey: 'logoImageId', as: 'logoImage' })
   logoImage: MarketplaceAttribs['logoImage'];
 
   @BelongsToMany(() => Collection, {
@@ -47,4 +48,10 @@ export class Marketplace extends Model<MarketplaceAttribs> {
     otherKey: 'collectionId',
   })
   collections: MarketplaceAttribs['collections'];
+
+  CollectionMarketplace?: CollectionMarketplace;
+
+  static INCLUDE_OPTS: Record<'logoImage', Includeable[]> = {
+    logoImage: [{ model: ImageFile, as: 'logoImage' }],
+  };
 }

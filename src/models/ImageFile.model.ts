@@ -9,6 +9,7 @@ import {
   PrimaryKey,
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
+import ImageFileService from '../services/file/image';
 import { DropletId } from '../utils/droplet';
 import { UserId, User } from './User.model';
 
@@ -58,9 +59,6 @@ export class ImageFile extends Model<ImageFileAttribs, ImageFileCAttribs> {
   @Column(DataType.STRING(32))
   id!: ImageFileAttribs['id'];
 
-  static FIND_ATTRIBS: Record<string, (keyof ImageFileAttribs)[]> = {
-    default: ['id', 'path', 'url'],
-  };
   @Default('S3')
   @AllowNull(false)
   @Column(DataType.STRING(8))
@@ -91,4 +89,17 @@ export class ImageFile extends Model<ImageFileAttribs, ImageFileCAttribs> {
 
   @Column(DataType.DATE)
   deletedAt: ImageFileAttribs['deletedAt'];
+
+  get url() {
+    const baseUrl = ImageFileService.BASEURL_UPLOADS;
+    const ext =
+      ImageFileService.MIME_EXT_IMG[
+        this.mimetype as keyof typeof ImageFileService['MIME_EXT_IMG']
+      ];
+    return `${baseUrl}/${this.path}/${this.id}.${ext}`;
+  }
+
+  static FIND_ATTRIBS: Record<string, (keyof ImageFileAttribs)[]> = {
+    default: ['id', 'path', 'url'],
+  };
 }
