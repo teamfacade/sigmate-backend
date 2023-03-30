@@ -1,3 +1,122 @@
+import { isEqual, mapValues } from 'lodash';
+import WikiDiffError from '../../errors/wiki/diff';
+
+type AuditAction = sigmate.Wiki.AuditAction | null | undefined;
+type BlockItemAttribs = sigmate.Wiki.BlockItemAttribs;
+type BlockItemUAttribs = sigmate.Wiki.BlockItemUAttribs;
+type DiffResult<T, A = AuditAction | null | undefined> = { data: T; action: A };
+
+/**
+ * Process a validated user request and produce a wiki block item
+ */
+export default class WikiDiff {
+  public static checkBlockIdMatch(
+    after: BlockItemAttribs['id'],
+    before: BlockItemAttribs['id']
+  ) {
+    if (after !== before) {
+      throw new WikiDiffError({
+        code: 'WIKI/DIFF/ER_ID_MISMATCH',
+        message: `after: ${after}, before: ${before}`,
+      });
+    }
+  }
+
+  public static compareType(
+    after: BlockItemAttribs['type'] | undefined,
+    before: BlockItemAttribs['type']
+  ): DiffResult<BlockItemAttribs['type']> {
+    if (after === undefined) {
+      return {
+        data: before,
+        action: null,
+      };
+    } else {
+      return {
+        data: after,
+        action: before === after ? null : 'update',
+      };
+    }
+  }
+
+  public static compareData(
+    after: BlockItemAttribs['data'] | undefined,
+    before: BlockItemAttribs['data']
+  ): DiffResult<BlockItemAttribs['data']> {
+    if (after === undefined) {
+      return {
+        data: before,
+        action: null,
+      };
+    } else {
+      return {
+        data: after,
+        action: isEqual(before, after) ? null : 'update',
+      };
+    }
+  }
+
+  public static compareKeyInfo(
+    after: BlockItemAttribs['keyInfo'],
+    before: BlockItemAttribs['keyInfo']
+  ): DiffResult<BlockItemAttribs['keyInfo']> {
+    if (after === undefined) {
+      return {
+        data: before,
+        action: null,
+      };
+    } else {
+      if (after.name !== before?.name) {
+        throw new WikiDiffError('WIKI/DIFF/RJ_KI_NAME');
+      }
+      return {
+        data: after,
+        action: after.label === before.label ? null : 'update',
+      };
+    }
+  }
+
+  public static compareExt(
+    after: BlockItemUAttribs['external'] | null,
+    before: BlockItemAttribs['external']
+  ): DiffResult<
+    BlockItemAttribs['external'],
+    sigmate.Wiki.BlockAttribActions['ext']
+  > {
+    if (after === undefined) {
+      return { data: before, action: mapValues(before, () => null) };
+    } else if (after === null) {
+      let action: sigmate.Wiki.BlockAttribActions['ext'];
+      if (before) {
+        action = mapValues(before, () => 'delete');
+      } else {
+        action = undefined;
+      }
+      return { data: undefined, action };
+    } else {
+      const action: sigmate.Wiki.BlockAttribActions['ext'] = {};
+      if (before) {
+        Object.keys(after).forEach((k) => {
+          action[k] = k in before ? null : 'create';
+        });
+        Object.keys(before).forEach((k) => {
+          if (!(k in after)) action[k] = 'delete';
+        });
+      } else {
+        Object.keys(after).forEach((k) => {
+          action[k] = 'create';
+        });
+      }
+      return {
+        data: mapValues(after, (v) =>
+          v === null ? { cache: null, cachedAt: null } : v
+        ),
+        action,
+      };
+    }
+  }
+}
+
 // import { isEqual } from 'lodash';
 // import WikiBlockError from '../../errors/wiki/block';
 // import Droplet from '../../utils/droplet';
@@ -194,7 +313,7 @@
 //     } else {
 //       // check
 //       if (after.name !== before?.name) {
-//         throw new WikiBlockError('WIKI/BLOCK/IV_KEYINFO_NAME_CHANGE');
+//         throw new WikiBlockError('WIKI/BLOCK/IV_KI_NAME_CHANGE');
 //       }
 //       return {
 //         data: after,

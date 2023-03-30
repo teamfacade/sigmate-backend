@@ -5,6 +5,7 @@ import { WikiKey } from '../../dynamoose/schemas/wiki';
 import WikiBlockError from '../../errors/wiki/block';
 import { ActionArgs, ActionMethod } from '../../utils/action';
 import Droplet from '../../utils/droplet';
+import WikiDiff from './diff';
 import { WikiDocument } from './document';
 import WikiExt from './ext';
 
@@ -16,7 +17,6 @@ type BlockBuildAttribs = sigmate.Wiki.BlockBuildAttribs;
 
 type DocumentId = sigmate.Wiki.DocumentId;
 type DocumentVersionId = sigmate.Wiki.DocumentVersionId;
-
 export class WikiBlock extends WikiVCS<
   BlockRawItemAttribs,
   BlockItemAttribs,
@@ -31,6 +31,18 @@ export class WikiBlock extends WikiVCS<
     'table',
     'image',
     'warning',
+  ];
+
+  /** Possible values for Block Key info name */
+  public static KI_NAMES: string[] = [
+    'KIClTeam',
+    'KIClHistory',
+    'KIClDiscord',
+    'KIClTwitter',
+    'KIClCategory',
+    'KIClMintingPrices',
+    'KIClFloorprice',
+    'KIClMarketplaces',
   ];
 
   public static PK_REGEX = WikiDocument.PK_REGEX;
@@ -48,6 +60,142 @@ export class WikiBlock extends WikiVCS<
     this.setEventHandler('setItem', (item) => {
       this.versionMap.set(item.documentVersion, item.version);
     });
+  }
+
+  public static createItem(
+    citem: sigmate.Wiki.BlockItemCAttribs
+  ): sigmate.Wiki.BlockItemGAttribs {
+    const {
+      id,
+      type,
+      data,
+      keyInfo,
+      auditedById,
+      document,
+      documentVersion,
+      schema,
+    } = citem;
+
+    // Attach external data according to keyinfo
+    if (keyInfo?.name) {
+      if (!citem.external) citem.external = [];
+      switch (keyInfo.name) {
+        case 'KIClDiscord':
+          citem.external.push('ExtClDiscord');
+          break;
+        case 'KIClTwitter':
+          citem.external.push('ExtClTwitter');
+          break;
+        case 'KIClCategory':
+          citem.external.push('ExtClCategory');
+          break;
+        case 'KIClMintingPrices':
+          citem.external.push('ExtClMintingPrices');
+          break;
+        case 'KIClFloorprice':
+          citem.external.push('ExtClFloorPrice');
+          break;
+        case 'KIClMarketplaces':
+          citem.external.push('ExtClMarketplaces');
+          break;
+        default:
+          throw new WikiBlockError({
+            code: 'WIKI/BLOCK/IV_KI_NAME',
+            message: `name: ${keyInfo.name}`,
+          });
+      }
+    }
+
+    const extExists = citem.external && citem.external.length > 0;
+    const external: sigmate.Wiki.BlockItemGAttribs['external'] = {};
+    const ext: sigmate.Wiki.BlockItemGAttribs['attribActions']['ext'] = {};
+    citem.external?.forEach((name) => {
+      external[name] = {
+        cache: null,
+        cachedAt: null,
+      };
+      ext[name] = 'create';
+    });
+
+    return {
+      id,
+      type,
+      data,
+      verificationCount: {
+        verify: 0,
+        beAware: 0,
+      },
+      keyInfo,
+      external: extExists ? external : undefined,
+      auditedById,
+      version: Droplet.generate(),
+      document,
+      documentVersion,
+      blockAction: 'create',
+      attribActions: {
+        type: 'create',
+        data: 'create',
+        keyInfo: 'create',
+        ext: extExists ? ext : undefined,
+      },
+      schema,
+    };
+  }
+
+  public static updateItem(
+    after: sigmate.Wiki.BlockItemUAttribs,
+    before: BlockItemAttribs
+  ): sigmate.Wiki.BlockItemGAttribs {
+    const {
+      id,
+      type,
+      data,
+      keyInfo,
+      external,
+      document,
+      documentVersion,
+      auditedById,
+      schema,
+    } = after;
+
+    WikiDiff.checkBlockIdMatch(after.id, before.id);
+    const typeHistory = WikiDiff.compareType(type, before.type);
+    const dataHistory = WikiDiff.compareData(data, before.data);
+    const kiHistory = WikiDiff.compareKeyInfo(keyInfo, before.keyInfo);
+    const extHistory = WikiDiff.compareExt(external, before.external);
+    const blockAction: sigmate.Wiki.AuditAction | null | undefined =
+      typeHistory.action === null &&
+      dataHistory.action === null &&
+      kiHistory.action === null &&
+      extHistory.action === null
+        ? null
+        : 'update';
+
+    const version = Droplet.generate();
+
+    return {
+      id,
+      type: typeHistory.data,
+      data: dataHistory.data,
+      verificationCount: {
+        verify: 0,
+        beAware: 0,
+      },
+      keyInfo: kiHistory.data,
+      external: extHistory.data,
+      auditedById,
+      version,
+      document,
+      documentVersion,
+      blockAction,
+      attribActions: {
+        type: typeHistory.action || null,
+        data: dataHistory.action || null,
+        keyInfo: kiHistory.action,
+        ext: extHistory.action,
+      },
+      schema,
+    };
   }
 
   /**

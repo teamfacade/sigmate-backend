@@ -6,6 +6,8 @@ import {
   PrimaryKey,
   Column,
   DataType,
+  AllowNull,
+  Unique,
 } from 'sequelize-typescript';
 import { Optional } from 'sequelize/types';
 import { CollectionAttribs, Collection } from '../chain/Collection.model';
@@ -16,6 +18,7 @@ import { WikiDocumentTag } from './WikiDocumentTag.model';
 
 export interface WikiDocumentRelAttribs {
   id: sigmate.Wiki.DocumentId;
+  title: string;
   collection?: Collection;
   collectionId?: CollectionAttribs['id'];
   nft?: Nft;
@@ -28,8 +31,8 @@ export interface WikiDocumentRelAttribs {
 type WikiDocumentRelCAttribs = Optional<WikiDocumentRelAttribs, 'id'>;
 
 @Table({
-  modelName: 'WikiDocument',
-  tableName: 'wiki_documents',
+  modelName: 'WikiDocumentRel',
+  tableName: 'wiki_document_rels',
   timestamps: false,
   underscored: true,
   paranoid: false,
@@ -43,6 +46,11 @@ export class WikiDocumentRel extends Model<
   @PrimaryKey
   @Column(DataType.STRING(32))
   id!: WikiDocumentRelAttribs['id'];
+
+  @Unique('wiki_document_rels.title')
+  @AllowNull(false)
+  @Column(DataType.STRING(191))
+  title!: WikiDocumentRelAttribs['title'];
 
   @BelongsTo(() => Collection, { foreignKey: 'collectionId' })
   collection: WikiDocumentRelAttribs['collection'];

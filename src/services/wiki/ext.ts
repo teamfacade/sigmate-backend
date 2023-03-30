@@ -181,7 +181,6 @@ export default class WikiExt {
         }
       }
     });
-
     return expiredExtNames;
   }
 

@@ -1,5 +1,6 @@
 import { DateTime } from 'luxon';
 import { User, UserId } from '../models/User.model';
+import { ExtDataName } from '../services/wiki/ext';
 
 declare global {
   namespace sigmate.Wiki {
@@ -117,13 +118,22 @@ declare global {
       label?: string;
     };
 
+    /** Possible values for Block Key info name */
+    type BlockKIName =
+      | 'KIClTeam'
+      | 'KIClHistory'
+      | 'KIClDiscord'
+      | 'KIClTwitter'
+      | 'KIClCategory'
+      | 'KIClMintingPrices'
+      | 'KIClFloorprice'
+      | 'KIClMarketplaces';
+
     type BlockAttribActions = {
       type: AuditAction | null;
       data: AuditAction | null;
       ext?: Record<string, AuditAction | null>;
-      keyInfo?: {
-        label: AuditAction | null;
-      } | null;
+      keyInfo?: AuditAction | null;
     };
 
     // ==================================
@@ -185,6 +195,10 @@ declare global {
       | TableBlockData
       | WarningBlockData;
 
+    type TagAttribs = {
+      name: string;
+    };
+
     // TABLES
     /** Key attributes of SigmateWiki table */
     interface WikiAttribs {
@@ -213,7 +227,7 @@ declare global {
       Title: string;
       KeyInfo: BlockStructure[];
       Content: BlockStructure[];
-      Tags: string[];
+      Tags: Set<string>;
 
       /**
        * Version of the document.
@@ -236,7 +250,7 @@ declare global {
       title: string;
       keyInfo: BlockStructure[];
       content: BlockStructure[];
-      tags: string[];
+      tags: Set<string>;
       version: DocumentVersionId;
       documentAction: AuditAction | null;
       attribActions: DocumentAttribActions;
@@ -252,9 +266,9 @@ declare global {
         DocumentItemAttribs,
         'keyInfo' | 'content' | 'tags' | 'auditedById' | 'isLatestCache'
       > {
+      tags: TagAttribs[];
       keyInfo: BlockBuildAttribs[];
       content: BlockBuildAttribs[];
-      tags: { name: string }[];
       auditedBy: User;
     }
 
@@ -396,6 +410,44 @@ declare global {
       /** Derived from Block version ID droplet. Discarded when generating items. */
       auditedAt: DateTime;
       schema: 1;
+    }
+
+    type BlockItemGAttribs = Omit<
+      BlockItemAttribs,
+      'isLatestCache' | 'isGSI' | 'createdAt' | 'auditedAt'
+    >;
+
+    /** Data needed to create a new block */
+    interface BlockItemCAttribs
+      extends Omit<
+        BlockItemAttribs,
+        | 'verificationCount'
+        | 'external'
+        | 'version'
+        | 'isLatestCache'
+        | 'isGSI'
+        | 'blockAction'
+        | 'attribActions'
+        | 'createdAt'
+        | 'auditedAt'
+      > {
+      external?: ExtDataName[];
+    }
+
+    /** Data needed to update an existing block */
+    interface BlockItemUAttribs
+      extends Partial<
+        Omit<
+          BlockItemCAttribs,
+          'id' | 'external' | 'auditedById' | 'document' | 'documentVersion'
+        >
+      > {
+      id: BlockItemAttribs['id'];
+      external: Record<string, BlockExtDTO | null>;
+      auditedById: BlockItemAttribs['auditedById'];
+      document: BlockItemAttribs['document'];
+      documentVersion: BlockItemAttribs['documentVersion'];
+      schema: BlockItemAttribs['schema'];
     }
 
     interface BlockBuildAttribs

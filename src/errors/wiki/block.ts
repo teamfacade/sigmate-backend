@@ -1,12 +1,13 @@
 import ServerError from '..';
 
 type ErrorCode =
-  | 'WIKI/BLOCK/IV_KEYINFO_NAME_CHANGE'
+  | 'WIKI/BLOCK/IV_KI_NAME_CHANGE'
   | 'WIKI/BLOCK/IV_PK'
   | 'WIKI/BLOCK/IV_SK'
   | 'WIKI/BLOCK/IV_SK_ID'
   | 'WIKI/BLOCK/IV_SK_VERSION'
   | 'WIKI/BLOCK/IV_ITEM'
+  | 'WIKI/BLOCK/IV_KI_NAME'
   | 'WIKI/BLOCK/NF_LATEST'
   | 'WIKI/BLOCK/NF_VERSION'
   | 'WIKI/BLOCK/NF'
@@ -18,7 +19,7 @@ type ErrorCode =
   | 'WIKI/BLOCK/ER_BUILD_NF_EXT_NEVER_CACHED';
 
 const defaultsMap: sigmate.Error.DefaultsMap<ErrorCode> = {
-  'WIKI/BLOCK/IV_KEYINFO_NAME_CHANGE': {
+  'WIKI/BLOCK/IV_KI_NAME_CHANGE': {
     message:
       'KeyInfo "name" attribute is immutable. Re-create the block if change is necessary',
     httpCode: 400,
@@ -38,6 +39,11 @@ const defaultsMap: sigmate.Error.DefaultsMap<ErrorCode> = {
   },
   'WIKI/BLOCK/IV_ITEM': {
     message: 'Block item from DB is corrupted. Required attributes missing',
+  },
+  'WIKI/BLOCK/IV_KI_NAME': {
+    message: 'Unsupported key info name',
+    httpCode: 400,
+    logLevel: 'verbose',
   },
   'WIKI/BLOCK/NF_LATEST': {
     message: 'Latest version of block not loaded.',

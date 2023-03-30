@@ -27,6 +27,6 @@ const defaultsMap: sigmate.Error.DefaultsMap<ErrorCode> = {
 
 export default class WikiVCSError extends ServerError<ErrorCode> {
   constructor(options: sigmate.Error.Options<ErrorCode>) {
-    super(ServerError.parseOptions('ItemVCSError', options, defaultsMap));
+    super(ServerError.parseOptions('WikiVCSError', options, defaultsMap));
   }
 }

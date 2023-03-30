@@ -36,6 +36,17 @@ export class WikiDocument extends WikiVCS<
     super(id);
   }
 
+  // @ActionMethod({
+  //   name: 'WIKI/DOC/CREATE',
+  //   type: 'COMPLEX',
+  //   transaction: true,
+  // })
+  // public async create(args: {} & ActionArgs) {
+  //   // Check if document already exists (collection, nft)
+  //   // Check if document title is unique
+  //   // Validate attributes
+  // }
+
   @ActionMethod({
     name: 'WIKI/DOC/BUILD',
     type: 'COMPLEX',
@@ -99,11 +110,13 @@ export class WikiDocument extends WikiVCS<
       rejectOnEmpty: true,
     });
 
+    const tags = Array.from(document.tags).map((name) => ({ name }));
+
     return {
       ...document,
       keyInfo: await Promise.all(keyInfoPromises),
       content: await Promise.all(contentPromises),
-      tags: document.tags.map((name) => ({ name })),
+      tags,
       auditedBy: await auditedBy,
     };
   }
