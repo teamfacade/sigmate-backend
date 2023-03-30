@@ -42,4 +42,9 @@ authRouter.post(
   AuthController.connectMetamaskVerify
 );
 
+authRouter
+  .route('/twitter')
+  .get(AuthController.getTwitterAuthUrl)
+  .post(AuthValidator.authTwitter, AuthController.authTwitter);
+
 export default authRouter;
