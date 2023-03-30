@@ -27,6 +27,10 @@ export type AuthenticateDTO = {
     wallet: string;
     signature?: string;
   };
+  twitter?: {
+    code?: string;
+    state?: string;
+  };
   findOptions?: FindOptions<UserAttribs>;
 };
 

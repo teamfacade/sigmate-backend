@@ -23,12 +23,20 @@ type GoogleDTO = {
   googleRefreshToken?: UserAuthAttribs['googleRefreshToken'];
 };
 
+type TwitterDTO = {
+  twitterHandle: UserAttribs['twitterHandle'];
+  profileImageUrl: UserAttribs['profileImageUrl'];
+  locale: UserAttribs['locale'];
+  twitterRefreshToken?: UserAuthAttribs['twitterRefreshToken'];
+};
+
 type CreateDTO = {
   google?: GoogleDTO;
   metamask?: {
     wallet: NonNullable<UserAttribs['metamaskWallet']>;
     isMetamaskPublic: UserAttribs['isMetamaskPublic'];
   };
+  twitter?: TwitterDTO;
 };
 
 type UpdateDTO = {
@@ -111,7 +119,7 @@ export default class AccountService extends Service {
 
   @ActionMethod('ACCOUNT/CREATE')
   public async create(args: CreateDTO & ActionArgs) {
-    const { google, metamask, transaction, action } = args;
+    const { google, metamask, twitter, transaction, action } = args;
     const referralCode = await this.generateUniqueReferralCodeV1({
       parentAction: action,
     });
@@ -165,6 +173,25 @@ export default class AccountService extends Service {
         auth: {
           metamaskNonce: null,
           metamaskNonceCreatedAt: null,
+        } as any,
+      };
+    } else if (twitter) {
+      const { twitterHandle, locale, twitterRefreshToken } = twitter;
+
+      const base = twitterHandle || undefined;
+      const userName = await this.generateUniqueUserName({
+        base,
+        parentAction: action,
+      });
+
+      userAttribs = {
+        userName,
+        twitterHandle,
+        isTwitterPublic: false,
+        locale,
+        referralCode,
+        auth: {
+          twitterRefreshToken,
         } as any,
       };
     } else {
