@@ -42,4 +42,7 @@ export default class AuthValidator {
       .isString()
       .bail(),
   ];
+
+  @RequestValidator
+  public static authTwitter = body('').trim().stripLow().notEmpty().isString();
 }
