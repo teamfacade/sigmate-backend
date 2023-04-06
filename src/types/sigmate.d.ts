@@ -6,6 +6,8 @@ declare global {
   namespace sigmate {
     type DropletId = string;
 
+    type DatePrecision = 'month' | 'week' | 'day' | 'time';
+
     type Optional<T, K extends keyof T> = Omit<T, K> & Partial<Pick<T, K>>;
 
     type TaskStatus = 'STARTED' | 'SUCCESS' | 'FAILED';

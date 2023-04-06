@@ -1,6 +1,3 @@
-import { ValueType } from 'dynamoose/dist/Schema';
-import { WikiDocument } from '../../../services/wiki/document';
-
 type DocumentId = sigmate.Wiki.DocumentId;
 type DocumentVersionId = sigmate.Wiki.DocumentVersionId;
 type BlockId = sigmate.Wiki.BlockId;
@@ -10,6 +7,7 @@ export class WikiKey {
   static GSI_NAME = 'WikiGSI-index';
   static PK_NAME = 'WikiPK';
   static SK_NAME = 'WikiSK';
+  static GSI_PK_NAME = 'WikiGSIPK';
   static GSI_SK_NAME = 'WikiGSISK';
 
   static getDocumentPK(id: DocumentId) {
@@ -33,11 +31,21 @@ export class WikiKey {
   }
 }
 
-export const validateAuditAction = (value: ValueType): boolean =>
-  value === null ||
-  (typeof value === 'string' && WikiDocument.AUDIT_ACTIONS.has(value));
+export const DOCUMENT_TYPES: sigmate.Wiki.DocumentType[] = [
+  'collection#',
+  'nft#',
+  'team#',
+  'person#',
+  'term#',
+];
 
-export const validateStructureAuditAction = (value: ValueType): boolean =>
-  value === null ||
-  (typeof value === 'string' &&
-    WikiDocument.STRUCTURE_AUDIT_ACTIONS.has(value));
+export const DIFF_RESULTS: sigmate.Wiki.DiffResultRaw[] = [
+  'C-',
+  'U-',
+  'UT',
+  '-T',
+  'D-',
+  '--',
+];
+
+export const DIFF_ACTIONS: sigmate.Wiki.DiffAction[] = ['C', 'U', 'D', '-'];

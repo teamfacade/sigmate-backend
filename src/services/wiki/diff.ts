@@ -1,18 +1,236 @@
 import { isEqual, mapValues } from 'lodash';
 import WikiDiffError from '../../errors/wiki/diff';
 
-type AuditAction = sigmate.Wiki.AuditAction | null | undefined;
-type BlockItemAttribs = sigmate.Wiki.BlockItemAttribs;
-type BlockItemUAttribs = sigmate.Wiki.BlockItemUAttribs;
-type DiffResult<T, A = AuditAction | null | undefined> = { data: T; action: A };
+// type DiffResult<T> = [T, sigmate.Wiki.DiffResult];
 
 /**
  * Process a validated user request and produce a wiki block item
  */
 export default class WikiDiff {
+  static START = Symbol.for('WikiDiff.START');
+  static END = Symbol.for('WikiDiff.END');
+
+  static CREATED: 'C' = 'C';
+  static UPDATED: 'U' = 'U';
+  static DELETED: 'D' = 'D';
+  static NO_CHANGE: '-' = '-';
+  static TRANSPOSED: 'T' = 'T';
+
+  public static toResultRaw(
+    result: sigmate.Wiki.DiffResult
+  ): sigmate.Wiki.DiffResultRaw {
+    const { action, transposed = '-' } = result;
+    switch (action) {
+      case this.CREATED:
+        return `${this.CREATED}-`;
+      case this.DELETED:
+        return `${this.DELETED}-`;
+      default:
+        return `${action}${transposed}`;
+    }
+  }
+
+  public static toResult(
+    rawResult: sigmate.Wiki.DiffResultRaw
+  ): sigmate.Wiki.DiffResult {
+    if (rawResult.length !== 2) {
+      throw new Error(`Invalid diff raw result: ${rawResult}`);
+    }
+    const action = rawResult[0];
+    const transposed = rawResult[1];
+    switch (action) {
+      case this.CREATED:
+      case this.DELETED:
+        return { action };
+      case this.UPDATED:
+      case this.NO_CHANGE:
+        if (transposed !== this.TRANSPOSED && transposed !== this.NO_CHANGE) {
+          throw new Error(`Invalid diff transposed: ${transposed}`);
+        }
+        return {
+          action,
+          transposed,
+        };
+      default:
+        throw new Error(`Invalid diff action: ${action}`);
+    }
+  }
+
+  public static toStructureRaw(
+    item: sigmate.Wiki.StructureDiff
+  ): sigmate.Wiki.StructureDiffRaw {
+    return {
+      Id: item.id,
+      Diff: this.toResultRaw(item.diff),
+    };
+  }
+
+  public static toStructure(
+    rawItem: sigmate.Wiki.StructureDiffRaw
+  ): sigmate.Wiki.StructureDiff {
+    return {
+      id: rawItem.Id,
+      diff: this.toResult(rawItem.Diff),
+    };
+  }
+
+  /**
+   * Check for transpositions in a sequence while disregarding creations and deletions
+   * @param after String array
+   * @param before String array
+   * @returns
+   */
+  public static compareIdSequence(
+    after: string[],
+    before: string[]
+  ): sigmate.Wiki.StructureDiff[] {
+    const START = WikiDiff.START;
+    const END = WikiDiff.END;
+
+    const afterSet = new Set<string | symbol>(after);
+    const beforeMap = new Map<string | symbol, number>();
+    before.forEach((v, idx) => {
+      beforeMap.set(v, idx);
+    });
+
+    // Intermediate results
+    // true: Transposed, false: No change, undefined: created
+    const transposed: (boolean | undefined)[] = Array(after.length).fill(
+      undefined
+    );
+
+    after.forEach((value, aIdx) => {
+      const bIdx = beforeMap.get(value);
+      if (bIdx === undefined) {
+        // Created
+        transposed[aIdx] = undefined;
+        return;
+      }
+
+      // Ignore creations when checking transposition
+      let aPrevIdx = aIdx - 1;
+      let aPrev = aPrevIdx < 0 ? START : after[aPrevIdx];
+      while (!beforeMap.has(aPrev) && aPrev !== START) {
+        aPrevIdx--;
+        aPrev = aPrevIdx < 0 ? START : after[aPrevIdx];
+      }
+
+      let aNextIdx = aIdx + 1;
+      let aNext = aNextIdx < after.length ? after[aNextIdx] : END;
+      while (!beforeMap.has(aNext) && aNext !== END) {
+        aNextIdx++;
+        aNext = aNextIdx < after.length ? after[aNextIdx] : END;
+      }
+
+      // Ignore deletions when checking transposition
+      let bPrevIdx = bIdx - 1;
+      let bPrev = bPrevIdx < 0 ? START : before[bPrevIdx];
+      while (!afterSet.has(bPrev) && bPrev !== START) {
+        bPrevIdx--;
+        bPrev = bPrevIdx < 0 ? START : before[bPrevIdx];
+      }
+
+      let bNextIdx = bIdx + 1;
+      let bNext = bNextIdx < before.length ? before[bNextIdx] : END;
+      while (!afterSet.has(bNext) && bNext !== END) {
+        bNextIdx++;
+        bNext = bNextIdx < before.length ? before[bNextIdx] : END;
+      }
+
+      if (aPrev !== bPrev && aNext !== bNext) {
+        transposed[aIdx] = true;
+      } else if (aPrev === bPrev && aNext === bNext) {
+        transposed[aIdx] = false;
+      }
+
+      if (transposed[aIdx] === false) {
+        if (aNext !== END && aNext === bNext) {
+          transposed[aNextIdx] = false;
+        }
+        if (aPrev !== START && aPrev === bPrev) {
+          transposed[aPrevIdx] = false;
+        }
+      }
+    });
+
+    transposed.forEach((m, idx) => {
+      if (m === undefined && beforeMap.has(after[idx])) {
+        transposed[idx] = true;
+      }
+    });
+
+    const result: sigmate.Wiki.StructureDiff[] = [];
+    after.forEach((value, idx) => {
+      let bIdx = beforeMap.get(value);
+      if (bIdx === undefined) {
+        // Created
+        result.push({
+          id: value,
+          diff: {
+            action: WikiDiff.CREATED,
+            transposed: undefined,
+          },
+        });
+      } else {
+        // No change or moved
+        result.push({
+          id: value,
+          diff: {
+            action: WikiDiff.NO_CHANGE,
+            transposed: transposed[idx]
+              ? WikiDiff.TRANSPOSED
+              : WikiDiff.NO_CHANGE,
+          },
+        });
+        bIdx++;
+        // Deleted
+        while (bIdx < before.length && !afterSet.has(before[bIdx])) {
+          result.push({
+            id: before[bIdx],
+            diff: {
+              action: WikiDiff.DELETED,
+            },
+          });
+          bIdx++;
+        }
+      }
+    });
+
+    return result;
+  }
+
+  public static compareDocumentTags(
+    after: sigmate.Wiki.DocumentCRequest['tags'] | undefined,
+    before: sigmate.Wiki.DocumentAttribs['tags']
+  ): [sigmate.Wiki.DocumentAttribs['tags'], sigmate.Wiki.DocumentDiff['tags']] {
+    if (after) {
+      const afterSet = new Set<string>(after);
+      const diff: sigmate.Wiki.DocumentDiff['tags'] = {};
+      afterSet.forEach((tag) => {
+        if (before.has(tag)) {
+          diff[tag] = WikiDiff.NO_CHANGE;
+        } else {
+          diff[tag] = WikiDiff.CREATED;
+        }
+      });
+      before.forEach((tag) => {
+        if (!afterSet.has(tag)) {
+          diff[tag] = WikiDiff.DELETED;
+        }
+      });
+      return [afterSet, diff];
+    } else {
+      const diff: sigmate.Wiki.DocumentDiff['tags'] = {};
+      before.forEach((tag) => {
+        diff[tag] = WikiDiff.NO_CHANGE;
+      });
+      return [before, diff];
+    }
+  }
+
   public static checkBlockIdMatch(
-    after: BlockItemAttribs['id'],
-    before: BlockItemAttribs['id']
+    after: sigmate.Wiki.BlockURequest['id'],
+    before: sigmate.Wiki.BlockAttribs['id']
   ) {
     if (after !== before) {
       throw new WikiDiffError({
@@ -22,350 +240,112 @@ export default class WikiDiff {
     }
   }
 
-  public static compareType(
-    after: BlockItemAttribs['type'] | undefined,
-    before: BlockItemAttribs['type']
-  ): DiffResult<BlockItemAttribs['type']> {
+  public static compareBlockType(
+    after: sigmate.Wiki.BlockURequest['type'] | undefined,
+    before: sigmate.Wiki.BlockAttribs['type']
+  ): [sigmate.Wiki.BlockAttribs['type'], sigmate.Wiki.BlockDiff['type']] {
     if (after === undefined) {
-      return {
-        data: before,
-        action: null,
-      };
+      return [before, WikiDiff.NO_CHANGE];
     } else {
-      return {
-        data: after,
-        action: before === after ? null : 'update',
-      };
+      return [after, before === after ? WikiDiff.NO_CHANGE : WikiDiff.UPDATED];
     }
   }
 
-  public static compareData(
-    after: BlockItemAttribs['data'] | undefined,
-    before: BlockItemAttribs['data']
-  ): DiffResult<BlockItemAttribs['data']> {
+  public static compareBlockData(
+    after: sigmate.Wiki.BlockURequest['data'] | undefined,
+    before: sigmate.Wiki.BlockAttribs['data']
+  ): [sigmate.Wiki.BlockAttribs['data'], sigmate.Wiki.BlockDiff['data']] {
     if (after === undefined) {
-      return {
-        data: before,
-        action: null,
-      };
+      return [before, WikiDiff.NO_CHANGE];
     } else {
-      return {
-        data: after,
-        action: isEqual(before, after) ? null : 'update',
-      };
+      return [
+        after,
+        isEqual(before, after) ? WikiDiff.NO_CHANGE : WikiDiff.UPDATED,
+      ];
     }
   }
 
-  public static compareKeyInfo(
-    after: BlockItemAttribs['keyInfo'],
-    before: BlockItemAttribs['keyInfo']
-  ): DiffResult<BlockItemAttribs['keyInfo']> {
+  public static compareBlockKI(
+    after: sigmate.Wiki.BlockURequest['keyInfo'],
+    before: sigmate.Wiki.BlockAttribs['keyInfo']
+  ): [sigmate.Wiki.BlockAttribs['keyInfo'], sigmate.Wiki.BlockDiff['keyInfo']] {
     if (after === undefined) {
-      return {
-        data: before,
-        action: null,
-      };
+      return [before, WikiDiff.NO_CHANGE];
     } else {
       if (after.name !== before?.name) {
         throw new WikiDiffError('WIKI/DIFF/RJ_KI_NAME');
       }
-      return {
-        data: after,
-        action: after.label === before.label ? null : 'update',
-      };
+      const diff =
+        after.label === before.label ? WikiDiff.NO_CHANGE : WikiDiff.UPDATED;
+      return [after, before || after ? diff : undefined];
     }
   }
 
-  public static compareExt(
-    after: BlockItemUAttribs['external'] | null,
-    before: BlockItemAttribs['external']
-  ): DiffResult<
-    BlockItemAttribs['external'],
-    sigmate.Wiki.BlockAttribActions['ext']
-  > {
+  public static compareBlockExt(
+    after: sigmate.Wiki.BlockURequest['external'] | null | undefined,
+    before: sigmate.Wiki.BlockAttribs['external']
+  ): [
+    sigmate.Wiki.BlockAttribs['external'],
+    sigmate.Wiki.BlockDiff['external']
+  ] {
     if (after === undefined) {
-      return { data: before, action: mapValues(before, () => null) };
+      return [
+        before,
+        before ? mapValues(before, () => WikiDiff.NO_CHANGE) : undefined,
+      ];
     } else if (after === null) {
-      let action: sigmate.Wiki.BlockAttribActions['ext'];
-      if (before) {
-        action = mapValues(before, () => 'delete');
-      } else {
-        action = undefined;
-      }
-      return { data: undefined, action };
+      return [
+        undefined,
+        before ? mapValues(before, () => WikiDiff.DELETED) : undefined,
+      ];
     } else {
-      const action: sigmate.Wiki.BlockAttribActions['ext'] = {};
-      if (before) {
-        Object.keys(after).forEach((k) => {
-          action[k] = k in before ? null : 'create';
-        });
-        Object.keys(before).forEach((k) => {
-          if (!(k in after)) action[k] = 'delete';
-        });
-      } else {
-        Object.keys(after).forEach((k) => {
-          action[k] = 'create';
-        });
-      }
-      return {
-        data: mapValues(after, (v) =>
-          v === null ? { cache: null, cachedAt: null } : v
-        ),
-        action,
-      };
+      const afterSet = new Set<string>(after);
+
+      const diff: sigmate.Wiki.BlockDiff['external'] = {};
+      afterSet.forEach((name) => {
+        if (before?.has(name as sigmate.Wiki.ExtDataName)) {
+          diff[name] = WikiDiff.NO_CHANGE;
+        } else {
+          diff[name] = WikiDiff.CREATED;
+        }
+      });
+
+      before?.forEach((name) => {
+        if (!afterSet.has(name)) {
+          diff[name] = WikiDiff.DELETED;
+        }
+      });
+
+      return [
+        afterSet as Set<sigmate.Wiki.ExtDataName>,
+        before || after ? diff : undefined,
+      ];
     }
+  }
+
+  public static isBlockUpdated(
+    typeDiff: sigmate.Wiki.BlockDiff['type'] | undefined,
+    dataDiff: sigmate.Wiki.BlockDiff['data'] | undefined,
+    kiDiff: sigmate.Wiki.BlockDiff['keyInfo'] | undefined,
+    extDiff: sigmate.Wiki.BlockDiff['external'] | undefined
+  ) {
+    if (typeDiff !== WikiDiff.NO_CHANGE) {
+      return true;
+    }
+    if (dataDiff !== WikiDiff.NO_CHANGE) {
+      return true;
+    }
+    if (kiDiff !== WikiDiff.NO_CHANGE) {
+      return true;
+    }
+    if (extDiff) {
+      for (const name in extDiff) {
+        if (extDiff[name] !== WikiDiff.NO_CHANGE) {
+          return true;
+        }
+      }
+    }
+
+    return false;
   }
 }
-
-// import { isEqual } from 'lodash';
-// import WikiBlockError from '../../errors/wiki/block';
-// import Droplet from '../../utils/droplet';
-
-// export default class WikiDiff {
-//   /**
-//    * Generates DynamoDB block version items for `update` operations
-//    * - Version ID are automatically generated.
-//    * - External data is **not** fetched (should be done elsewhere)
-//    * @param next Data for the newly created version
-//    * @param prev Data of the previous version
-//    * @returns Block DTO of the new version
-//    */
-//   public static generateUpdatedBlock(
-//     next: UpdateBlockDTO,
-//     prev: BlockDTO
-//   ): GenerateBlockDTO {
-//     // New data from the user
-//     const {
-//       id,
-//       type,
-//       data,
-//       keyInfo,
-//       external,
-//       document,
-//       documentVersion,
-//       updatedById,
-//     } = next;
-
-//     const version = Droplet.generate();
-
-//     // Check what has changed
-//     const typeHistory = this.getTypeHistory(type, prev.type);
-//     const dataHistory = this.getDataHistory(data, prev.data);
-//     const kiHistory = this.getKIHistory(keyInfo, prev.keyInfo);
-//     const extHistory = this.getExtHistory(external, prev.external);
-
-//     // Reset verification count on version increase
-//     const verificationCount: GenerateBlockDTO['verificationCount'] = {
-//       verify: 0,
-//       beAware: 0,
-//     };
-
-//     // Build a new version
-//     return {
-//       id,
-//       type: typeHistory.data,
-//       data: dataHistory.data,
-//       keyInfo: kiHistory.data,
-//       external: extHistory.data,
-//       version,
-//       document,
-//       documentVersion,
-//       blockAction: 'update',
-//       attribActions: {
-//         Type: typeHistory.action,
-//         Data: dataHistory.action,
-//         Ext: extHistory.action,
-//         KeyInfo: kiHistory.action,
-//       },
-//       updatedById,
-//       verificationCount,
-//       schema: 1,
-//     };
-//   }
-
-//   /**
-//    * Generate a DynamoDB item object for a newly created block.
-//    * - Block ID and version ID are automatically generated.
-//    * - External data is **not** fetched (should be done elsewhere)
-//    * @param dto Block data
-//    * @returns Data of the new block
-//    */
-//   public static generateCreatedBlock(dto: CreateBlockDTO): GenerateBlockDTO {
-//     const {
-//       type,
-//       data,
-//       keyInfo,
-//       external,
-//       document,
-//       documentVersion,
-//       updatedById,
-//       createdById,
-//     } = dto;
-
-//     const id = Droplet.generate();
-//     const version = Droplet.generate();
-
-//     // The block is new. So all external data is a 'create' operation
-//     const extActions: BlockDTO['attribActions']['Ext'] = {};
-//     if (external) {
-//       Object.keys(external).forEach((k) => (extActions[k] = 'create'));
-//     }
-
-//     return {
-//       id,
-//       type,
-//       data,
-//       keyInfo,
-//       external,
-//       version,
-//       document,
-//       documentVersion,
-//       blockAction: 'create',
-//       attribActions: {
-//         Type: 'create',
-//         Data: 'create',
-//         Ext:
-//           external && Object.keys(external).length > 0 ? extActions : undefined,
-//         KeyInfo: keyInfo?.label ? { label: 'create' } : undefined,
-//       },
-//       updatedById: updatedById,
-//       createdById: createdById,
-//       verificationCount: {
-//         verify: 0,
-//         beAware: 0,
-//       },
-//       schema: 1,
-//     };
-//   }
-
-//   /**
-//    * Generate a new `type` attribute of a new block version, for block audit operations
-//    * @param after Data for next block version
-//    * @param before Data of previous block version
-//    * @returns `type` attribute to replace the old version with, and the type of audit action
-//    */
-//   public static getTypeHistory(
-//     after: BlockDTO['type'] | undefined,
-//     before: BlockDTO['type']
-//   ): ObjectHistory<BlockDTO['type']> {
-//     if (after === undefined) {
-//       // No change
-//       return {
-//         data: before,
-//         action: null,
-//       };
-//     } else {
-//       // Update or no change
-//       return {
-//         data: after,
-//         action: after === before ? null : 'update',
-//       };
-//     }
-//   }
-
-//   /**
-//    * Generate a new `data` attribute of a new block version, for block audit operations
-//    * @param after Data for next block version
-//    * @param before Data of previous block version
-//    * @returns `data` attribute to replace the old version with, and the type of audit action
-//    */
-//   public static getDataHistory(
-//     after: BlockDTO['data'] | undefined,
-//     before: BlockDTO['data']
-//   ): ObjectHistory<BlockDTO['data']> {
-//     if (after === null) {
-//       // delete
-//       return {
-//         data: after,
-//         action: 'delete',
-//       };
-//     } else if (after === undefined) {
-//       // No change
-//       return {
-//         data: before,
-//         action: null,
-//       };
-//     } else {
-//       // check
-//       return {
-//         data: after,
-//         action: isEqual(before, after) ? null : 'update',
-//       };
-//     }
-//   }
-
-//   /**
-//    * Generate a new `keyInfo` attribute of a new block version, for block audit operations
-//    * @param after Data for next block version
-//    * @param before Data of previous block version
-//    * @returns `keyInfo` attribute to replace the old version with, and the type of audit action
-//    */
-//   public static getKIHistory(
-//     after: BlockDTO['keyInfo'],
-//     before: BlockDTO['keyInfo']
-//   ): ObjectHistory<BlockDTO['keyInfo'], BlockAttribActions['KeyInfo']> {
-//     if (after === undefined) {
-//       // no change
-//       return {
-//         data: before,
-//         action: before ? null : undefined,
-//       };
-//     } else {
-//       // check
-//       if (after.name !== before?.name) {
-//         throw new WikiBlockError('WIKI/BLOCK/IV_KI_NAME_CHANGE');
-//       }
-//       return {
-//         data: after,
-//         action: {
-//           label:
-//             after.label === before.label
-//               ? null
-//               : before.label
-//               ? 'update'
-//               : 'create',
-//         },
-//       };
-//     }
-//   }
-
-//   /**
-//    * Generate a new `external` attribute of a new block version, for block audit operations
-//    * @param after Data for next block version
-//    * @param before Data of previous block version
-//    * @returns `external` attribute to replace the old version with, and the type of audit action
-//    */
-//   public static getExtHistory(
-//     after: BlockDTO['external'] | null,
-//     before: BlockDTO['external']
-//   ): ObjectHistory<BlockDTO['external'], BlockAttribActions['Ext']> {
-//     if (after === undefined) {
-//       // no change
-//       return { data: before, action: null };
-//     } else if (after === null) {
-//       // delete
-//       const action: Record<string, AuditAction | null> = {};
-//       if (before) {
-//         Object.keys(before).forEach((k) => {
-//           action[k] = 'delete';
-//         });
-//       }
-//       return { data: undefined, action: before ? action : null };
-//     } else {
-//       const action: Record<string, AuditAction | null> = {};
-//       if (before) {
-//         Object.keys(after).forEach((k) => {
-//           action[k] = k in before ? null : 'create';
-//         });
-//         Object.keys(before).forEach((k) => {
-//           if (!(k in after)) action[k] = 'delete';
-//         });
-//       } else {
-//         Object.keys(after).forEach((k) => {
-//           action[k] = 'create';
-//         });
-//       }
-//       return { data: after, action };
-//     }
-//   }
-// }

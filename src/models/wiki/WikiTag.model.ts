@@ -14,6 +14,7 @@ import { Collection } from '../chain/Collection.model';
 import { CollectionTag } from '../chain/CollectionTag.model';
 import { Nft } from '../chain/Nft.model';
 import { NftTag } from '../chain/NftTag.model';
+import { Optional } from 'sequelize/types';
 
 export interface WikiTagAttribs {
   id: number;
@@ -24,6 +25,8 @@ export interface WikiTagAttribs {
   nfts?: Nft[];
 }
 
+type WikiTagCAttribs = Optional<WikiTagAttribs, 'id' | 'isDefault'>;
+
 @Table({
   modelName: 'WikiTag',
   tableName: 'wiki_tags',
@@ -33,7 +36,7 @@ export interface WikiTagAttribs {
   charset: 'utf8mb4',
   collate: 'utf8mb4_general_ci',
 })
-export class WikiTag extends Model<WikiTagAttribs> {
+export class WikiTag extends Model<WikiTagAttribs, WikiTagCAttribs> {
   @Unique('nft_tags.name')
   @AllowNull(false)
   @Column(DataType.STRING)
@@ -46,6 +49,7 @@ export class WikiTag extends Model<WikiTagAttribs> {
 
   @BelongsToMany(() => WikiDocumentRel, {
     through: () => WikiDocumentTag,
+    as: 'documents',
     foreignKey: 'tagId',
     otherKey: 'documentId',
   })

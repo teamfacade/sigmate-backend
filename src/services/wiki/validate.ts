@@ -30,7 +30,7 @@
 //     'KIClMarketplaces',
 //   ]);
 
-//   /** Possible values for `BlockAuditAction` typed attributes */
+//   /** Possible values for `BlockDiff` typed attributes */
 //   static ACTIONS = new Set<string>(['create', 'update', 'delete']);
 //   static STRUCT_ACTIONS = new Set<string>([
 //     'create',

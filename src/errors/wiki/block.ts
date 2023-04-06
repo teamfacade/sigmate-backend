@@ -4,8 +4,7 @@ type ErrorCode =
   | 'WIKI/BLOCK/IV_KI_NAME_CHANGE'
   | 'WIKI/BLOCK/IV_PK'
   | 'WIKI/BLOCK/IV_SK'
-  | 'WIKI/BLOCK/IV_SK_ID'
-  | 'WIKI/BLOCK/IV_SK_VERSION'
+  | 'WIKI/BLOCK/IV_GSI_SK'
   | 'WIKI/BLOCK/IV_ITEM'
   | 'WIKI/BLOCK/IV_KI_NAME'
   | 'WIKI/BLOCK/NF_LATEST'
@@ -15,8 +14,10 @@ type ErrorCode =
   | 'WIKI/BLOCK/ER_BUILD_ID'
   | 'WIKI/BLOCK/ER_BUILD_VERSION'
   | 'WIKI/BLOCK/ER_BUILD_DOC_VERSION'
+  | 'WIKI/BLOCK/ER_BUILD_IV_KI_NAME'
   | 'WIKI/BLOCK/ER_BUILD_NF_STRUCT'
-  | 'WIKI/BLOCK/ER_BUILD_NF_EXT_NEVER_CACHED';
+  | 'WIKI/BLOCK/ER_BUILD_NF_EXT_NEVER_CACHED'
+  | 'WIKI/BLOCK/ER_BUILD_AUDITED_BY';
 
 const defaultsMap: sigmate.Error.DefaultsMap<ErrorCode> = {
   'WIKI/BLOCK/IV_KI_NAME_CHANGE': {
@@ -31,14 +32,11 @@ const defaultsMap: sigmate.Error.DefaultsMap<ErrorCode> = {
   'WIKI/BLOCK/IV_SK': {
     message: 'Block item sort key is corrupt. Block ID and version not found',
   },
-  'WIKI/BLOCK/IV_SK_ID': {
-    message: 'Block item sort key is corrupt. Block ID not found',
-  },
-  'WIKI/BLOCK/IV_SK_VERSION': {
-    message: 'Block item sort key is corrupt. Block version not found',
+  'WIKI/BLOCK/IV_GSI_SK': {
+    message: 'Block item GSI sort key is corrupt.',
   },
   'WIKI/BLOCK/IV_ITEM': {
-    message: 'Block item from DB is corrupted. Required attributes missing',
+    message: 'Block item from DB is corrupt',
   },
   'WIKI/BLOCK/IV_KI_NAME': {
     message: 'Unsupported key info name',
@@ -72,11 +70,17 @@ const defaultsMap: sigmate.Error.DefaultsMap<ErrorCode> = {
   'WIKI/BLOCK/ER_BUILD_DOC_VERSION': {
     message: 'Block build failed. Document Version ID mismatch',
   },
+  'WIKI/BLOCK/ER_BUILD_IV_KI_NAME': {
+    message: 'Unexpected key info name',
+  },
   'WIKI/BLOCK/ER_BUILD_NF_STRUCT': {
     message: 'Block build failed. No structure provided',
   },
   'WIKI/BLOCK/ER_BUILD_NF_EXT_NEVER_CACHED': {
     message: 'ExtData not provided for a block that was never cached',
+  },
+  'WIKI/BLOCK/ER_BUILD_AUDITED_BY': {
+    message: 'Auditor (User) not loaded',
   },
 };
 

@@ -2,35 +2,37 @@ import { model } from 'dynamoose';
 import { Item } from 'dynamoose/dist/Item';
 import DocumentVersionSchema from '../../schemas/wiki/document.schema';
 
-type DocumentAttribs = sigmate.Wiki.DocumentRawItemAttribs;
+type DocumentRawAttribs = sigmate.Wiki.DocumentRawAttribs;
 
 export class DocumentVersionItem extends Item {
-  /** `Document::{DOCUMENT_ID} */
-  WikiPK!: DocumentAttribs['WikiPK'];
-  /**
-   * `Document::v_{DOCUMENT_VERSION}`
-   * * `DOCUMENT_VERSION`: Document version ID. `latest` for latest version
-   */
-  WikiSK!: DocumentAttribs['WikiSK'];
-  Type!: DocumentAttribs['Type'];
-  Title!: DocumentAttribs['Title'];
-  KeyInfo!: DocumentAttribs['KeyInfo'];
-  Content!: DocumentAttribs['Content'];
-  Tags!: DocumentAttribs['Tags'];
-
-  /**
-   * Version of the document.
-   * Only kept on latest version copies since the sort key does not
-   * contain the document version
-   */
-  DocumentVersion?: DocumentAttribs['DocumentVersion'];
-  /** Overall audit action on this version */
-  DocumentAction!: DocumentAttribs['DocumentAction'];
-  /** Audits made to each attribute */
-  AttribActions!: DocumentAttribs['AttribActions'];
-  AuditedBy!: DocumentAttribs['AuditedBy'];
-  /** Comment from the user who created this version */
-  AuditComment?: DocumentAttribs['AuditComment'];
+  WikiPK!: DocumentRawAttribs['WikiPK'];
+  WikiSK!: DocumentRawAttribs['WikiSK'];
+  Type!: DocumentRawAttribs['Type'];
+  Title!: DocumentRawAttribs['Title'];
+  KeyInfo!: DocumentRawAttribs['KeyInfo'];
+  Content!: DocumentRawAttribs['Content'];
+  Tags!: DocumentRawAttribs['Tags'];
+  ExtClId: DocumentRawAttribs['ExtClId'];
+  ExtNftId: DocumentRawAttribs['ExtNftId'];
+  ExtClName: DocumentRawAttribs['ExtClName'];
+  ExtClDiscord: DocumentRawAttribs['ExtClDiscord'];
+  ExtClTwitter: DocumentRawAttribs['ExtClTwitter'];
+  ExtClTelegram: DocumentRawAttribs['ExtClTelegram'];
+  ExtClWebsite: DocumentRawAttribs['ExtClWebsite'];
+  ExtClChains: DocumentRawAttribs['ExtClChains'];
+  ExtClMarketplaces: DocumentRawAttribs['ExtClMarketplaces'];
+  ExtClCategory: DocumentRawAttribs['ExtClCategory'];
+  ExtClFloorPrice: DocumentRawAttribs['ExtClFloorPrice'];
+  ExtClMintingPrices: DocumentRawAttribs['ExtClMintingPrices'];
+  Version?: DocumentRawAttribs['Version'];
+  IsLatest!: DocumentRawAttribs['IsLatest'];
+  BuildVersionStart!: DocumentRawAttribs['BuildVersionStart'];
+  BuildVersionEnd!: DocumentRawAttribs['BuildVersionEnd'];
+  Action!: DocumentRawAttribs['Action'];
+  Diff!: DocumentRawAttribs['Diff'];
+  AuditedBy!: DocumentRawAttribs['AuditedBy'];
+  AuditComment?: DocumentRawAttribs['AuditComment'];
+  Schema!: DocumentRawAttribs['Schema'];
 }
 
 const DocumentVersion = model<DocumentVersionItem>(

@@ -5,7 +5,8 @@ type ErrorCode =
   | 'WIKI/VCS/ER_ID'
   | 'WIKI/VCS/ER_NOT_SELECTED'
   | 'WIKI/VCS/ER_LATEST_NOT_LOADED'
-  | 'WIKI/VCS/ER_VERSION';
+  | 'WIKI/VCS/ER_VERSION'
+  | 'WIKI/VCS/NF_VERSION';
 
 const defaultsMap: sigmate.Error.DefaultsMap<ErrorCode> = {
   'WIKI/VCS/ER_VERSION_ALL': {
@@ -19,9 +20,13 @@ const defaultsMap: sigmate.Error.DefaultsMap<ErrorCode> = {
   },
   'WIKI/VCS/ER_LATEST_NOT_LOADED': {
     message: 'Latest version not loaded',
+    httpCode: 404,
   },
   'WIKI/VCS/ER_VERSION': {
     message: 'Version not specified or invalid',
+  },
+  'WIKI/VCS/NF_VERSION': {
+    message: 'Version not loaded',
   },
 };
 

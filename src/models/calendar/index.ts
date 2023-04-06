@@ -10,7 +10,7 @@ import { DropletId } from '../../utils/droplet';
 import { MintingEventAttribs } from './MintingEvent.model';
 
 /** If date is unknown, or for real-time events */
-type DatePrecision = 'month' | 'week' | 'day' | 'time';
+type DatePrecision = sigmate.DatePrecision;
 
 export interface EventAttribs {
   id: DropletId;
