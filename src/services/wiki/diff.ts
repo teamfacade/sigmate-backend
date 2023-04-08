@@ -14,6 +14,7 @@ export default class WikiDiff {
   static UPDATED: 'U' = 'U';
   static DELETED: 'D' = 'D';
   static NO_CHANGE: '-' = '-';
+  static UNKNOWN: '?' = '?';
   static TRANSPOSED: 'T' = 'T';
 
   public static toResultRaw(
@@ -199,6 +200,89 @@ export default class WikiDiff {
     return result;
   }
 
+  public static compareDocumentType(
+    after: sigmate.Wiki.DocumentURequest['type'],
+    before: sigmate.Wiki.DocumentAttribs['type']
+  ): [sigmate.Wiki.DocumentAttribs['type'], sigmate.Wiki.DocumentDiff['type']] {
+    if (after === undefined) {
+      return [before, this.NO_CHANGE];
+    } else {
+      return [after, before === after ? this.NO_CHANGE : this.UPDATED];
+    }
+  }
+
+  public static compareDocumentTitle(
+    after: sigmate.Wiki.DocumentURequest['title'],
+    before: sigmate.Wiki.DocumentAttribs['title']
+  ): [
+    sigmate.Wiki.DocumentAttribs['title'],
+    sigmate.Wiki.DocumentDiff['title']
+  ] {
+    if (after === undefined) {
+      return [before, this.NO_CHANGE];
+    } else {
+      return [after, before === after ? this.NO_CHANGE : this.UPDATED];
+    }
+  }
+
+  public static compareDocumentKI(
+    after: sigmate.Wiki.DocumentURequest['keyInfo'],
+    before: sigmate.Wiki.DocumentAttribs['keyInfo']
+  ): [
+    sigmate.Wiki.DocumentAttribs['keyInfo'],
+    sigmate.Wiki.DocumentDiff['keyInfo']
+  ] {
+    if (after === undefined) {
+      return [before, { action: this.NO_CHANGE }];
+    } else {
+      const afterIds = after.map(({ id }) => id);
+      const beforeIds = before.map(({ id }) => id);
+      const result = this.compareIdSequence(afterIds, beforeIds);
+      const overallDiff: sigmate.Wiki.DiffResult = {
+        action: this.NO_CHANGE,
+      };
+      for (const sd of result) {
+        const { action, transposed } = sd.diff;
+        if (action !== this.NO_CHANGE) overallDiff.action = this.UPDATED;
+        if (transposed === this.TRANSPOSED)
+          overallDiff.transposed = this.TRANSPOSED;
+        if (overallDiff.action !== this.NO_CHANGE && overallDiff.transposed) {
+          break;
+        }
+      }
+      return [result, overallDiff];
+    }
+  }
+
+  public static compareDocumentContent(
+    after: sigmate.Wiki.DocumentURequest['content'],
+    before: sigmate.Wiki.DocumentAttribs['content']
+  ): [
+    sigmate.Wiki.DocumentAttribs['content'],
+    sigmate.Wiki.DocumentDiff['content']
+  ] {
+    if (after === undefined) {
+      return [before, { action: this.NO_CHANGE }];
+    } else {
+      const afterIds = after.map(({ id }) => id);
+      const beforeIds = before.map(({ id }) => id);
+      const result = this.compareIdSequence(afterIds, beforeIds);
+      const overallDiff: sigmate.Wiki.DiffResult = {
+        action: this.NO_CHANGE,
+      };
+      for (const sd of result) {
+        const { action, transposed } = sd.diff;
+        if (action !== this.NO_CHANGE) overallDiff.action = this.UPDATED;
+        if (transposed === this.TRANSPOSED)
+          overallDiff.transposed = this.TRANSPOSED;
+        if (overallDiff.action !== this.NO_CHANGE && overallDiff.transposed) {
+          break;
+        }
+      }
+      return [result, overallDiff];
+    }
+  }
+
   public static compareDocumentTags(
     after: sigmate.Wiki.DocumentCRequest['tags'] | undefined,
     before: sigmate.Wiki.DocumentAttribs['tags']
@@ -228,17 +312,17 @@ export default class WikiDiff {
     }
   }
 
-  public static checkBlockIdMatch(
-    after: sigmate.Wiki.BlockURequest['id'],
-    before: sigmate.Wiki.BlockAttribs['id']
-  ) {
-    if (after !== before) {
-      throw new WikiDiffError({
-        code: 'WIKI/DIFF/ER_ID_MISMATCH',
-        message: `after: ${after}, before: ${before}`,
-      });
-    }
-  }
+  // public static checkBlockIdMatch(
+  //   after: sigmate.Wiki.BlockURequest['id'],
+  //   before: sigmate.Wiki.BlockAttribs['id']
+  // ) {
+  //   if (after !== before) {
+  //     throw new WikiDiffError({
+  //       code: 'WIKI/DIFF/ER_ID_MISMATCH',
+  //       message: `after: ${after}, before: ${before}`,
+  //     });
+  //   }
+  // }
 
   public static compareBlockType(
     after: sigmate.Wiki.BlockURequest['type'] | undefined,
@@ -323,29 +407,29 @@ export default class WikiDiff {
     }
   }
 
-  public static isBlockUpdated(
-    typeDiff: sigmate.Wiki.BlockDiff['type'] | undefined,
-    dataDiff: sigmate.Wiki.BlockDiff['data'] | undefined,
-    kiDiff: sigmate.Wiki.BlockDiff['keyInfo'] | undefined,
-    extDiff: sigmate.Wiki.BlockDiff['external'] | undefined
-  ) {
-    if (typeDiff !== WikiDiff.NO_CHANGE) {
-      return true;
-    }
-    if (dataDiff !== WikiDiff.NO_CHANGE) {
-      return true;
-    }
-    if (kiDiff !== WikiDiff.NO_CHANGE) {
-      return true;
-    }
-    if (extDiff) {
-      for (const name in extDiff) {
-        if (extDiff[name] !== WikiDiff.NO_CHANGE) {
-          return true;
-        }
-      }
-    }
+  // public static isBlockUpdated(
+  //   typeDiff: sigmate.Wiki.BlockDiff['type'] | undefined,
+  //   dataDiff: sigmate.Wiki.BlockDiff['data'] | undefined,
+  //   kiDiff: sigmate.Wiki.BlockDiff['keyInfo'] | undefined,
+  //   extDiff: sigmate.Wiki.BlockDiff['external'] | undefined
+  // ) {
+  //   if (typeDiff !== WikiDiff.NO_CHANGE) {
+  //     return true;
+  //   }
+  //   if (dataDiff !== WikiDiff.NO_CHANGE) {
+  //     return true;
+  //   }
+  //   if (kiDiff !== WikiDiff.NO_CHANGE) {
+  //     return true;
+  //   }
+  //   if (extDiff) {
+  //     for (const name in extDiff) {
+  //       if (extDiff[name] !== WikiDiff.NO_CHANGE) {
+  //         return true;
+  //       }
+  //     }
+  //   }
 
-    return false;
-  }
+  //   return false;
+  // }
 }

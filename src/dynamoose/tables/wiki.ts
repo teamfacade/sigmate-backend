@@ -1,25 +1,12 @@
 import { Table } from 'dynamoose';
+import DocumentVersion from '../models/wiki/DocumentVersion';
+import BlockVersion from '../models/wiki/BlockVersion';
 
-export interface WikiAttribs {
-  /** Partition Key (hash key) */
-  WikiPK: string;
-  /** Sort key (range key) */
-  WikiSK: string;
-
-  /** GSI Partition Key (hash key) */
-  WikiGSIPK?: string;
-  /** GSI Sort key (range key) */
-  WikiGSISK?: string;
-}
-
-const WikiTable = new Table('SigmateWiki', [], {
+const WikiTable = new Table('SigmateWiki', [DocumentVersion, BlockVersion], {
   create: false,
   update: false,
   waitForActive: false,
   initialize: false,
-  expires: {
-    attribute: 'ExpiresIn',
-  },
 });
 
 export default WikiTable;

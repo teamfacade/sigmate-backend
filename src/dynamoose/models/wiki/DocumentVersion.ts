@@ -12,8 +12,7 @@ export class DocumentVersionItem extends Item {
   KeyInfo!: DocumentRawAttribs['KeyInfo'];
   Content!: DocumentRawAttribs['Content'];
   Tags!: DocumentRawAttribs['Tags'];
-  ExtClId: DocumentRawAttribs['ExtClId'];
-  ExtNftId: DocumentRawAttribs['ExtNftId'];
+  Collection: DocumentRawAttribs['Collection'];
   ExtClName: DocumentRawAttribs['ExtClName'];
   ExtClDiscord: DocumentRawAttribs['ExtClDiscord'];
   ExtClTwitter: DocumentRawAttribs['ExtClTwitter'];

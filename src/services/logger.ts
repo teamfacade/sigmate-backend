@@ -69,6 +69,15 @@ export default class LoggerService extends Service {
       message: info.message || '',
     };
 
+    if (logInfo.error instanceof ServerError) {
+      if (logInfo.error.message) {
+        logInfo.message = `${logInfo.error.message}. ${logInfo.message}`;
+      }
+      if (logInfo.error.logLevel) {
+        logInfo.level = logInfo.error.logLevel;
+      }
+    }
+
     if (this.status !== 'AVAILABLE') {
       if (this.env === 'development') {
         const level = this.formatLevel(logInfo.level);

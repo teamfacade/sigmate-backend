@@ -12,7 +12,7 @@ import { User } from '../../models/User.model';
 import Droplet from '../../utils/droplet';
 import { forEach, uniq } from 'lodash';
 import RequestError from '../../errors/request';
-import { WikiDocumentRel } from '../../models/wiki/WikiDocumentRel.model';
+import { WikiDocumentSql } from '../../models/wiki/WikiDocumentRel.model';
 import { WikiTag } from '../../models/wiki/WikiTag.model';
 
 type DocumentId = sigmate.Wiki.DocumentId;
@@ -250,7 +250,7 @@ export class WikiDocument extends WikiVCS<
 
     const createDocumentPs = this.save({ input, parentAction: action });
 
-    const rel = await WikiDocumentRel.create(
+    const rel = await WikiDocumentSql.create(
       {
         id: this.id,
         title: request.title,
@@ -356,8 +356,6 @@ export class WikiDocument extends WikiVCS<
       KeyInfo,
       Content,
       Tags: tags,
-      ExtClId,
-      ExtNftId,
       ExtClDiscord,
       ExtClTwitter,
       ExtClTelegram,
@@ -412,8 +410,6 @@ export class WikiDocument extends WikiVCS<
     }
 
     const external: sigmate.Wiki.DocumentAttribs['external'] = {
-      ExtClId: WikiExt.toItem(ExtClId),
-      ExtNftId: WikiExt.toItem(ExtNftId),
       ExtClDiscord: WikiExt.toItem(ExtClDiscord),
       ExtClTwitter: WikiExt.toItem(ExtClTwitter),
       ExtClTelegram: WikiExt.toItem(ExtClTelegram),

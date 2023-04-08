@@ -28,6 +28,7 @@ export interface CollectionAttribs {
   slug: string;
   name: string;
   description?: string;
+  document?: sigmate.Wiki.DocumentId;
 
   discordUrl?: string;
   discordUpdatedAt?: Date;
@@ -82,6 +83,10 @@ export class Collection extends Model<CollectionAttribs, CollectionCAttribs> {
 
   @Column(DataType.TEXT)
   description: CollectionAttribs['description'];
+
+  @Unique('collection.document')
+  @Column(DataType.STRING(32))
+  document: CollectionAttribs['document'];
 
   @Column(DataType.STRING)
   discordUrl: CollectionAttribs['discordUrl'];

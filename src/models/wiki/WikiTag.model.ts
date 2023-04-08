@@ -8,19 +8,19 @@ import {
   Table,
   Unique,
 } from 'sequelize-typescript';
-import { WikiDocumentRel } from './WikiDocumentRel.model';
-import { WikiDocumentTag } from './WikiDocumentTag.model';
 import { Collection } from '../chain/Collection.model';
 import { CollectionTag } from '../chain/CollectionTag.model';
 import { Nft } from '../chain/Nft.model';
 import { NftTag } from '../chain/NftTag.model';
 import { Optional } from 'sequelize/types';
+import WikiDocumentTag from './WikiDocumentTag.model';
+import { WikiDocumentSql } from './WikiDocumentSql.model';
 
 export interface WikiTagAttribs {
   id: number;
   name: string;
   isDefault: boolean;
-  documents?: WikiDocumentRel[];
+  documents?: WikiDocumentTag[];
   collections?: Collection[];
   nfts?: Nft[];
 }
@@ -47,11 +47,11 @@ export class WikiTag extends Model<WikiTagAttribs, WikiTagCAttribs> {
   @Column(DataType.BOOLEAN)
   isDefault!: WikiTagAttribs['isDefault'];
 
-  @BelongsToMany(() => WikiDocumentRel, {
+  @BelongsToMany(() => WikiDocumentSql, {
     through: () => WikiDocumentTag,
     as: 'documents',
-    foreignKey: 'tagId',
-    otherKey: 'documentId',
+    foreignKey: 'documentId',
+    otherKey: 'tagId',
   })
   documents: WikiTagAttribs['documents'];
 

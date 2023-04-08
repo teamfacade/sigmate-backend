@@ -151,7 +151,7 @@ export default class Action {
     error?: unknown
   ) {
     logger.log({
-      level: level || 'debug',
+      level: level || 'warn',
       message,
       source: 'Action',
       event: event || 'ACT/WARNING',
@@ -160,6 +160,22 @@ export default class Action {
       device: this.req?.getLogDevice && this.req.getLogDevice(),
       error,
       misc: this.logData,
+    });
+  }
+
+  public logErrors(errors: unknown[]) {
+    errors.forEach((error, idx) => {
+      logger.log({
+        level: 'error',
+        message: `Multiple errors from action (${idx + 1}/${errors.length})`,
+        source: 'Action',
+        event: 'ACT/ERROR',
+        name: this.name,
+        user: this.req?.getLogUser && this.req.getLogUser(),
+        device: this.req?.getLogDevice && this.req.getLogDevice(),
+        error,
+        misc: this.logData,
+      });
     });
   }
 
