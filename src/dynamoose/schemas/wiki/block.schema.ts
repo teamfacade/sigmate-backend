@@ -1,6 +1,6 @@
 import { Schema, type } from 'dynamoose';
 import { WikiKey } from '.';
-import { WikiBlock } from '../../../services/wiki/block';
+import WikiBlock from '../../../services/wiki/block';
 
 const BlockVersionSchema = new Schema(
   {

@@ -1,37 +1,54 @@
-import { DOCUMENT_TYPES, WikiKey } from '../../dynamoose/schemas/wiki';
-import WikiDocumentError from '../../errors/wiki/document';
-import { CommandInput, WikiVCS } from '.';
-import WikiDiff from './diff';
-import WikiExt from './ext';
+import { forEach, omit } from 'lodash';
+import ms from 'ms';
+import DocumentVersion from '../../dynamoose/models/wiki/DocumentVersion';
 import { ActionArgs, ActionMethod } from '../../utils/action';
-import DocumentVersion, {
-  DocumentVersionItem,
-} from '../../dynamoose/models/wiki/DocumentVersion';
-import { WikiBlock } from './block';
-import { User } from '../../models/User.model';
+import WikiDiff from './diff';
+import WikiModel from './model';
+import WikiDocumentError from '../../errors/wiki/document';
+import { Collection } from '../../models/chain/Collection.model';
+import WikiEDS from './eds';
+import WikiBlock from './block';
 import Droplet from '../../utils/droplet';
-import { forEach, uniq } from 'lodash';
 import RequestError from '../../errors/request';
-import { WikiDocumentSql } from '../../models/wiki/WikiDocumentRel.model';
 import { WikiTag } from '../../models/wiki/WikiTag.model';
+import { WikiDocumentSql } from '../../models/wiki/WikiDocumentSql.model';
+import { waitFor } from '../../utils';
 
-type DocumentId = sigmate.Wiki.DocumentId;
-
-export class WikiDocument extends WikiVCS<
+export default class WikiDocument extends WikiModel<
   sigmate.Wiki.DocumentRawAttribs,
   sigmate.Wiki.DocumentAttribs,
-  sigmate.Wiki.DocumentResponse,
   sigmate.Wiki.DocumentCRequest,
-  sigmate.Wiki.DocumentURequest
+  sigmate.Wiki.DocumentURequest,
+  sigmate.Wiki.DocumentResponse
 > {
   public static PK_REGEX = /Document::(?<id>\d+)/;
   public static SK_REGEX = /Document::v_(?<version>\d+)/;
-  public static TYPES: sigmate.Wiki.DocumentType[] = DOCUMENT_TYPES;
 
-  ext: WikiExt;
-  constructor(id: DocumentId) {
+  public static getKey(
+    id: string,
+    version: string
+  ): Pick<sigmate.Wiki.WikiAttribs, 'WikiPK' | 'WikiSK'> {
+    return {
+      WikiPK: this.getPK(id),
+      WikiSK: this.getSK(version),
+    };
+  }
+
+  public static getPK(id: string) {
+    return `Document::${id}`;
+  }
+
+  public static getSK(version: string) {
+    return `Document::v_${version}`;
+  }
+
+  eds: WikiEDS;
+  blocks: Map<sigmate.Wiki.BlockId, WikiBlock>;
+
+  constructor(id?: string) {
     super(id);
-    this.ext = new WikiExt();
+    this.eds = new WikiEDS();
+    this.blocks = new Map();
   }
 
   @ActionMethod({
@@ -41,312 +58,464 @@ export class WikiDocument extends WikiVCS<
   })
   public async load(
     args: {
-      version?: string | typeof WikiDocument['VERSION_LATEST'];
-      select?: boolean;
-      force?: boolean;
-    } & ActionArgs = {}
+      version?: string;
+      consistent?: boolean;
+    } & ActionArgs
   ): Promise<sigmate.Wiki.DocumentAttribs> {
-    const { version, select = true, force = false } = args;
-    let document = this.getVersion(version);
-    if (!document || force) {
-      const rawItem = await DocumentVersion.get(
-        {
-          WikiPK: WikiKey.getDocumentPK(this.id),
-          WikiSK: WikiKey.getDocumentSK(version || WikiDocument.VERSION_LATEST),
-        },
-        { consistent: false }
-      );
-      document = this.__load(rawItem);
-      this.setVersion(document, { saved: true, select });
-    }
+    const { version = WikiDocument.VERSION_LATEST, consistent, action } = args;
+    const key = this.getKey(version);
+    action?.addTarget({
+      model: 'SigmateWiki::Document::Document',
+      id: `${key.WikiPK} / ${key.WikiSK}`,
+    });
+
+    const dynamo = await DocumentVersion.get(key, { consistent });
+    const document = this.__load(dynamo);
+    this.model = document;
+    await this.loadExt({ parentAction: action });
+    this.saveExt({ parentAction: action }); // Do not await
+
+    const blocks = await WikiBlock.loadDocument({ document: this });
+    this.blocks.clear();
+    blocks.forEach((block) => this.blocks.set(block.id, block));
+
     return document;
   }
 
-  public async build(
-    args: {
-      version?: string | typeof WikiDocument['VERSION_LATEST'];
-      select?: boolean;
-      force?: boolean;
-      loadAuditor?: boolean;
-    } & ActionArgs
-  ): Promise<sigmate.Wiki.DocumentResponse> {
-    const { version, select = true, force = false, loadAuditor } = args;
-    const document = await this.load({ version, select, force });
-    const blocks = await WikiBlock.loadDocument(this);
-    const blockIdMap = new Map<string, WikiBlock>();
-    blocks.forEach((block) => {
-      blockIdMap.set(block.id, block);
-    });
-
-    if (document.isLatest) {
-      // Refresh stale caches
-      const expiredNames = await this.ext.loadExpired({ document });
-
-      if (document.external && expiredNames.size > 0) {
-        const external = document.external;
-        const updateDTO: Partial<DocumentVersionItem> = {};
-        expiredNames.forEach((name) => {
-          switch (name) {
-            case 'ExtClName':
-            case 'ExtClDiscord':
-            case 'ExtClTwitter':
-            case 'ExtClTelegram':
-            case 'ExtClWebsite':
-              updateDTO[name] = WikiExt.toRaw(external[name]);
-              break;
-            case 'ExtClChains':
-              updateDTO[name] = WikiExt.toRaw(external[name]);
-              break;
-            case 'ExtClMarketplaces':
-              updateDTO[name] = WikiExt.toRaw(external[name]);
-              break;
-            case 'ExtClCategory':
-              updateDTO[name] = WikiExt.toRaw(external[name]);
-              break;
-            case 'ExtClFloorPrice':
-              updateDTO[name] = WikiExt.toRaw(external[name]);
-              break;
-            case 'ExtClMintingPrices':
-              updateDTO[name] = WikiExt.mintingPricesToRaw(external[name]);
-              break;
-          }
-        });
-
-        // Update cache to DB
-        DocumentVersion.update(
-          {
-            WikiPK: WikiKey.getDocumentPK(document.id),
-            WikiSK: WikiKey.getDocumentSK(document.version),
-          },
-          updateDTO,
-          (err) => {
-            if (err) console.error(err);
-          }
-        );
-      }
-    }
-
-    const keyInfoPs: Promise<sigmate.Wiki.BlockResponse>[] = [];
-    const contentPs: Promise<sigmate.Wiki.BlockResponse>[] = [];
-
-    document.keyInfo.forEach(({ id, diff }) => {
-      const block = blockIdMap.get(id);
-      if (!block) return;
-      keyInfoPs.push(
-        block.build({
-          select,
-          force,
-          transposed: diff.transposed,
-        })
-      );
-    });
-
-    document.content.forEach(({ id, diff }) => {
-      const block = blockIdMap.get(id);
-      if (!block) return;
-      contentPs.push(
-        block.build({
-          select,
-          force,
-          transposed: diff.transposed,
-        })
-      );
-    });
-
-    const keyInfoRes = await Promise.all(keyInfoPs);
-    const contentRes = await Promise.all(contentPs);
-
-    let auditedBy: User | undefined = undefined;
-    if (loadAuditor) {
-      auditedBy = await User.findByPk(document.auditedById, {
-        ...User.FIND_OPTS.public,
-        rejectOnEmpty: true,
-      });
-    }
+  public build(): sigmate.Wiki.DocumentResponse {
+    const { keyInfo, content, tags } = this.model;
 
     return {
-      ...document,
-      keyInfo: keyInfoRes,
-      content: contentRes,
-      auditedBy: auditedBy?.toResponse(),
-      createdAt: Droplet.getISO(document.id),
-      auditedAt: Droplet.getISO(document.version),
+      ...omit(this.model, [
+        'keyInfo',
+        'content',
+        'tags',
+        'buildVersionRange',
+        'auditedById',
+        'auditedBy',
+      ]),
+      keyInfo: keyInfo.map(({ id }) => this.getBlock(id).build()),
+      content: content.map(({ id }) => this.getBlock(id).build()),
+      tags: Array.from(tags),
+      auditedBy: this.model.auditedBy?.toResponse(),
+      createdAt: Droplet.getISO(this.id),
+      auditedAt: Droplet.getISO(this.version),
     };
   }
 
   @ActionMethod({
     name: 'WIKI/DOC/CREATE',
     type: 'COMPLEX',
-    transaction: true,
   })
   public async create(
-    args: {
-      request: sigmate.Wiki.DocumentCRequest;
-    } & ActionArgs
-  ): Promise<CommandInput<sigmate.Wiki.DocumentRawAttribs>> {
-    const { request, transaction, action, req } = args;
+    args: { request: sigmate.Wiki.DocumentCRequest } & ActionArgs
+  ): Promise<WikiDocument> {
+    const { request, req, transaction, action } = args;
     const auditedBy = req?.user;
-    if (!auditedBy) {
-      throw new RequestError('REQ/RJ_UNAUTHENTICATED');
+    if (!auditedBy) throw new RequestError('REQ/RJ_UNAUTHENTICATED');
+
+    const { type, title, collection, auditComment, schema } = request;
+
+    // Create entry in SQL DB
+    const sqlErrors: unknown[] = [];
+
+    // (SQL) Create Document
+    const documentSql = await WikiDocumentSql.create(
+      { id: this.id },
+      { transaction }
+    );
+    if (collection) {
+      const [affectedCount] = await Collection.update(
+        {
+          document: this.id,
+        },
+        { where: { id: collection.id }, transaction }
+      );
+      if (!affectedCount) {
+        throw new Error('Collection not found');
+      }
     }
-    const { keyInfo, content } = request;
+
+    // (SQL) Find or create tags
+    const tags = new Set(request.tags);
+    if (tags.size > 0) {
+      tags.forEach((name) => {
+        if (sqlErrors.length > 0) return;
+        WikiTag.findOrCreate({
+          where: { name },
+          defaults: { name },
+          transaction,
+        })
+          .then(([tag]) => {
+            if (sqlErrors.length > 0) return;
+            // (SQL) Associate tags with document
+            tag
+              .$add('documents', documentSql, { transaction })
+              .catch((error) => {
+                sqlErrors.push(error);
+              });
+          })
+          .catch((error) => {
+            sqlErrors.push(error);
+          });
+      });
+    }
+
+    // On SQL error, stop here
+    if (sqlErrors.length > 0) {
+      action?.logErrors(sqlErrors);
+      throw sqlErrors[0];
+    }
 
     const id = this.id;
     const version = Droplet.generate();
-    const external = new Set<sigmate.Wiki.ExtDataName>();
-    request.external = external;
+    const external: sigmate.Wiki.DocumentAttribs['external'] = {};
 
-    const kiBlocks: WikiBlock[] = [];
-    const contentBlocks: WikiBlock[] = [];
-
-    const kiCreatePs: Promise<CommandInput<sigmate.Wiki.BlockRawAttribs>>[] =
-      [];
-    const contentCreatePs: Promise<
-      CommandInput<sigmate.Wiki.BlockRawAttribs>
-    >[] = [];
-
-    keyInfo.forEach((ki) => {
+    // (DYNAMO) Create blocks
+    const kiBlockPs: Promise<WikiBlock>[] = request.keyInfo.map((request) => {
       const block = new WikiBlock(this);
-      const create = block.create({
-        execute: true,
-        request: ki,
-        rest: { document: { version } },
-      });
-      kiBlocks.push(block);
-      kiCreatePs.push(create);
-
-      if (ki.keyInfo) {
-        const exts = WikiExt.getKIExt(ki.keyInfo.name);
-        exts.forEach((ext) => external.add(ext));
-      } else {
-        throw new WikiDocumentError({
-          code: 'WIKI/DOC/CREATE/IV_REQUEST',
-          message: `The keyInfo field is required for all keyinfo blocks. (${ki.id})`,
+      if (request.keyInfo) {
+        this.eds.getKIExt(request.keyInfo.name).forEach((name) => {
+          external[name] = null;
         });
       }
-
-      ki.id = block.id;
+      return block.create({ request, documentVersion: version });
     });
-
-    content.forEach((ct) => {
-      const block = new WikiBlock(this);
-      const create = block.create({
-        execute: true,
-        request: ct,
-        rest: { document: { version } },
-      });
-      contentBlocks.push(block);
-      contentCreatePs.push(create);
-      ct.id = block.id;
-    });
-
-    const created = this.__create(request, { id, version, auditedBy });
-    const createdOriginal = this.__save(created);
-    const createdCache = this.__save(created, WikiDocument.CACHE_LATEST);
-
-    const input: CommandInput<sigmate.Wiki.DocumentRawAttribs> = {
-      put: [createdOriginal, createdCache],
-    };
-
-    const createDocumentPs = this.save({ input, parentAction: action });
-
-    const rel = await WikiDocumentSql.create(
-      {
-        id: this.id,
-        title: request.title,
-        collectionId: request.collection?.id,
-        nftId: request.collection?.id,
-        createdById: auditedBy.id,
-      },
-      { transaction }
+    const keyInfoBlocks = await Promise.all(kiBlockPs);
+    const ctBlockPs: Promise<WikiBlock>[] = request.content.map((request) =>
+      new WikiBlock(this).create({ request, documentVersion: version })
+    );
+    const contentBlocks = await Promise.all(ctBlockPs);
+    const keyInfo: sigmate.Wiki.DocumentAttribs['keyInfo'] = keyInfoBlocks.map(
+      (block) => {
+        this.blocks.set(block.id, block);
+        return { id: block.id, diff: { action: WikiDiff.CREATED } };
+      }
+    );
+    const content: sigmate.Wiki.DocumentAttribs['content'] = contentBlocks.map(
+      (block) => {
+        this.blocks.set(block.id, block);
+        return { id: block.id, diff: { action: WikiDiff.CREATED } };
+      }
     );
 
-    const tags = uniq(request.tags);
-    for (const name of tags) {
-      const [tag] = await WikiTag.findOrCreate({
-        where: { name },
-        defaults: { name, isDefault: false },
-        transaction,
-      });
-      await tag.$add('documents', rel, { transaction });
-    }
-
-    await Promise.all([
-      // Create document
-      createDocumentPs,
-      // Create blocks
-      ...kiCreatePs,
-      ...contentCreatePs,
-    ]);
-
-    return input;
-  }
-
-  protected __create(
-    request: sigmate.Wiki.DocumentCRequest,
-    rest: Required<
-      Pick<sigmate.Wiki.DocumentAttribs, 'id' | 'version' | 'auditedBy'>
-    >
-  ): sigmate.Wiki.DocumentAttribs {
-    const { type, title, keyInfo, content, external, tags, auditComment } =
-      request;
-    const { id, version, auditedBy } = rest;
-
-    const tagsDiff: NonNullable<sigmate.Wiki.DocumentDiff['tags']> = {};
-    const tagsSet = new Set<string>(tags);
-    tagsSet.forEach((tag) => (tagsDiff[tag] = WikiDiff.CREATED));
-
-    const documentExt: sigmate.Wiki.DocumentAttribs['external'] = {};
-    external?.forEach((ext) => {
-      documentExt[ext] = null;
-    });
-
-    return {
+    // Build document model
+    this.model = {
       id,
       type,
       title,
-      keyInfo: keyInfo.map((ki) => ({
-        id: ki.id,
-        diff: {
-          action: WikiDiff.CREATED,
-          transposed: undefined,
-        },
-      })),
-      content: content.map((ct) => ({
-        id: ct.id,
-        diff: {
-          action: WikiDiff.CREATED,
-          transposed: undefined,
-        },
-      })),
-      tags: tagsSet,
-      external: external ? documentExt : undefined,
+      keyInfo,
+      content,
+      tags,
+      external,
       version,
       isLatest: true,
       action: WikiDiff.CREATED,
+      diff: {},
+      auditedById: auditedBy.id,
+      auditComment,
+      auditedBy,
+      collection,
+      buildVersionRange: [version, version],
+      schema,
+    };
+
+    // Update external data
+    await this.loadExt({ parentAction: action });
+
+    // (DYNAMO) Create document item and latest version cache
+    const original = this.__save();
+    const cache = this.__save(WikiDocument.CACHE_LATEST);
+
+    let { unprocessedItems: upi } = await DocumentVersion.batchPut([
+      original,
+      cache,
+    ]);
+    let delay = WikiDocument.BATCH_DELAY;
+    while (upi.length > 0) {
+      action?.logEvent(
+        'warn',
+        'ACT/WARNING',
+        `BatchPutItem: ${upi.length} unprocessed items. Waiting ${ms(delay)}...`
+      );
+      await waitFor(delay);
+      if (delay < WikiDocument.BATCH_DELAY_MAX) delay *= 2;
+      upi = (await DocumentVersion.batchPut(upi)).unprocessedItems;
+    }
+
+    // TODO DynamoDB rollback on error
+
+    return this;
+  }
+
+  @ActionMethod({
+    name: 'WIKI/DOC/UPDATE',
+    type: 'COMPLEX',
+  })
+  public async update(
+    args: { request: sigmate.Wiki.DocumentURequest } & ActionArgs
+  ): Promise<[boolean, sigmate.Wiki.DocumentAttribs]> {
+    const { request, req, transaction, action } = args;
+    const auditedBy = req?.user;
+    if (!auditedBy) throw new RequestError('REQ/RJ_UNAUTHENTICATED');
+
+    const { id, auditComment, schema } = request;
+    if (id !== this.id) throw new Error('ID mismatch');
+
+    const document = await this.load({ consistent: true });
+    const oldOriginalKey = this.getKey();
+    const version = Droplet.generate();
+
+    const [type, typeDiff] = WikiDiff.compareDocumentType(
+      request.type,
+      document.type
+    );
+    const [title, titleDiff] = WikiDiff.compareDocumentTitle(
+      request.title,
+      document.title
+    );
+    const [keyInfo, kiDiff] = WikiDiff.compareDocumentKI(
+      request.keyInfo,
+      document.keyInfo
+    );
+    const [content, ctDiff] = WikiDiff.compareDocumentContent(
+      request.content,
+      document.content
+    );
+    const [tags, tagsDiff] = WikiDiff.compareDocumentTags(
+      request.tags,
+      document.tags
+    );
+
+    // SQL (Update document tags)
+    const documentSql = await WikiDocumentSql.findByPk(this.id, {
+      rejectOnEmpty: true,
+      transaction,
+    });
+
+    for (const name in tagsDiff) {
+      const action = tagsDiff[name];
+      if (action === WikiDiff.CREATED) {
+        const [tag] = await WikiTag.findOrCreate({
+          where: { name },
+          defaults: { name },
+          transaction,
+        });
+        await documentSql.$add('tags', tag, { transaction });
+      } else if (action === WikiDiff.DELETED) {
+        const tag = await WikiTag.findOne({
+          where: { name },
+          transaction,
+        });
+        if (tag) {
+          await documentSql.$remove('tags', tag, { transaction });
+        }
+      }
+    }
+
+    // Create, update or delete blocks
+    const updatedBlockIds = new Set<sigmate.Wiki.BlockId>();
+    for (const blockRequests of [request.keyInfo, request.content]) {
+      for (const blockRequest of blockRequests || []) {
+        const blockId = blockRequest.id;
+        if (this.blocks.has(blockId)) {
+          // UPDATE
+          const block: WikiBlock = this.getBlock(blockId);
+          const [updated] = await block.update({
+            request: blockRequest,
+            documentVersion: version,
+            parentAction: action,
+          });
+          if (updated) updatedBlockIds.add(blockId);
+        } else {
+          // CREATE
+          const block: WikiBlock = new WikiBlock(this);
+          await block.create({
+            request: blockRequest,
+            documentVersion: version,
+            parentAction: action,
+          });
+          this.blocks.set(block.id, block);
+        }
+      }
+    }
+    for (const diffs of [keyInfo, content]) {
+      for (const { id, diff } of diffs) {
+        if (diff.action === WikiDiff.DELETED) {
+          // DELETE
+          await this.blocks
+            .get(id)
+            ?.delete({ documentVersion: version, parentAction: action });
+          this.blocks.delete(id);
+        } else if (diff.action === WikiDiff.NO_CHANGE) {
+          // Mark updated blocks as updated
+          if (updatedBlockIds.has(id)) {
+            diff.action = WikiDiff.UPDATED;
+          }
+        }
+      }
+    }
+
+    // Check if anything actually changed
+    const isUpdated = this.isUpdated({
+      type: typeDiff,
+      title: titleDiff,
+      keyInfo: kiDiff,
+      content: ctDiff,
+    });
+
+    // If nothing was changed, no need to continue further
+    if (!isUpdated) {
+      return [false, document];
+    }
+
+    // Compute build version range
+    let buildVersionStart: sigmate.Wiki.DocumentVersionId | undefined =
+      undefined;
+    let buildVersionEnd: sigmate.Wiki.DocumentVersionId | undefined = undefined;
+    this.blocks.forEach((block) => {
+      if (!buildVersionStart || buildVersionStart > block.document.version) {
+        buildVersionStart = block.document.version;
+      }
+      if (!buildVersionEnd || buildVersionEnd < block.document.version) {
+        buildVersionEnd = block.document.version;
+      }
+    });
+    // If there are no blocks, set range as current version
+    if (!buildVersionStart) buildVersionStart = version;
+    if (!buildVersionEnd) buildVersionEnd = version;
+
+    // Update document model
+    this.model = {
+      id: this.id,
+      type,
+      title,
+      keyInfo,
+      content,
+      tags,
+      external: document.external,
+      version,
+      isLatest: true,
+      action: isUpdated ? WikiDiff.UPDATED : WikiDiff.NO_CHANGE,
       diff: {
-        type: WikiDiff.CREATED,
-        title: WikiDiff.CREATED,
-        keyInfo: {
-          action: WikiDiff.CREATED,
-          transposed: undefined,
-        },
-        content: {
-          action: WikiDiff.CREATED,
-          transposed: undefined,
-        },
+        type: typeDiff,
+        title: titleDiff,
+        keyInfo: kiDiff,
+        content: ctDiff,
         tags: tagsDiff,
       },
       auditedById: auditedBy.id,
       auditComment,
       auditedBy,
-      buildVersionRange: [version, version],
-      schema: 1,
+      collection: document.collection,
+      buildVersionRange: [buildVersionStart, buildVersionEnd],
+      schema: schema || document.schema,
     };
+
+    // Generate Dynamo item
+    const original = this.__save();
+    const cache = this.__save(WikiDocument.CACHE_LATEST);
+
+    // Send queries to DynamoDB
+    await DocumentVersion.update(oldOriginalKey, { IsLatest: false });
+    let { unprocessedItems: upi } = await DocumentVersion.batchPut([
+      original,
+      cache,
+    ]);
+    let delay = WikiDocument.BATCH_DELAY;
+    while (upi.length > 0) {
+      action?.logEvent(
+        'warn',
+        'ACT/WARNING',
+        `BatchPutItem: ${upi.length} unprocessed items. Waiting ${ms(delay)}...`
+      );
+      await waitFor(delay);
+      if (delay < WikiDocument.BATCH_DELAY_MAX) delay *= 2;
+      upi = (await DocumentVersion.batchPut(upi)).unprocessedItems;
+    }
+
+    // TODO DynamoDB rollback on failure
+
+    return [true, this.model];
+  }
+
+  @ActionMethod({
+    name: 'WIKI/DOC/DELETE',
+    type: 'COMPLEX',
+  })
+  public async delete(args: ActionArgs = {}): Promise<void> {
+    const { req, transaction } = args;
+    const auditedBy = req?.user;
+    if (!auditedBy) throw new RequestError('REQ/RJ_UNAUTHENTICATED');
+
+    // Load latest version
+    const documentPs = this.load({ consistent: true });
+
+    // (SQL) Delete
+    const documentSql = await WikiDocumentSql.findByPk(this.id, {
+      rejectOnEmpty: true,
+      transaction,
+    });
+    await documentSql.$set('tags', [], { transaction });
+    await documentSql.destroy({ transaction });
+
+    const document = await documentPs;
+    const version = Droplet.generate();
+    const oldOriginalKey = this.getKey();
+
+    document.version = version;
+    document.action = WikiDiff.DELETED;
+    document.diff = {};
+    document.auditedById = auditedBy.id;
+    document.auditComment = '';
+    document.auditedBy = auditedBy;
+
+    const latest = this.__save(WikiDocument.CACHE_LATEST);
+    await DocumentVersion.update(oldOriginalKey, { IsLatest: false });
+    await DocumentVersion.update(latest);
+  }
+
+  @ActionMethod({
+    name: 'WIKI/DOC/LOAD_EXT',
+    type: 'DB',
+  })
+  private async loadExt(args: ActionArgs = {}) {
+    const { transaction } = args;
+    const document = this.model;
+    const { collection } = this.eds.getExpired(document);
+    if (collection) {
+      const { attributes, include } = collection;
+      if (document.collection) {
+        this.eds.collection = await Collection.findByPk(
+          document.collection.id,
+          {
+            transaction,
+            attributes,
+            include,
+            rejectOnEmpty: true,
+          }
+        );
+      } else {
+        throw new Error('Collection not in document');
+      }
+    }
+    document.external = this.eds.updateExpired(document);
+  }
+
+  @ActionMethod({
+    name: 'WIKI/DOC/SAVE_EXT',
+    type: 'AWS',
+  })
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  private saveExt(args: ActionArgs = {}) {
+    return DocumentVersion.update(
+      this.getKey(WikiDocument.VERSION_LATEST),
+      this.__saveExt()
+    );
   }
 
   protected __load(
-    raw: sigmate.Wiki.DocumentRawAttribs
+    dynamo: sigmate.Wiki.DocumentRawAttribs
   ): sigmate.Wiki.DocumentAttribs {
     const {
       WikiPK,
@@ -374,7 +543,7 @@ export class WikiDocument extends WikiVCS<
       AuditedBy: auditedById,
       AuditComment: auditComment,
       Schema: schema,
-    } = raw;
+    } = dynamo;
 
     // Parse ID
     let id: sigmate.Wiki.DocumentAttribs['id'];
@@ -410,15 +579,15 @@ export class WikiDocument extends WikiVCS<
     }
 
     const external: sigmate.Wiki.DocumentAttribs['external'] = {
-      ExtClDiscord: WikiExt.toItem(ExtClDiscord),
-      ExtClTwitter: WikiExt.toItem(ExtClTwitter),
-      ExtClTelegram: WikiExt.toItem(ExtClTelegram),
-      ExtClWebsite: WikiExt.toItem(ExtClWebsite),
-      ExtClChains: WikiExt.toItem(ExtClChains),
-      ExtClMarketplaces: WikiExt.toItem(ExtClMarketplaces),
-      ExtClCategory: WikiExt.toItem(ExtClCategory),
-      ExtClFloorPrice: WikiExt.toItem(ExtClFloorPrice),
-      ExtClMintingPrices: WikiExt.mintingPricesToItem(ExtClMintingPrices),
+      ExtClDiscord: WikiEDS.fromDynamo(ExtClDiscord),
+      ExtClTwitter: WikiEDS.fromDynamo(ExtClTwitter),
+      ExtClTelegram: WikiEDS.fromDynamo(ExtClTelegram),
+      ExtClWebsite: WikiEDS.fromDynamo(ExtClWebsite),
+      ExtClChains: WikiEDS.fromDynamo(ExtClChains),
+      ExtClMarketplaces: WikiEDS.fromDynamo(ExtClMarketplaces),
+      ExtClCategory: WikiEDS.fromDynamo(ExtClCategory),
+      ExtClFloorPrice: WikiEDS.fromDynamo(ExtClFloorPrice),
+      ExtClMintingPrices: WikiEDS.mintingPricesFromDynamo(ExtClMintingPrices),
     };
 
     let extCount = 0;
@@ -451,30 +620,9 @@ export class WikiDocument extends WikiVCS<
     };
   }
 
-  protected __save(
-    item: sigmate.Wiki.DocumentAttribs,
-    option?: typeof WikiVCS['CACHE_LATEST']
-  ): sigmate.Wiki.DocumentRawAttribs {
+  private __saveExt() {
+    const external = this.model.external || {};
     const {
-      id,
-      type: Type,
-      title: Title,
-      keyInfo,
-      content,
-      tags: Tags,
-      external = {},
-      version,
-      isLatest: IsLatest,
-      action: Action,
-      diff,
-      auditedById: AuditedBy,
-      auditComment: AuditComment,
-      buildVersionRange,
-      schema: Schema,
-    } = item;
-
-    const {
-      ExtClId,
       ExtClDiscord,
       ExtClTwitter,
       ExtClTelegram,
@@ -484,37 +632,60 @@ export class WikiDocument extends WikiVCS<
       ExtClChains,
       ExtClMarketplaces,
       ExtClCategory,
-      ExtNftId,
     } = external;
 
-    if (option === WikiVCS.CACHE_LATEST && !IsLatest) {
+    return {
+      ExtClDiscord: WikiEDS.toDynamo(ExtClDiscord),
+      ExtClTwitter: WikiEDS.toDynamo(ExtClTwitter),
+      ExtClTelegram: WikiEDS.toDynamo(ExtClTelegram),
+      ExtClWebsite: WikiEDS.toDynamo(ExtClWebsite),
+      ExtClFloorPrice: WikiEDS.toDynamo(ExtClFloorPrice),
+      ExtClChains: WikiEDS.toDynamo(ExtClChains),
+      ExtClMarketplaces: WikiEDS.toDynamo(ExtClMarketplaces),
+      ExtClCategory: WikiEDS.toDynamo(ExtClCategory),
+      ExtClMintingPrices: WikiEDS.mintingPricesToDynamo(ExtClMintingPrices),
+    };
+  }
+
+  protected __save(
+    cache?: 'latest' | 'build' | undefined
+  ): sigmate.Wiki.DocumentRawAttribs {
+    const {
+      type: Type,
+      title: Title,
+      keyInfo,
+      content,
+      tags: Tags,
+      version,
+      isLatest: IsLatest,
+      action: Action,
+      diff,
+      auditedById: AuditedBy,
+      auditComment: AuditComment,
+      buildVersionRange,
+      schema: Schema,
+    } = this.model;
+
+    if (cache === WikiDocument.CACHE_LATEST && !IsLatest) {
       throw new WikiDocumentError('WIKI/DOC/ER_CACHE_NOT_LATEST');
     }
 
+    const external =
+      cache === WikiDocument.CACHE_LATEST ? this.__saveExt() : {};
+
     return {
-      WikiPK: WikiKey.getDocumentPK(id),
-      WikiSK: WikiKey.getDocumentSK(
-        option === WikiVCS.CACHE_LATEST ? WikiDocument.VERSION_LATEST : version
-      ),
+      WikiPK: this.getPK(),
+      WikiSK:
+        cache === WikiDocument.CACHE_LATEST
+          ? this.getSK(WikiDocument.VERSION_LATEST)
+          : this.getSK(),
       Type,
       Title,
       KeyInfo: keyInfo.map((s) => WikiDiff.toStructureRaw(s)),
       Content: content.map((s) => WikiDiff.toStructureRaw(s)),
       Tags,
-
-      ExtClId: WikiExt.toRaw(ExtClId),
-      ExtNftId: WikiExt.toRaw(ExtNftId),
-      ExtClDiscord: WikiExt.toRaw(ExtClDiscord),
-      ExtClTwitter: WikiExt.toRaw(ExtClTwitter),
-      ExtClTelegram: WikiExt.toRaw(ExtClTelegram),
-      ExtClWebsite: WikiExt.toRaw(ExtClWebsite),
-      ExtClFloorPrice: WikiExt.toRaw(ExtClFloorPrice),
-      ExtClChains: WikiExt.toRaw(ExtClChains),
-      ExtClMarketplaces: WikiExt.toRaw(ExtClMarketplaces),
-      ExtClCategory: WikiExt.toRaw(ExtClCategory),
-      ExtClMintingPrices: WikiExt.mintingPricesToRaw(ExtClMintingPrices),
-
-      Version: option === WikiVCS.CACHE_LATEST ? version : undefined,
+      ...external,
+      Version: cache === WikiDocument.CACHE_LATEST ? version : undefined,
       IsLatest,
       BuildVersionStart: buildVersionRange[0],
       BuildVersionEnd: buildVersionRange[1],
@@ -530,5 +701,45 @@ export class WikiDocument extends WikiVCS<
       AuditComment,
       Schema,
     };
+  }
+
+  private isUpdated(diff: sigmate.Wiki.DocumentAttribs['diff']) {
+    const { type, title, keyInfo, content, tags } = diff;
+    if (type !== WikiDiff.NO_CHANGE) return true;
+    if (title !== WikiDiff.NO_CHANGE) return true;
+    if (keyInfo) {
+      if (keyInfo.action !== WikiDiff.NO_CHANGE) return true;
+      if (keyInfo.transposed === WikiDiff.TRANSPOSED) return true;
+    }
+    if (content) {
+      if (content.action !== WikiDiff.NO_CHANGE) return true;
+      if (content.transposed === WikiDiff.TRANSPOSED) return true;
+    }
+    if (tags) {
+      for (const name of Object.keys(tags)) {
+        if (tags[name] && tags[name] !== WikiDiff.NO_CHANGE) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  private getKey(version?: string) {
+    return WikiDocument.getKey(this.id, version || this.version);
+  }
+
+  private getPK() {
+    return WikiDocument.getPK(this.id);
+  }
+
+  private getSK(version?: string) {
+    return WikiDocument.getSK(version || this.version);
+  }
+
+  private getBlock(id: sigmate.Wiki.BlockId) {
+    const block = this.blocks.get(id);
+    if (!block) throw new Error(`Block not found (ID: ${id})`);
+    return block;
   }
 }

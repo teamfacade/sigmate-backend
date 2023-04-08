@@ -1,5 +1,5 @@
-import Droplet from '../../../utils/droplet';
-import { ActionArgs } from '../../../utils/action';
+import Droplet from '../../utils/droplet';
+import { ActionArgs } from '../../utils/action';
 
 type ModelBase = {
   id: string;
