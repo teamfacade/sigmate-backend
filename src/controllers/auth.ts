@@ -4,6 +4,7 @@ import { User } from '../models/User.model';
 import { auth } from '../services/auth';
 import { googleAuth } from '../services/auth/google';
 import { metamaskAuth } from '../services/auth/metamask';
+import { twitterAuth } from '../services/auth/twitter';
 
 export default class AuthController {
   public static renewAccess: sigmate.ReqHandler<sigmate.Api.Auth.RenewAccess> =
@@ -163,6 +164,37 @@ export default class AuthController {
         res.status(200).json({
           meta: res.meta(),
           success: true,
+        });
+      } catch (error) {
+        next(error);
+      }
+    };
+
+  public static getTwitterAuthUrl: sigmate.ReqHandler = (req, res) => {
+    res.redirect(twitterAuth.authorizationUrl);
+  };
+
+  public static authTwitter: sigmate.ReqHandler<sigmate.Api.Auth.Twitter> =
+    async (req, res, next) => {
+      try {
+        // maybe front-end get req.query elements {code,state} but we need in body type
+        // eslint-disable-next-line @typescript-eslint/no-unused-vars
+        const { code, state } = req.body;
+        const user: User = await twitterAuth.authenticate({
+          twitter: { code },
+          req,
+        });
+        const tokens = await twitterAuth.getTokens({
+          user,
+          renew: true,
+          force: false,
+          req,
+        });
+        res.status(200).json({
+          meta: res.meta(),
+          success: true,
+          user: user.toResponse(),
+          ...tokens,
         });
       } catch (error) {
         next(error);

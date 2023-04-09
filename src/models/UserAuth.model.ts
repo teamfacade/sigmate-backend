@@ -16,6 +16,7 @@ export interface UserAuthAttribs {
   googleRefreshToken?: string | null;
   metamaskNonce?: string | null;
   metamaskNonceCreatedAt?: Date | null;
+  twitterRefreshToken?: string | null;
 }
 
 type UserAuthCAttribs = Optional<UserAuthAttribs, 'id'>;
@@ -51,4 +52,7 @@ export class UserAuth extends Model<UserAuthAttribs, UserAuthCAttribs> {
 
   @Column(DataType.DATE(6))
   metamaskNonceCreatedAt: UserAuthAttribs['metamaskNonceCreatedAt'];
+
+  @Column(DataType.STRING(255))
+  twitterRefreshToken?: string | null;
 }

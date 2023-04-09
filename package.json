@@ -66,6 +66,8 @@
     "sequelize-typescript": "^2.1.3",
     "to-constant-case": "^1.0.0",
     "triple-beam": "^1.3.0",
+    "twitter-api-sdk": "^1.2.1",
+    "twitter-api-v2": "^1.14.2",
     "ua-parser-js": "^1.0.2",
     "url-regex": "^5.0.0",
     "uuid": "^8.3.2",

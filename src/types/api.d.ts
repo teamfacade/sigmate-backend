@@ -49,6 +49,11 @@ declare global {
       interface ConnectMetamaskVerify extends sigmate.ReqTypes {
         body: { metamaskWallet: string; signature: string };
       }
+
+      interface Twitter extends sigmate.ReqTypes {
+        body: { code: string; state: string };
+        response: AuthResponse;
+      }
     }
 
     namespace User {
