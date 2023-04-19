@@ -174,4 +174,27 @@ export default class AuthController {
   public static getDiscordAuthUrl: sigmate.ReqHandler = (req, res, next) => {
     res.redirect(discordAuth.authorizationUrl);
   };
+
+  // discord 인증 로그인
+  public static authDiscord: sigmate.ReqHandler<sigmate.Api.Auth.Discord> =
+    async (req, res, next) => {
+      try {
+        const { code } = req.body;
+        const user = await discordAuth.authenticate({ discord: { code }, req });
+        const tokens = await discordAuth.getTokens({
+          user,
+          renew: true,
+          force: false,
+          req,
+        });
+        res.status(200).json({
+          meta: res.meta(),
+          success: true,
+          user: user.toResponse(),
+          ...tokens,
+        });
+      } catch (error) {
+        next(error);
+      }
+    };
 }

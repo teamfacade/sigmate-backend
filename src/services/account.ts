@@ -33,6 +33,7 @@ type CreateDTO = {
     discordAccount?: UserAttribs['discordAccount'];
     discordAccountId: UserAttribs['discordAccountId'];
     locale: UserAttribs['locale'];
+    discordRefreshToken?: UserAuthAttribs['discordRefreshToken'];
   };
 };
 
@@ -116,7 +117,7 @@ export default class AccountService extends Service {
 
   @ActionMethod('ACCOUNT/CREATE')
   public async create(args: CreateDTO & ActionArgs) {
-    const { google, metamask, transaction, action } = args;
+    const { google, metamask, discord, transaction, action } = args;
     const referralCode = await this.generateUniqueReferralCodeV1({
       parentAction: action,
     });
@@ -170,6 +171,28 @@ export default class AccountService extends Service {
         auth: {
           metamaskNonce: null,
           metamaskNonceCreatedAt: null,
+        } as any,
+      };
+    } else if (discord) {
+      const { discordAccount, discordAccountId, locale, discordRefreshToken } =
+        discord;
+      const { id: base } = this.parseEmail(discordAccount);
+      const userName = await this.generateUniqueUserName({
+        base,
+        parentAction: action,
+      });
+
+      userAttribs = {
+        userName,
+        email: discordAccount,
+        //isEmailVerified: true,
+        discordAccount,
+        discordAccountId,
+        //isDiscordPublic: false,
+        locale,
+        referralCode,
+        auth: {
+          discordRefreshToken,
         } as any,
       };
     } else {

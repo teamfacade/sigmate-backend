@@ -49,6 +49,11 @@ declare global {
       interface ConnectMetamaskVerify extends sigmate.ReqTypes {
         body: { metamaskWallet: string; signature: string };
       }
+
+      interface Discord extends sigmate.ReqTypes {
+        body: { code: string };
+        response: AuthResponse;
+      }
     }
 
     namespace User {
@@ -71,6 +76,7 @@ declare global {
         | 'twitterUpdatedAt'
         | 'isTwitterPublic'
         | 'discordAccount'
+        | 'discordAccountId',
         | 'discordUpdatedAt'
         | 'isDiscordPublic'
         | 'metamaskWallet'

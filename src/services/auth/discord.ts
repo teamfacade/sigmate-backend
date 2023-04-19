@@ -109,6 +109,7 @@ export default class DiscordAuthService extends AuthService {
           discordAccount: profile.email,
           discordAccountId: discordAccountId,
           locale: profile.locale,
+          discordRefreshToken: tokens.refresh_token,
           // 추가로 avatar나 username을 넣을수 있을것 같습니다.
         },
         parentAction: action,
