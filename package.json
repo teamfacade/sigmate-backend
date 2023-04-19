@@ -32,6 +32,7 @@
     "change-case": "^4.1.2",
     "cookie-parser": "^1.4.6",
     "cors": "^2.8.5",
+    "discord-oauth2": "^2.11.0",
     "dotenv": "^16.0.1",
     "dynamoose": "^3.1.0",
     "ethereumjs-util": "^7.1.5",

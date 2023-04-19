@@ -29,6 +29,11 @@ type CreateDTO = {
     wallet: NonNullable<UserAttribs['metamaskWallet']>;
     isMetamaskPublic: UserAttribs['isMetamaskPublic'];
   };
+  discord?: {
+    discordAccount?: UserAttribs['discordAccount'];
+    discordAccountId: UserAttribs['discordAccountId'];
+    locale: UserAttribs['locale'];
+  };
 };
 
 type UpdateDTO = {

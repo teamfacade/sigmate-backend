@@ -27,6 +27,9 @@ export type AuthenticateDTO = {
     wallet: string;
     signature?: string;
   };
+  discord?: {
+    code: string;
+  };
   findOptions?: FindOptions<UserAttribs>;
 };
 

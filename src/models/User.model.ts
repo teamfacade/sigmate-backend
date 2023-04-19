@@ -39,6 +39,7 @@ export interface UserAttribs {
   twitterUpdatedAt?: Date;
   isTwitterPublic?: boolean;
   discordAccount?: string;
+  discordAccountId?: string;
   discordUpdatedAt?: Date;
   isDiscordPublic?: boolean;
   metamaskWallet?: string | null;
@@ -148,8 +149,13 @@ export class User extends Model<UserAttribs, UserCAttribs> {
   @Column(DataType.BOOLEAN)
   isTwitterPublic: UserAttribs['isTwitterPublic'];
 
+  //@Unique('user.discord_acount') - 기존에 안 걸려있는데 특별한 이유가 있을까요?
   @Column(DataType.STRING(SIZE_DISCORD + SIZE_DEL_SUFFIX))
   discordAccount: UserAttribs['discordAccount'];
+
+  //@Unique('user.discord_acount_id')
+  @Column(DataType.STRING(SIZE_DISCORD + SIZE_DEL_SUFFIX))
+  discordAccountId: UserAttribs['discordAccount'];
 
   @Column(DataType.DATE)
   discordUpdatedAt: UserAttribs['discordUpdatedAt'];
@@ -232,6 +238,7 @@ export class User extends Model<UserAttribs, UserCAttribs> {
     'twitterUpdatedAt',
     'isTwitterPublic',
     'discordAccount',
+    'discordAccountId',
     'discordUpdatedAt',
     'isDiscordPublic',
     'metamaskWallet',
@@ -305,6 +312,9 @@ export class User extends Model<UserAttribs, UserCAttribs> {
         'googleAccountId',
         'googleUpdatedAt',
         'isGooglePublic',
+        'discordAccount',
+        'discordAccountId',
+        'discordUpdatedAt',
         'metamaskWallet',
         'metamaskUpdatedAt',
         'isMetamaskPublic',

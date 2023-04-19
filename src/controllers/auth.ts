@@ -2,6 +2,7 @@ import RequestError from '../errors/request';
 import { AuthGuard } from '../middlewares/auth';
 import { User } from '../models/User.model';
 import { auth } from '../services/auth';
+import { discordAuth } from '../services/auth/discord';
 import { googleAuth } from '../services/auth/google';
 import { metamaskAuth } from '../services/auth/metamask';
 
@@ -168,4 +169,9 @@ export default class AuthController {
         next(error);
       }
     };
+
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  public static getDiscordAuthUrl: sigmate.ReqHandler = (req, res, next) => {
+    res.redirect(discordAuth.authorizationUrl);
+  };
 }
