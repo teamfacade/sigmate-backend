@@ -8,6 +8,7 @@ import { account } from '../account';
 //import { DateTime, DurationLike } from 'luxon';
 import OAuth from 'discord-oauth2';
 import DiscordAuthError from '../../errors/auth/discord';
+import AccountError from '../../errors/account';
 
 export default class DiscordAuthService extends AuthService {
   private REDIRECT_URI = Object.freeze({
@@ -122,6 +123,40 @@ export default class DiscordAuthService extends AuthService {
   }
 
   //connect, disconnect
+  @ActionMethod({ name: 'AUTH/DISCORD_CONNECT', type: 'COMPLEX' })
+  public async connect(args: { code: string; user: User } & ActionArgs) {
+    const { code, user, transaction, action } = args;
+    const tokens = await this.getDiscordTokens({ code, parentAction: action });
+    const profile = await this.getDiscordProfile({
+      tokens,
+      parentAction: action,
+    });
+
+    if (!profile.email) {
+      throw new Error(); // email이 없는 경우 에러
+      //OAuth.User의 email이 null일 수 있어서 넣어둔 부분...
+    }
+
+    const alreadyExists = await User.findOne({
+      where: { discordAccountId: profile.id },
+      transaction,
+    });
+    if (alreadyExists) {
+      throw new AccountError('ACCOUNT/CF_CONNECT_DISCORD_ALREADY_EXISTS');
+    }
+
+    await account.connectDiscord({
+      user,
+      discord: {
+        discordAccount: profile.email,
+        discordAccountId: profile.id,
+        discordRefreshToken: tokens.refresh_token || undefined,
+      },
+      parentAction: action,
+    });
+
+    return user;
+  }
 
   @ActionMethod('AUTH/DISCORD_FIND_USER')
   private async findUser(
@@ -152,6 +187,7 @@ export default class DiscordAuthService extends AuthService {
     try {
       //identify scope 필요, email scope 추가하면 email 획득 가능
       const data = await this.client.getUser(tokens.access_token);
+
       //추가 가공 해야할까요?
       return data;
     } catch (error) {

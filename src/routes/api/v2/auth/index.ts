@@ -42,4 +42,14 @@ authRouter.post(
   AuthController.connectMetamaskVerify
 );
 
+authRouter
+  .route('/discord')
+  .get(AuthController.getDiscordAuthUrl)
+  .post(AuthValidator.authDiscord, AuthController.authDiscord);
+
+authRouter
+  .route('/discord/connect')
+  .get(AuthController.getDiscordAuthUrl)
+  .post(AuthValidator.authDiscord, AuthController.connectDiscord);
+
 export default authRouter;

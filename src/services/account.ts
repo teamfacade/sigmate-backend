@@ -23,18 +23,20 @@ type GoogleDTO = {
   googleRefreshToken?: UserAuthAttribs['googleRefreshToken'];
 };
 
+type DiscordDTO = {
+  discordAccount?: UserAttribs['discordAccount'];
+  discordAccountId: UserAttribs['discordAccountId'];
+  locale: UserAttribs['locale'];
+  discordRefreshToken?: UserAuthAttribs['discordRefreshToken'];
+};
+
 type CreateDTO = {
   google?: GoogleDTO;
   metamask?: {
     wallet: NonNullable<UserAttribs['metamaskWallet']>;
     isMetamaskPublic: UserAttribs['isMetamaskPublic'];
   };
-  discord?: {
-    discordAccount?: UserAttribs['discordAccount'];
-    discordAccountId: UserAttribs['discordAccountId'];
-    locale: UserAttribs['locale'];
-    discordRefreshToken?: UserAuthAttribs['discordRefreshToken'];
-  };
+  discord?: DiscordDTO;
 };
 
 type UpdateDTO = {
@@ -346,6 +348,40 @@ export default class AccountService extends Service {
     const auth = user.auth || (await user.$get('auth', { transaction }));
     if (!auth) throw new AccountError('ACCOUNT/NF_AUTH');
     auth.set('googleRefreshToken', googleRefreshToken);
+
+    await user.save({ transaction });
+    await auth.save({ transaction });
+
+    return user;
+  }
+
+  @ActionMethod('ACCOUNT/CONNECT_DISCORD')
+  public async connectDiscord(
+    args: {
+      user: User;
+      discord: Omit<DiscordDTO, 'locale'>;
+    } & ActionArgs
+  ) {
+    const { user, discord, transaction } = args;
+    const { discordAccount, discordAccountId, discordRefreshToken } = discord;
+
+    user.set('discordAccount', discordAccount);
+    user.set('discordAccountId', discordAccountId);
+    user.set('discordUpdatedAt', DateTime.now().toJSDate());
+    user.set('isDiscordPublic', false);
+    if (user.email) {
+      if (user.email === discordAccount) {
+        user.set('isEmailVerified', true);
+      }
+    } else {
+      user.set('email', discordAccount);
+      user.set('emailUpdatedAt', undefined);
+      user.set('isEmailVerified', true);
+    }
+
+    const auth = user.auth || (await user.$get('auth', { transaction }));
+    if (!auth) throw new AccountError('ACCOUNT/NF_AUTH');
+    auth.set('discordRefreshToken', discordRefreshToken);
 
     await user.save({ transaction });
     await auth.save({ transaction });

@@ -42,4 +42,11 @@ export default class AuthValidator {
       .isString()
       .bail(),
   ];
+
+  @RequestValidator
+  public static authDiscord = body('code')
+    .trim()
+    .stripLow()
+    .notEmpty()
+    .isString();
 }

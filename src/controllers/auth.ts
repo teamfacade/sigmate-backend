@@ -197,4 +197,23 @@ export default class AuthController {
         next(error);
       }
     };
+
+  @AuthGuard({ login: 'required', findOptions: User.FIND_OPTS.my })
+  public static connectDiscord: sigmate.ReqHandler<sigmate.Api.Auth.ConnectDiscord> =
+    async (req, res, next) => {
+      try {
+        const user = req.user;
+        if (!user) throw new RequestError('REQ/RJ_UNAUTHENTICATED');
+        const { code } = req.body;
+        await discordAuth.connect({ user, code, req });
+
+        res.status(200).json({
+          meta: res.meta(),
+          success: true,
+          user: user.toResponse(),
+        });
+      } catch (error) {
+        next(error);
+      }
+    };
 }

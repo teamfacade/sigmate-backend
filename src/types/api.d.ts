@@ -54,6 +54,13 @@ declare global {
         body: { code: string };
         response: AuthResponse;
       }
+
+      interface ConnectDiscord extends sigmate.ReqTypes {
+        body: {
+          code: string;
+        };
+        response: { user: User.UserResponse };
+      }
     }
 
     namespace User {
