@@ -7,6 +7,7 @@ import { account } from '../account';
 //import AccountError from '../../errors/account';
 //import { DateTime, DurationLike } from 'luxon';
 import OAuth from 'discord-oauth2';
+import DiscordAuthError from '../../errors/auth/discord';
 
 export default class DiscordAuthService extends AuthService {
   private REDIRECT_URI = Object.freeze({
@@ -146,15 +147,15 @@ export default class DiscordAuthService extends AuthService {
   ): Promise<OAuth.User> {
     const { tokens } = args;
     if (!tokens.access_token) {
-      throw new Error('AUTH/DISCORD/NF_ACCESS_TOKEN');
+      throw new DiscordAuthError('AUTH/DISCORD/NF_ACCESS_TOKEN');
     }
     try {
       //identify scope 필요, email scope 추가하면 email 획득 가능
       const data = await this.client.getUser(tokens.access_token);
-
+      //추가 가공 해야할까요?
       return data;
     } catch (error) {
-      throw new Error();
+      throw new DiscordAuthError({ code: 'AUTH/DISCORD/UA_PROFILE', error });
     }
   }
 
@@ -167,7 +168,7 @@ export default class DiscordAuthService extends AuthService {
     args: { code?: string } & ActionArgs
   ): Promise<OAuth.TokenRequestResult> {
     const { code } = args;
-    if (!code) throw new Error('AUTH/DISCORD/NF_CODE');
+    if (!code) throw new DiscordAuthError('AUTH/DISCORD/NF_CODE');
     try {
       const tokens = await this.client.tokenRequest({
         code: code,
@@ -177,7 +178,7 @@ export default class DiscordAuthService extends AuthService {
 
       return tokens;
     } catch (error) {
-      throw new Error();
+      throw new DiscordAuthError({ code: 'AUTH/DISCORD/UA_TOKEN', error });
     }
   }
 
