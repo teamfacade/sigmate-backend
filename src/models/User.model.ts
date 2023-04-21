@@ -38,10 +38,10 @@ export interface UserAttribs {
   twitterHandle?: string;
   twitterUpdatedAt?: Date;
   isTwitterPublic?: boolean;
-  discordAccount?: string;
-  discordAccountId?: string;
-  discordUpdatedAt?: Date;
-  isDiscordPublic?: boolean;
+  discordAccount?: string | null;
+  discordAccountId?: string | null;
+  discordUpdatedAt?: Date | null;
+  isDiscordPublic?: boolean | null;
   metamaskWallet?: string | null;
   metamaskUpdatedAt?: Date | null;
   isMetamaskVerified?: boolean | null;

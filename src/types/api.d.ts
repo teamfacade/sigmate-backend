@@ -61,6 +61,12 @@ declare global {
         };
         response: { user: User.UserResponse };
       }
+
+      interface DisconnectDiscord extends sigmate.ReqTypes {
+        body: {
+          code: string;
+        };
+      }
     }
 
     namespace User {

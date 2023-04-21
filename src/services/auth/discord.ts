@@ -5,12 +5,14 @@ import { ActionArgs, ActionMethod } from '../../utils/action';
 import { UserAttribs, User } from '../../models/User.model';
 import { account } from '../account';
 //import AccountError from '../../errors/account';
-//import { DateTime, DurationLike } from 'luxon';
+import { DateTime, DurationLike } from 'luxon';
 import OAuth from 'discord-oauth2';
 import DiscordAuthError from '../../errors/auth/discord';
 import AccountError from '../../errors/account';
 
 export default class DiscordAuthService extends AuthService {
+  static INTERVAL_DISCORD_CHANGE: DurationLike = { month: 1 };
+
   private REDIRECT_URI = Object.freeze({
     development: 'http://localhost:3000/auth',
     test: 'https://beta.sigmate.io/auth',
@@ -158,6 +160,55 @@ export default class DiscordAuthService extends AuthService {
     return user;
   }
 
+  @ActionMethod({ name: 'AUTH/DISCORD_DISCONNECT', type: 'COMPLEX' })
+  public async disconnect(args: { user: User } & ActionArgs) {
+    const { user, transaction, action } = args;
+
+    this.checkCanChangeDiscord(user);
+    if (!user.discordAccountId) {
+      throw new DiscordAuthError('AUTH/DISCORD/NF_DISCORD');
+    }
+
+    const auth = user.auth || (await user.$get('auth', { transaction }));
+    if (!auth) throw new DiscordAuthError('AUTH/DISCORD/NF_AUTH');
+
+    // Revoke OAuth ID token
+    // Removes Sigmate from discord account's authorized apps list
+
+    if (auth.discordRefreshToken) {
+      await this.revoke({
+        discordRefreshToken: auth.discordRefreshToken,
+        parentAction: action,
+        throws: false,
+      });
+    }
+
+    // Remove Discord information from our database
+    user.set('discordAccount', null);
+    user.set('discordAccountId', null);
+    user.set('discordUpdatedAt', null);
+    user.set('isDiscordPublic', null);
+    auth.set('discordRefreshToken', null);
+
+    await user.save({ transaction });
+    await auth.save({ transaction });
+
+    return user;
+  }
+
+  private checkCanChangeDiscord(user: User) {
+    const discordUpdatedAt = user.discordUpdatedAt;
+    if (discordUpdatedAt) {
+      const updatedAt = DateTime.fromJSDate(discordUpdatedAt);
+      const canUpdateFrom = updatedAt.plus(
+        DiscordAuthService.INTERVAL_DISCORD_CHANGE
+      );
+      if (canUpdateFrom > DateTime.now()) {
+        throw new DiscordAuthError('AUTH/DISCORD/RJ_CHANGE_INTERVAL');
+      }
+    }
+  }
+
   @ActionMethod('AUTH/DISCORD_FIND_USER')
   private async findUser(
     args: { discordAccountId: UserAttribs['discordAccountId'] } & ActionArgs
@@ -171,6 +222,43 @@ export default class DiscordAuthService extends AuthService {
   }
 
   //revoke
+  @ActionMethod({ name: 'AUTH/DISCORD_REVOKE', type: 'HTTP' })
+  public async revoke(
+    args: { discordRefreshToken: string; throws?: boolean } & ActionArgs
+  ) {
+    const { discordRefreshToken, throws = true, action } = args;
+    try {
+      const clientId = process.env.DISCORD_CLIENT_ID;
+      const clientSecret = process.env.DISCORD_CLIENT_SECRET;
+      const credentials = Buffer.from(`${clientId}:${clientSecret}`).toString(
+        'base64'
+      );
+
+      await this.client
+        .revokeToken(discordRefreshToken, credentials)
+        .then(console.log);
+    } catch (err) {
+      console.error(err);
+      const message = 'error';
+      const error: unknown = err;
+
+      const daError = new DiscordAuthError({
+        code: 'AUTH/DISCORD/UA_REVOKE',
+        message,
+        error,
+      });
+      if (throws) {
+        throw daError;
+      } else {
+        action?.logEvent(
+          'warn',
+          'ACT/WARNING',
+          'Discord OAuth token revoke failed',
+          daError
+        );
+      }
+    }
+  }
 
   // 디스코드 유저 정보 획득
   @ActionMethod({

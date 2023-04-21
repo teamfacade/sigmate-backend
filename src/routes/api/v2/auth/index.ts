@@ -52,4 +52,6 @@ authRouter
   .get(AuthController.getDiscordAuthUrl)
   .post(AuthValidator.authDiscord, AuthController.connectDiscord);
 
+authRouter.route('/discord/disconnect').post(AuthController.disconnectGoogle);
+
 export default authRouter;

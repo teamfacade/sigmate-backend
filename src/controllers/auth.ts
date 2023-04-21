@@ -216,4 +216,16 @@ export default class AuthController {
         next(error);
       }
     };
+
+  @AuthGuard({ login: 'required', findOptions: User.FIND_OPTS.my })
+  public static disconnectDiscord: sigmate.ReqHandler<sigmate.Api.Auth.DisconnectDiscord> =
+    async (req, res, next) => {
+      try {
+        const user = req.user as NonNullable<typeof req.user>;
+        await discordAuth.disconnect({ user, req });
+        res.status(200).json({ meta: res.meta(), success: true });
+      } catch (error) {
+        next(error);
+      }
+    };
 }
